@@ -28,6 +28,7 @@ class PsxExeLoader: public REDasm::Loader
 {
     public:
         PsxExeLoader();
+        AssemblerRequest assembler() const override;
         bool test(const REDasm::LoadRequest& request) const override;
         void load() override;
 };

@@ -1,6 +1,7 @@
 #include "psxexe.h"
 
 PsxExeLoader::PsxExeLoader(): Loader() { }
+AssemblerRequest PsxExeLoader::assembler() const { return {"mips", "mips32le"}; }
 
 bool PsxExeLoader::test(const LoadRequest &request) const
 {
