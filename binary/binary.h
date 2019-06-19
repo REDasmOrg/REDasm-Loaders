@@ -9,6 +9,7 @@ class BinaryLoader: public Loader
 {
     public:
         BinaryLoader();
+        int weight() const override;
         AssemblerRequest assembler() const override;
         LoaderFlags flags() const override;
         bool test(const LoadRequest &request) const override;
