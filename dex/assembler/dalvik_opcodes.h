@@ -2,7 +2,7 @@
 
 // https://android.googlesource.com/platform/libcore-snapshot/+/ics-mr1/dalvik/src/main/java/dalvik/bytecode/Opcodes.java
 
-#include <redasm/types/base_types.h>
+#include <redasm/types/base.h>
 
 namespace REDasm {
 namespace DalvikOpcodes {

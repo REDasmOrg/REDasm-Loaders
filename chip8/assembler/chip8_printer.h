@@ -8,5 +8,5 @@ class Chip8Printer : public Printer
 {
     public:
         Chip8Printer(Disassembler* disassembler);
-        std::string reg(const RegisterOperand& regop) const override;
+        String reg(const RegisterOperand& regop) const override;
 };

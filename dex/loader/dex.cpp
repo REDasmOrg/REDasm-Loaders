@@ -1,14 +1,14 @@
 #include "dex.h"
 #include "dex_statemachine.h"
 #include "dex_constants.h"
-#include <redasm/types/ext_types.h>
+#include <redasm/types/leb128.h>
 #include <redasm/ui.h>
 #include <cctype>
 
 #define IMPORT_SECTION_ADDRESS        0x10000000
 #define IMPORT_SECTION_SIZE           0x1000000
 
-const std::string DexLoader::m_invalidstring;
+const String DexLoader::m_invalidstring;
 DexLoader::DexLoader(): Loader(), m_types(nullptr), m_strings(nullptr), m_methods(nullptr), m_fields(nullptr), m_protos(nullptr) { m_importbase = IMPORT_SECTION_ADDRESS; }
 AssemblerRequest DexLoader::assembler() const { return "dalvik"; }
 
@@ -31,7 +31,7 @@ bool DexLoader::test(const LoadRequest &request) const
 void DexLoader::load()
 {
     m_header = pointer<DexHeader>();
-    r_ctx->log("Loading DEX Version " + std::string(m_header->version, 3));
+    r_ctx->log("Loading DEX Version " + String(m_header->version, 3));
 
     m_types = pointer<DEXTypeIdItem>(m_header->type_ids_off);
     m_strings = pointer<DEXStringIdItem>(m_header->string_ids_off);
@@ -71,23 +71,23 @@ bool DexLoader::getStringOffset(u32 idx, offset_t& offset) const
     return true;
 }
 
-const std::string &DexLoader::getString(u32 idx)
+const String &DexLoader::getString(u32 idx)
 {
     if(!m_strings)
         return m_invalidstring;
 
-    return cacheEntry(idx, m_cachedstrings, [=](std::string& s) {
+    return cacheEntry(idx, m_cachedstrings, [=](String& s) {
         u8* pstringdata = pointer<u8>(m_strings[idx].string_data_off);
         u32 len = LEB128::unsignedOf<u32>(pstringdata, &pstringdata);
-        s = std::string(reinterpret_cast<const char*>(pstringdata), len);
+        s = String(reinterpret_cast<const char*>(pstringdata), len);
     });
 }
 
-const std::string& DexLoader::getType(u32 idx, bool full)
+const String &DexLoader::getType(u32 idx, bool full)
 {
-    return cacheEntry(idx, m_cachedtypes, [&](std::string& s) {
+    return cacheEntry(idx, m_cachedtypes, [&](String& s) {
         if(idx >= m_header->type_ids_size) {
-            s = "type_" + std::to_string(idx);
+            s = "type_" + String::number(idx);
             return;
         }
 
@@ -98,18 +98,18 @@ const std::string& DexLoader::getType(u32 idx, bool full)
             return;
 
         // Strip full qualified name
-        size_t idx = s.find_last_of(".");
+        size_t idx = s.lastIndexOf(".");
 
-        if(idx != std::string::npos)
-            s = s.substr(idx + 1);
+        if(idx != String::npos)
+            s = s.substring(idx + 1);
     });
 }
 
-const std::string& DexLoader::getMethodName(u32 idx)
+const String &DexLoader::getMethodName(u32 idx)
 {
-    return cacheEntry(idx, m_cachedmethodnames, [&](std::string& s) {
+    return cacheEntry(idx, m_cachedmethodnames, [&](String& s) {
         if(idx >= m_header->method_ids_size) {
-            s = "method_" + std::to_string(idx);
+            s = "method_" + String::number(idx);
             return;
         }
 
@@ -118,18 +118,18 @@ const std::string& DexLoader::getMethodName(u32 idx)
     });
 }
 
-const std::string& DexLoader::getMethodProto(u32 idx)
+const String &DexLoader::getMethodProto(u32 idx)
 {
-    return cacheEntry(idx, m_cachedmethodproto, [&](std::string& s) {
+    return cacheEntry(idx, m_cachedmethodproto, [&](String& s) {
         s = this->getMethodName(idx) + this->getParameters(idx) + ":" + this->getReturnType(idx);
     });
 }
 
-const std::string& DexLoader::getField(u32 idx)
+const String &DexLoader::getField(u32 idx)
 {
-    return cacheEntry(idx, m_cachedfields, [&](std::string& s) {
+    return cacheEntry(idx, m_cachedfields, [&](String& s) {
         if(!m_fields || (idx >= m_header->field_ids_size)) {
-            s = "field_" + std::to_string(idx);
+            s = "field_" + String::number(idx);
             return;
         }
 
@@ -138,7 +138,7 @@ const std::string& DexLoader::getField(u32 idx)
     });
 }
 
-const std::string& DexLoader::getReturnType(u32 methodidx)
+const String &DexLoader::getReturnType(u32 methodidx)
 {
     if(methodidx >= m_header->method_ids_size)
         return m_invalidstring;
@@ -149,12 +149,12 @@ const std::string& DexLoader::getReturnType(u32 methodidx)
     return this->getNormalizedString(m_types[dexproto.return_type_idx].descriptor_idx);
 }
 
-const std::string& DexLoader::getParameters(u32 methodidx)
+const String &DexLoader::getParameters(u32 methodidx)
 {
     if(methodidx >= m_header->method_ids_size)
         return m_invalidstring;
 
-    return this->cacheEntry(methodidx, m_cachedparameters, [&](std::string& s) {
+    return this->cacheEntry(methodidx, m_cachedparameters, [&](String& s) {
         const DEXMethodIdItem& dexmethod = m_methods[methodidx];
         const DEXProtoIdItem& dexproto = m_protos[dexmethod.proto_idx];
 
@@ -197,7 +197,7 @@ bool DexLoader::getDebugInfo(u32 methodidx, DexDebugInfo &debuginfo)
         s32 idx = LEB128::unsigned1COf<s32>(pdebuginfo, &pdebuginfo);
 
         if(idx == DEX_NO_INDEX)
-            debuginfo.parameter_names.push_back(std::string());
+            debuginfo.parameter_names.push_back(String());
         else
             debuginfo.parameter_names.push_back(this->getNormalizedString(idx));
     }
@@ -282,7 +282,7 @@ void DexLoader::loadMethod(const DexEncodedMethod &dexmethod, u16& idx, bool fil
     m_encmethods[idx] = dexmethod;
     m_codeitems[idx] = dexcode;
 
-    const std::string& methodname = this->getMethodName(idx);
+    const String& methodname = this->getMethodName(idx);
 
     if(filter)
         this->document()->lock(fileoffset(&dexcode->insns), methodname, SymbolType::Import, idx);
@@ -316,10 +316,10 @@ void DexLoader::filterClasses(const DEXClassIdItem *dexclasses)
 
     for(u32 i = 0; i < m_header->class_defs_size; i++)
     {
-        const std::string& classtype = this->getType(dexclasses[i].class_idx, true);
+        const String& classtype = this->getType(dexclasses[i].class_idx, true);
         bool precheck = true;
 
-        if(!classtype.find("android.") || !classtype.find("com.google.")) // Apply prefiltering
+        if(!classtype.startsWith("android.") || !classtype.startsWith("com.google.")) // Apply prefiltering
             precheck = false;
 
         items.push_back({ classtype , precheck });
@@ -331,16 +331,16 @@ void DexLoader::filterClasses(const DEXClassIdItem *dexclasses)
         this->loadClass(dexclasses[i], !items[i].second);
 }
 
-const std::string& DexLoader::getNormalizedString(u32 idx)
+const String &DexLoader::getNormalizedString(u32 idx)
 {
-    return cacheEntry(idx, m_cachednstrings, [&](std::string& s) {
+    return cacheEntry(idx, m_cachednstrings, [&](String& s) {
         s = this->normalized(this->getString(idx));
     });
 }
 
-const std::string& DexLoader::getTypeList(u32 typelistoff)
+const String &DexLoader::getTypeList(u32 typelistoff)
 {
-    return cacheEntry(typelistoff, m_cachedtypelist, [=](std::string& s) {
+    return cacheEntry(typelistoff, m_cachedtypelist, [=](String& s) {
         u32 size = *pointer<u32>(typelistoff);
         DEXTypeItem* dextypeitem = pointer<DEXTypeItem>(typelistoff + sizeof(u32));
 
@@ -353,14 +353,14 @@ const std::string& DexLoader::getTypeList(u32 typelistoff)
     });
 }
 
-const std::string &DexLoader::cacheEntry(u32 idx, std::unordered_map<u32, std::string> &cache, const std::function<void(std::string&)> &cb)
+const String &DexLoader::cacheEntry(u32 idx, std::unordered_map<u32, String> &cache, const std::function<void(String &)> &cb)
 {
     auto it = cache.find(idx);
 
     if(it != cache.end())
         return it->second;
 
-    std::string s;
+    String s;
     cb(s);
 
     auto iit = cache.emplace(idx, std::move(s));
@@ -387,10 +387,10 @@ bool DexLoader::validateSignature(const DexHeader *header)
     return true;
 }
 
-std::string DexLoader::normalized(const std::string &type)
+String DexLoader::normalized(const String &type)
 {
     if(type[0] == '[')
-        return DexLoader::normalized(type.substr(1)) + "[]";
+        return DexLoader::normalized(type.left(1)) + "[]";
 
     if(type == "V")
         return "void";
@@ -411,14 +411,14 @@ std::string DexLoader::normalized(const std::string &type)
     if(type == "D")
         return "double";
 
-    std::string s = type;
+    String s = type;
 
-    if(s.front() == 'L')
-       s.erase(s.begin());
+    if(s.first() == 'L')
+       s.removeFirst();
 
-    if(s.back() == ';')
-        s.pop_back();
+    if(s.last() == ';')
+       s.removeLast();
 
-    std::replace(s.begin(), s.end(), '/', '.');
+    s.replace('/', '.');
     return s;
 }

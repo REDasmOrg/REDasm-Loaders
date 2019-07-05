@@ -14,8 +14,8 @@ class BinaryLoader: public Loader
         LoaderFlags flags() const override;
         bool test(const LoadRequest &request) const override;
         void load() override;
-        void build(const std::string &assembler, offset_t offset, address_t baseaddress, address_t entrypoint) override;
+        void build(const String &assembler, offset_t offset, address_t baseaddress, address_t entrypoint) override;
 
     private:
-        std::string m_assembler;
+        String m_assembler;
 };

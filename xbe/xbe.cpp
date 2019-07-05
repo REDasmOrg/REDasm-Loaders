@@ -42,12 +42,12 @@ void XbeLoader::load()
 void XbeLoader::displayXbeInfo(const XbeImageHeader* header)
 {
     auto* certificate = this->memoryoffset<XbeCertificate>(header, header->CertificateAddress);
-    std::string title = Utils::wtoa(&certificate->TitleName, XBE_TITLENAME_SIZE);
+    String title = String::wide(certificate->TitleName, XBE_TITLENAME_SIZE);
 
     if(!title.empty())
-        r_ctx->log("Game Title: " + Utils::quoted(title));
+        r_ctx->log("Game Title: " + title.quoted());
 
-    std::string s;
+    String s;
 
     if(certificate->GameRegion & XBE_GAME_REGION_RESTOFWORLD)
         s += "ALL";
@@ -104,12 +104,12 @@ void XbeLoader::loadSections(const XbeImageHeader* header, XbeSectionHeader *sec
 {
     for(u32 i = 0; i < header->NumberOfSections; i++)
     {
-        std::string sectname = this->memoryoffset<const char>(header, sectionhdr[i].SectionName);
+        String sectname = this->memoryoffset<const char>(header, sectionhdr[i].SectionName);
         SegmentType secttype = SegmentType::None;
 
         if(sectionhdr[i].Flags.Executable)
         {
-            if((sectname[0] == '.') && (sectname.find("data") != std::string::npos))
+            if((sectname[0] == '.') && sectname.contains("data"))
                 secttype = SegmentType::Data;
             else
                 secttype = SegmentType::Code;
@@ -145,7 +145,7 @@ bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)
 
     while(*pthunk)
     {
-        std::string ordinalname = ordinals.name(*pthunk ^ XBE_ORDINAL_FLAG, "XBoxKrnl!");
+        String ordinalname = ordinals.name(*pthunk ^ XBE_ORDINAL_FLAG, "XBoxKrnl!");
         this->document()->lock(*pthunk, ordinalname, SymbolType::Import);
         pthunk++;
     }

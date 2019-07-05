@@ -21,7 +21,7 @@ void DalvikPrinter::function(const Symbol *symbol, const Printer::FunctionCallba
     }
 
     DexEncodedMethod dexmethod;
-    std::string access;
+    String access;
 
     if(dexloader->getMethodInfo(symbol->tag, dexmethod))
     {
@@ -45,9 +45,9 @@ void DalvikPrinter::function(const Symbol *symbol, const Printer::FunctionCallba
                symbol->name, dexloader->getParameters(symbol->tag));
 }
 
-std::string DalvikPrinter::reg(const RegisterOperand &regop) const
+String DalvikPrinter::reg(const RegisterOperand &regop) const
 {
-    std::string s = DalvikAssembler::registerName(regop.r);
+    String s = DalvikAssembler::registerName(regop.r);
 
     if(regop.tag & DalvikOperands::ParameterFirst)
         s = "{" + s;
@@ -58,7 +58,7 @@ std::string DalvikPrinter::reg(const RegisterOperand &regop) const
     return s;
 }
 
-std::string DalvikPrinter::imm(const Operand *op) const
+String DalvikPrinter::imm(const Operand *op) const
 {
     DexLoader* dexloader = nullptr;
 
@@ -67,7 +67,7 @@ std::string DalvikPrinter::imm(const Operand *op) const
         switch(op->tag)
         {
             case DalvikOperands::StringIndex:
-                return Utils::quoted(dexloader->getString(op->u_value));
+                return dexloader->getString(op->u_value).quoted();
 
             case DalvikOperands::TypeIndex:
                 return dexloader->getType(op->u_value);

@@ -88,7 +88,7 @@ struct DexDebugInfo
     DexDebugInfo(): line_start(DEX_NO_INDEX_U), parameters_size(0) { }
 
     u32 line_start, parameters_size;
-    std::deque<std::string> parameter_names;
+    std::deque<REDasm::String> parameter_names;
     std::unordered_map<address_t, std::list<DEXDebugData> > debug_data;
 };
 

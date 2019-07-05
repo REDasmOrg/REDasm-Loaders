@@ -8,7 +8,7 @@ LoaderFlags BinaryLoader::flags() const { return LoaderFlags::Binary; }
 bool BinaryLoader::test(const LoadRequest &request) const { return true; }
 void BinaryLoader::load() { /* NOP */ }
 
-void BinaryLoader::build(const std::string &assembler, offset_t offset, address_t baseaddress, address_t entrypoint)
+void BinaryLoader::build(const String &assembler, offset_t offset, address_t baseaddress, address_t entrypoint)
 {
     m_assembler = assembler;
     size_t vsize = this->buffer()->size();

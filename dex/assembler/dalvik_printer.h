@@ -12,6 +12,6 @@ class DalvikPrinter : public Printer
     public:
         DalvikPrinter(Disassembler* disassembler);
         void function(const Symbol* symbol, const FunctionCallback &plgfunc) override;
-        std::string reg(const RegisterOperand &regop) const override;
-        std::string imm(const Operand *op) const override;
+        String reg(const RegisterOperand &regop) const override;
+        String imm(const Operand *op) const override;
 };

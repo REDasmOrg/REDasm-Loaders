@@ -18,13 +18,13 @@ class DexLoader : public Loader
     public:
         bool getMethodOffset(u32 idx, offset_t &offset) const;
         bool getStringOffset(u32 idx, offset_t &offset) const;
-        const std::string& getType(u32 idx, bool full = false);
-        const std::string& getString(u32 idx);
-        const std::string& getMethodName(u32 idx);
-        const std::string& getMethodProto(u32 idx);
-        const std::string& getField(u32 idx);
-        const std::string& getReturnType(u32 methodidx);
-        const std::string& getParameters(u32 methodidx);
+        const String& getType(u32 idx, bool full = false);
+        const String& getString(u32 idx);
+        const String& getMethodName(u32 idx);
+        const String& getMethodProto(u32 idx);
+        const String& getField(u32 idx);
+        const String& getReturnType(u32 methodidx);
+        const String& getParameters(u32 methodidx);
         bool getMethodInfo(u32 methodidx, DexEncodedMethod& dexmethod);
         bool getDebugInfo(u32 methodidx, DexDebugInfo& debuginfo);
         u32 getMethodSize(u32 methodidx) const;
@@ -35,12 +35,12 @@ class DexLoader : public Loader
         bool getClassData(const DEXClassIdItem& dexclass, DEXClassData& dexclassdata);
         void loadMethod(const DexEncodedMethod& dexmethod, u16 &idx, bool filter);
         void loadClass(const DEXClassIdItem& dexclass, bool filter);
-        const std::string &getNormalizedString(u32 idx);
-        const std::string &getTypeList(u32 typelistoff);
+        const String &getNormalizedString(u32 idx);
+        const String &getTypeList(u32 typelistoff);
 
     private:
-        static const std::string& cacheEntry(u32 idx, std::unordered_map<u32, std::string> &cache, const std::function<void(std::string&)>& cb);
-        static std::string normalized(const std::string& type);
+        static const String& cacheEntry(u32 idx, std::unordered_map<u32, String> &cache, const std::function<void(String&)>& cb);
+        static String normalized(const String &type);
 
     public:
         static bool validateSignature(const DexHeader *header);
@@ -57,13 +57,13 @@ class DexLoader : public Loader
         DEXProtoIdItem* m_protos;
 
     private: // Caching
-        static const std::string m_invalidstring;
-        std::unordered_map<u32, std::string> m_cachedstrings;
-        std::unordered_map<u32, std::string> m_cachednstrings;
-        std::unordered_map<u32, std::string> m_cachedfields;
-        std::unordered_map<u32, std::string> m_cachedtypes;
-        std::unordered_map<u32, std::string> m_cachedtypelist;
-        std::unordered_map<u32, std::string> m_cachedparameters;
-        std::unordered_map<u32, std::string> m_cachedmethodnames;
-        std::unordered_map<u32, std::string> m_cachedmethodproto;
+        static const String m_invalidstring;
+        std::unordered_map<u32, String> m_cachedstrings;
+        std::unordered_map<u32, String> m_cachednstrings;
+        std::unordered_map<u32, String> m_cachedfields;
+        std::unordered_map<u32, String> m_cachedtypes;
+        std::unordered_map<u32, String> m_cachedtypelist;
+        std::unordered_map<u32, String> m_cachedparameters;
+        std::unordered_map<u32, String> m_cachedmethodnames;
+        std::unordered_map<u32, String> m_cachedmethodproto;
 };

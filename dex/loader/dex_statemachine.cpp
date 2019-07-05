@@ -1,6 +1,6 @@
 #include "dex_statemachine.h"
-#include <redasm/types/ext_types.h>
 #include <redasm/support/utils.h>
+#include <redasm/types/leb128.h>
 
 #define DBG_FIRST_SPECIAL 0x0A // The smallest special opcode
 #define DBG_LINE_BASE     -4   // The smallest line number increment
@@ -40,7 +40,7 @@ void DEXStateMachine::execute(u8 *data)
 
         if(it == m_statesmap.end())
         {
-            r_ctx->log("Unknown opcode '" + Utils::hex(opcode) + "'");
+            r_ctx->log("Unknown opcode '" + String::hex(opcode) + "'");
             return;
         }
 
