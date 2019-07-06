@@ -18,9 +18,9 @@ DalvikAlgorithm::DalvikAlgorithm(Disassembler *disassembler): Algorithm(disassem
     REGISTER_STATE(DalvikAlgorithm::DebugInfoState, &DalvikAlgorithm::debugInfoState);
 }
 
-void DalvikAlgorithm::validateTarget(Instruction *) const { /* Nop */ }
+void DalvikAlgorithm::validateTarget(const CachedInstruction &) const { /* Nop */ }
 
-void DalvikAlgorithm::onDecodedOperand(const Operand* op, Instruction *instruction)
+void DalvikAlgorithm::onDecodedOperand(const Operand* op, const CachedInstruction &instruction)
 {
     if(op->tag == DalvikOperands::StringIndex)
         EXECUTE_STATE(DalvikAlgorithm::StringIndexState, op->tag, op->index, instruction);
@@ -34,7 +34,7 @@ void DalvikAlgorithm::onDecodedOperand(const Operand* op, Instruction *instructi
         EXECUTE_STATE(DalvikAlgorithm::FillArrayDataState, op->tag, op->index, instruction);
 }
 
-void DalvikAlgorithm::onDecoded(Instruction *instruction)
+void DalvikAlgorithm::onDecoded(const CachedInstruction& instruction)
 {
     Algorithm::onDecoded(instruction);
     auto it = m_methodbounds.find(instruction->endAddress());
@@ -99,7 +99,7 @@ void DalvikAlgorithm::packedSwitchTableState(const State *state)
 
     REDasm::symbolize<DalvikPackedSwitchPayload>(this->disassembler(), op->u_value, "packed_switch");
 
-    Instruction* instruction = state->instruction;
+    CachedInstruction instruction = state->instruction;
     this->document()->autoComment(instruction->address, String::number(packedswitchpayload->size) + " case(s)");
     const u32* targets = packedswitchpayload->targets;
     PackagedCaseMap cases;
@@ -137,7 +137,7 @@ void DalvikAlgorithm::sparseSwitchTableState(const State *state)
 
     REDasm::symbolize<DalvikSparseSwitchPayload>(this->disassembler(), op->u_value, "sparse_switch");
 
-    Instruction* instruction = state->instruction;
+    CachedInstruction instruction = state->instruction;
     this->document()->autoComment(instruction->address, String::number(sparseswitchpayload->size) + " case(s)");
     const u32* keys = sparseswitchpayload->keys;
     const u32* targets = Utils::relpointer<const u32>(keys, sizeof(u32) * sparseswitchpayload->size);
@@ -214,7 +214,7 @@ void DalvikAlgorithm::emitCaseInfo(address_t address, const DalvikAlgorithm::Pac
     }
 }
 
-void DalvikAlgorithm::emitCaseInfo(address_t address, Instruction* instruction, const DalvikAlgorithm::SparseCaseMap &casemap)
+void DalvikAlgorithm::emitCaseInfo(address_t address, const CachedInstruction& instruction, const DalvikAlgorithm::SparseCaseMap &casemap)
 {
     for(const auto& item : casemap)
         this->document()->meta(item.second, "@ " + String::hex(address) + " (Case Key " + String::hex(item.first, 0, true) + ")", "sparse_switch_table");
@@ -288,7 +288,7 @@ void DalvikAlgorithm::checkImport(const State* state)
     this->disassembler()->pushReference(importaddress, state->instruction->address);
 }
 
-bool DalvikAlgorithm::canContinue(Instruction *instruction) const
+bool DalvikAlgorithm::canContinue(const CachedInstruction& instruction) const
 {
     if(instruction->is(InstructionType::Stop))
         return false;

@@ -25,9 +25,9 @@ class DalvikAlgorithm: public Algorithm
         DalvikAlgorithm(Disassembler* disassembler);
 
     protected:
-        void validateTarget(Instruction*) const override;
-        void onDecodedOperand(const Operand *op, Instruction* instruction) override;
-        void onDecoded(Instruction* instruction) override;
+        void validateTarget(const CachedInstruction&) const override;
+        void onDecodedOperand(const Operand *op, const CachedInstruction& instruction) override;
+        void onDecoded(const CachedInstruction &instruction) override;
         void decodeState(const State *state) override;
 
     private:
@@ -38,11 +38,11 @@ class DalvikAlgorithm: public Algorithm
         void fillArrayDataState(const State* state);
         void debugInfoState(const State* state);
         void emitCaseInfo(address_t address, const PackagedCaseMap& casemap);
-        void emitCaseInfo(address_t address, Instruction* instruction, const SparseCaseMap& casemap);
+        void emitCaseInfo(address_t address, const CachedInstruction &instruction, const SparseCaseMap& casemap);
         void emitArguments(const State* state, const DexEncodedMethod &dexmethod, const DexDebugInfo &dexdebuginfo);
         void emitDebugData(const DexDebugInfo &dexdebuginfo);
         void checkImport(const State *state);
-        bool canContinue(Instruction* instruction) const;
+        bool canContinue(const CachedInstruction &instruction) const;
 
     private:
         DexLoader* m_dexloader;
