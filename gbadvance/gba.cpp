@@ -29,7 +29,7 @@
 #define GBA_SEGMENT_AREA(name) GBA_##name##_START_ADDR, GBA_##name##_SIZE
 
 GbaLoader::GbaLoader(): Loader() { }
-AssemblerRequest GbaLoader::assembler() const { return "metaarm"; }
+AssemblerRequest GbaLoader::assembler() const { return ASSEMBLER_REQUEST("arm", "armthumb"); }
 
 bool GbaLoader::test(const LoadRequest &request) const
 {

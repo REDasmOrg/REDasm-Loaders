@@ -33,7 +33,7 @@
 #define N64_MAGIC_LE_B1         0x40
 
 N64Loader::N64Loader(): Loader() { }
-AssemblerRequest N64Loader::assembler() const { return { "mips", "mips64be" }; }
+AssemblerRequest N64Loader::assembler() const { return ASSEMBLER_REQUEST("mips", "mips64be"); }
 
 bool N64Loader::test(const LoadRequest &request) const
 {

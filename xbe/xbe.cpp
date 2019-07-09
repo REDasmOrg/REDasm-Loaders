@@ -5,7 +5,7 @@
 #define XBE_XBOXKRNL_BASEADDRESS 0x80000000
 
 XbeLoader::XbeLoader(): Loader() { }
-AssemblerRequest XbeLoader::assembler() const { return "x86_32"; }
+AssemblerRequest XbeLoader::assembler() const { return ASSEMBLER_REQUEST("x86", "x86_32"); }
 
 bool XbeLoader::test(const LoadRequest &request) const
 {
