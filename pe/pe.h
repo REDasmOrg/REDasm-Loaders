@@ -20,7 +20,7 @@ class PELoader: public Loader
     public:
         template<typename T> T* rvaPointer(u64 rva) const {
             offset_location offset = PEUtils::rvaToOffset(this->ntHeaders(), rva);
-            return !offset.valid ? this->pointer<T>(offset) : nullptr;
+            return offset.valid ? this->pointer<T>(offset) : nullptr;
         }
 
     protected:
