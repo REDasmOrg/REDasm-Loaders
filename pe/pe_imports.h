@@ -37,18 +37,17 @@ template<int b> void PEImports::loadImport(const String& dllname)
     String modulename = Path::fileNameOnly(dllname);
     PEImports::checkX64<b>(modulename);
 
-    if(m_libraries.find(modulename) != m_libraries.end())
+    if(m_libraries.find(dllname) != m_libraries.end())
         return;
 
     Ordinals ordinals;
     ordinals.load(r_ctx->loaderdb("pe", "ordinals", modulename + ".json"));
-    m_libraries[modulename] = ordinals;
+    m_libraries[dllname] = ordinals;
 }
 
 template<int b> bool PEImports::importName(const String &dllname, ordinal_t ordinal, String &name)
 {
     PEImports::loadImport<b>(dllname);
-
     auto it = m_libraries.find(dllname);
 
     if(it == m_libraries.end())
