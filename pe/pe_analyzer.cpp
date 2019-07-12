@@ -31,12 +31,7 @@ void PEAnalyzer::analyze()
     {
         this->findAllWndProc();
         r_ctx->log("Searching MSVC RTTI...");
-
-        //if(m_classifier->bits() == 64)
-            //RTTI::RTTIMsvc<u64>(m_disassembler).search();
-        //else
-            //RTTI::RTTIMsvc<u32>(m_disassembler).search();
-
+        r_pm->execute("rttimsvc", { m_classifier->bits() });
         return;
     }
 

@@ -5,7 +5,7 @@
 #include "pe_debug.h"
 #include "dotnet/dotnet.h"
 #include "borland/borland_version.h"
-//#include "../../support/coff/coff_symboltable.h"
+#include <redasm/context.h>
 
 template<size_t b> PEFormatT<b>::PEFormatT(PELoader *peloader): m_peloader(peloader), m_sectiontable(nullptr), m_datadirectory(nullptr)
 {
@@ -380,14 +380,10 @@ template<size_t b> void PEFormatT<b>::loadSymbolTable()
     if(!m_peloader->ntHeaders()->FileHeader.PointerToSymbolTable || !m_peloader->ntHeaders()->FileHeader.NumberOfSymbols)
         return;
 
-    // r_ctx->log("Loading symbol table @ " + String::hex(m_peloader->ntHeaders()->FileHeader.PointerToSymbolTable));
+    r_ctx->log("Loading symbol table @ " + String::hex(m_peloader->ntHeaders()->FileHeader.PointerToSymbolTable));
 
-    // COFF::loadSymbols([&](const String& name, const COFF::COFF_Entry* entry) {
-    //                   const Segment& segment = m_peloader->document()->segments()[entry->e_scnum - 1];
-    //                   m_peloader->document()->lock(segment.address + entry->e_value, name, SymbolType::Function);
-    // },
-    // pointer<u8>(m_peloader->ntHeaders()->FileHeader.PointerToSymbolTable),
-    // m_peloader->ntHeaders()->FileHeader.NumberOfSymbols);
+    r_pm->execute("coff", { m_peloader->pointer<u8>(m_peloader->ntHeaders()->FileHeader.PointerToSymbolTable),
+                            m_peloader->ntHeaders()->FileHeader.NumberOfSymbols });
 }
 
 template<size_t b> void PEFormatT<b>::readTLSCallbacks(const ImageTlsDirectory *tlsdirectory)
