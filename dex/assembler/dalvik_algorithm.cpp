@@ -5,10 +5,11 @@
 #include "dalvik_payload.h"
 #include <redasm/disassembler/disassembler.h>
 #include <redasm/support/symbolize.h>
+#include <redasm/redasm.h>
 
-DalvikAlgorithm::DalvikAlgorithm(Disassembler *disassembler): Algorithm(disassembler)
+DalvikAlgorithm::DalvikAlgorithm(): Algorithm()
 {
-    m_dexloader = dynamic_cast<DexLoader*>(disassembler->loader());
+    m_dexloader = dynamic_cast<DexLoader*>(r_disasm->loader());
 
     REGISTER_STATE(DalvikAlgorithm::StringIndexState, &DalvikAlgorithm::stringIndexState);
     REGISTER_STATE(DalvikAlgorithm::MethodIndexState, &DalvikAlgorithm::methodIndexState);
@@ -47,7 +48,7 @@ void DalvikAlgorithm::onDecoded(const CachedInstruction& instruction)
 
 void DalvikAlgorithm::decodeState(const State *state)
 {
-    Symbol* symbol = this->document()->symbol(state->address);
+    Symbol* symbol = r_doc->symbol(state->address);
 
     if(symbol && symbol->isFunction())
     {
@@ -69,8 +70,8 @@ void DalvikAlgorithm::stringIndexState(const State *state)
     if(!m_dexloader->getStringOffset(op->u_value, offset))
         return;
 
-    this->document()->symbol(offset, SymbolType::String);
-    this->disassembler()->pushReference(offset, state->instruction->address);
+    r_doc->symbol(offset, SymbolType::String);
+    r_disasm->pushReference(offset, state->instruction->address);
 }
 
 void DalvikAlgorithm::methodIndexState(const State *state)
@@ -86,21 +87,21 @@ void DalvikAlgorithm::methodIndexState(const State *state)
     if(!m_dexloader->getMethodOffset(op->u_value, offset))
         return;
 
-    this->disassembler()->pushReference(offset, state->instruction->address);
+    r_disasm->pushReference(offset, state->instruction->address);
 }
 
 void DalvikAlgorithm::packedSwitchTableState(const State *state)
 {
     const Operand* op = state->operand();
-    const DalvikPackedSwitchPayload* packedswitchpayload = this->disassembler()->loader()->addrpointer<const DalvikPackedSwitchPayload>(op->u_value);
+    const DalvikPackedSwitchPayload* packedswitchpayload = r_ldr->addrpointer<const DalvikPackedSwitchPayload>(op->u_value);
 
     if(!packedswitchpayload || (packedswitchpayload->ident != DALVIK_PACKED_SWITCH_IDENT))
         return;
 
-    REDasm::symbolize<DalvikPackedSwitchPayload>(this->disassembler(), op->u_value, "packed_switch");
+    REDasm::symbolize<DalvikPackedSwitchPayload>(r_disasm, op->u_value, "packed_switch");
 
     CachedInstruction instruction = state->instruction;
-    this->document()->autoComment(instruction->address, String::number(packedswitchpayload->size) + " case(s)");
+    r_doc->autoComment(instruction->address, String::number(packedswitchpayload->size) + " case(s)");
     const u32* targets = packedswitchpayload->targets;
     PackagedCaseMap cases;
 
@@ -110,10 +111,10 @@ void DalvikAlgorithm::packedSwitchTableState(const State *state)
         address_t target = instruction->address + (*targets * sizeof(u16));
         this->enqueue(target);
 
-        this->document()->lock(this->disassembler()->loader()->addressof(targets), "packed_switch_" + String::hex(op->u_value) + "_case_" + String::number(caseidx), SymbolType::Pointer | SymbolType::Data);
-        this->document()->symbol(target, SymbolType::Code);
-        this->disassembler()->pushReference(target, instruction->address);
-        this->disassembler()->pushTarget(target, instruction->address);
+        r_doc->lock(r_ldr->addressof(targets), "packed_switch_" + String::hex(op->u_value) + "_case_" + String::number(caseidx), SymbolType::Pointer | SymbolType::Data);
+        r_doc->symbol(target, SymbolType::Code);
+        r_disasm->pushReference(target, instruction->address);
+        r_disasm->pushTarget(target, instruction->address);
         this->enqueue(target);
 
         auto it = cases.find(target);
@@ -130,15 +131,15 @@ void DalvikAlgorithm::packedSwitchTableState(const State *state)
 void DalvikAlgorithm::sparseSwitchTableState(const State *state)
 {
     const Operand* op = state->operand();
-    const DalvikSparseSwitchPayload* sparseswitchpayload = this->disassembler()->loader()->addrpointer<const DalvikSparseSwitchPayload>(op->u_value);
+    const DalvikSparseSwitchPayload* sparseswitchpayload = r_ldr->addrpointer<const DalvikSparseSwitchPayload>(op->u_value);
 
     if(!sparseswitchpayload || (sparseswitchpayload->ident != DALVIK_SPARSE_SWITCH_IDENT))
         return;
 
-    REDasm::symbolize<DalvikSparseSwitchPayload>(this->disassembler(), op->u_value, "sparse_switch");
+    REDasm::symbolize<DalvikSparseSwitchPayload>(r_disasm, op->u_value, "sparse_switch");
 
     CachedInstruction instruction = state->instruction;
-    this->document()->autoComment(instruction->address, String::number(sparseswitchpayload->size) + " case(s)");
+    r_doc->autoComment(instruction->address, String::number(sparseswitchpayload->size) + " case(s)");
     const u32* keys = sparseswitchpayload->keys;
     const u32* targets = Utils::relpointer<const u32>(keys, sizeof(u32) * sparseswitchpayload->size);
 
@@ -146,18 +147,18 @@ void DalvikAlgorithm::sparseSwitchTableState(const State *state)
 
     for(u32 i = 0; i < sparseswitchpayload->size; i++)
     {
-        address_t address = this->disassembler()->loader()->addressof(&keys[i]);
-        this->document()->symbol(address, SymbolTable::name("sparse_switch.key", address), SymbolType::Data);
+        address_t address = r_ldr->addressof(&keys[i]);
+        r_doc->symbol(address, SymbolTable::name("sparse_switch.key", address), SymbolType::Data);
     }
 
     for(u32 i = 0; i < sparseswitchpayload->size; i++)
     {
-        address_t address = this->disassembler()->loader()->addressof(&targets[i]);
+        address_t address = r_ldr->addressof(&targets[i]);
         address_t target = instruction->address + (targets[i] * sizeof(u16));
-        this->document()->symbol(address, SymbolTable::name("sparse_switch.target", address), SymbolType::Pointer | SymbolType::Data);
-        this->document()->symbol(target, SymbolType::Code);
-        this->disassembler()->pushReference(target, instruction->address);
-        this->disassembler()->pushTarget(target, instruction->address);
+        r_doc->symbol(address, SymbolTable::name("sparse_switch.target", address), SymbolType::Pointer | SymbolType::Data);
+        r_doc->symbol(target, SymbolType::Code);
+        r_disasm->pushReference(target, instruction->address);
+        r_disasm->pushTarget(target, instruction->address);
         cases[keys[i]] = target;
         this->enqueue(target);
     }
@@ -168,17 +169,17 @@ void DalvikAlgorithm::sparseSwitchTableState(const State *state)
 void DalvikAlgorithm::fillArrayDataState(const State *state)
 {
     const Operand* op = state->operand();
-    const DalvikFillArrayDataPayload* fillarraydatapayload = this->disassembler()->loader()->addrpointer<const DalvikFillArrayDataPayload>(op->u_value);
+    const DalvikFillArrayDataPayload* fillarraydatapayload = r_ldr->addrpointer<const DalvikFillArrayDataPayload>(op->u_value);
 
     if(!fillarraydatapayload || (fillarraydatapayload->ident != DALVIK_FILL_ARRAY_DATA_IDENT))
         return;
 
-    REDasm::symbolize<DalvikFillArrayDataPayload>(this->disassembler(), op->u_value, "array_payload");
+    REDasm::symbolize<DalvikFillArrayDataPayload>(r_disasm, op->u_value, "array_payload");
 }
 
 void DalvikAlgorithm::debugInfoState(const State *state)
 {
-    Symbol* symbol = this->document()->symbol(state->address);
+    Symbol* symbol = r_doc->symbol(state->address);
 
     if(!symbol || !symbol->isFunction())
         return;
@@ -210,16 +211,16 @@ void DalvikAlgorithm::emitCaseInfo(address_t address, const DalvikAlgorithm::Pac
             casestring += "#" + String::number(caseidx);
         });
 
-        this->document()->meta(item.first, "@ " + String::hex(address) + " (Case(s) " + casestring + ")", "packaged_switch_table");
+        r_doc->meta(item.first, "@ " + String::hex(address) + " (Case(s) " + casestring + ")", "packaged_switch_table");
     }
 }
 
 void DalvikAlgorithm::emitCaseInfo(address_t address, const CachedInstruction& instruction, const DalvikAlgorithm::SparseCaseMap &casemap)
 {
     for(const auto& item : casemap)
-        this->document()->meta(item.second, "@ " + String::hex(address) + " (Case Key " + String::hex(item.first, 0, true) + ")", "sparse_switch_table");
+        r_doc->meta(item.second, "@ " + String::hex(address) + " (Case Key " + String::hex(item.first, 0, true) + ")", "sparse_switch_table");
 
-    this->document()->meta(instruction->endAddress(), "@ " + String::hex(address) + " (Default)", "sparse_switch_table");
+    r_doc->meta(instruction->endAddress(), "@ " + String::hex(address) + " (Default)", "sparse_switch_table");
 }
 
 void DalvikAlgorithm::emitArguments(const State* state, const DexEncodedMethod& dexmethod, const DexDebugInfo& dexdebuginfo)
@@ -229,7 +230,7 @@ void DalvikAlgorithm::emitArguments(const State* state, const DexEncodedMethod& 
     for(size_t i = 0; i < dexdebuginfo.parameter_names.size(); i++)
     {
         const String& param = dexdebuginfo.parameter_names[i];
-        this->document()->meta(state->address, String::number(i + delta) + ": " + param, "arg");
+        r_doc->meta(state->address, String::number(i + delta) + ": " + param, "arg");
     }
 }
 
@@ -253,16 +254,16 @@ void DalvikAlgorithm::emitDebugData(const DexDebugInfo &dexdebuginfo)
                 if(dbgdata.type_idx != DEX_NO_INDEX)
                     type = ": " + m_dexloader->getType(dbgdata.type_idx);
 
-                this->document()->meta(item.first, DalvikAssembler::registerName(dbgdata.register_num) + " = " + name + type, "localstart");
+                r_doc->meta(item.first, DalvikAssembler::registerName(dbgdata.register_num) + " = " + name + type, "localstart");
             }
             else if(dbgdata.data_type == DEXDebugDataTypes::RestartLocal)
-                this->document()->meta(item.first, DalvikAssembler::registerName(dbgdata.register_num), "localrestart");
+                r_doc->meta(item.first, DalvikAssembler::registerName(dbgdata.register_num), "localrestart");
             else if(dbgdata.data_type == DEXDebugDataTypes::EndLocal)
-                this->document()->meta(item.first,  DalvikAssembler::registerName(dbgdata.register_num), "localend");
+                r_doc->meta(item.first,  DalvikAssembler::registerName(dbgdata.register_num), "localend");
             else if(dbgdata.data_type == DEXDebugDataTypes::PrologueEnd)
-                this->document()->meta(item.first, String(), "prologue_end");
+                r_doc->meta(item.first, String(), "prologue_end");
             else if(dbgdata.data_type == DEXDebugDataTypes::Line)
-                this->document()->meta(item.first, String::number(dbgdata.line_no), "line");
+                r_doc->meta(item.first, String::number(dbgdata.line_no), "line");
         }
     }
 }
@@ -281,11 +282,11 @@ void DalvikAlgorithm::checkImport(const State* state)
     address_t importaddress = 0;
 
     if(!methodname.startsWith("java."))
-        this->document()->symbol(m_dexloader->nextImport(&importaddress), methodname, SymbolType::Import);
+        r_doc->symbol(m_dexloader->nextImport(&importaddress), methodname, SymbolType::Import);
     else
         return;
 
-    this->disassembler()->pushReference(importaddress, state->instruction->address);
+    r_disasm->pushReference(importaddress, state->instruction->address);
 }
 
 bool DalvikAlgorithm::canContinue(const CachedInstruction& instruction) const

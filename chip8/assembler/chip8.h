@@ -23,7 +23,7 @@ class Chip8Assembler : public Assembler
         size_t bits() const override;
 
     protected:
-        Printer* doCreatePrinter(Disassembler *disassembler) const override;
+        Printer* doCreatePrinter() const override;
         bool decodeInstruction(const BufferView &view, Instruction* instruction) override;
         void onDecoded(Instruction* instruction) override;
 

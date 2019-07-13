@@ -24,7 +24,7 @@ class PELoader: public Loader
         }
 
     protected:
-        Analyzer* createAnalyzer(Disassembler* disassembler) const override;
+        Analyzer* createAnalyzer() const override;
 
     private:
         std::unique_ptr<PEFormat> m_peformat;

@@ -71,4 +71,4 @@ void ElfLoader::init(const LoadRequest &request)
 }
 
 void ElfLoader::load() { m_elfformat->load(); }
-Analyzer *ElfLoader::createAnalyzer(Disassembler *disassembler) const { return new ElfAnalyzer(disassembler); }
+Analyzer *ElfLoader::createAnalyzer() const { return new ElfAnalyzer(); }

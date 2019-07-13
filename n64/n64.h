@@ -64,7 +64,7 @@ class N64Loader: public Loader
         static bool checkChecksum(const N64RomHeader *header, const BufferView &view);
 
     protected:
-        Analyzer* doCreateAnalyzer(Disassembler* disassembler) const;
+        Analyzer* doCreateAnalyzer() const;
 
     private:
         static bool getBootcodeAndSeed(const N64RomHeader* header, u32* bootcode, u32* seed);

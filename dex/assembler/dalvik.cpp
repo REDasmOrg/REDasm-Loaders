@@ -28,8 +28,8 @@ DalvikAssembler::DalvikAssembler(): Assembler()
 
 size_t DalvikAssembler::bits() const { return 32; }
 String DalvikAssembler::registerName(register_id_t regid) { return "v" + String::number(regid); }
-Printer *DalvikAssembler::doCreatePrinter(Disassembler *disassembler) const { return new DalvikPrinter(disassembler); }
-Algorithm *DalvikAssembler::doCreateAlgorithm(Disassembler *disassembler) const { return new DalvikAlgorithm(disassembler); }
+Printer *DalvikAssembler::doCreatePrinter() const { return new DalvikPrinter(); }
+Algorithm *DalvikAssembler::doCreateAlgorithm() const { return new DalvikAlgorithm(); }
 
 bool DalvikAssembler::decodeInstruction(const BufferView &view, Instruction *instruction)
 {

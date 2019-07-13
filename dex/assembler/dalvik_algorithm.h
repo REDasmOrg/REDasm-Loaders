@@ -22,7 +22,7 @@ class DalvikAlgorithm: public Algorithm
         typedef std::unordered_map<u64, address_t> SparseCaseMap;
 
     public:
-        DalvikAlgorithm(Disassembler* disassembler);
+        DalvikAlgorithm();
 
     protected:
         void validateTarget(const CachedInstruction&) const override;

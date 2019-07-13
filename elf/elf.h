@@ -17,7 +17,7 @@ class ElfLoader: public Loader
         void load() override;
 
     protected:
-        Analyzer* createAnalyzer(Disassembler *disassembler) const override;
+        Analyzer* createAnalyzer() const override;
 
     private:
         std::unique_ptr<ElfFormat> m_elfformat;

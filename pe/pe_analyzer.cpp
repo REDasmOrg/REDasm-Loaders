@@ -2,13 +2,12 @@
 #include "pe_utils.h"
 #include "pe_constants.h"
 #include <redasm/disassembler/listing/listingdocumentiterator.h>
-//#include "../../support/rtti/msvc/rtti_msvc.h"
 
 #define IMPORT_NAME(library, name) PEUtils::importName(library, name)
 #define IMPORT_TRAMPOLINE(library, name) ("_" + IMPORT_NAME(library, name))
 #define ADD_WNDPROC_API(argidx, name) m_wndprocapi.emplace_front(argidx, name)
 
-PEAnalyzer::PEAnalyzer(const PEClassifier *classifier, Disassembler *disassembler): Analyzer(disassembler), m_classifier(classifier)
+PEAnalyzer::PEAnalyzer(const PEClassifier *classifier): Analyzer(), m_classifier(classifier)
 {
     ADD_WNDPROC_API(4, "DialogBoxA");
     ADD_WNDPROC_API(4, "DialogBoxW");
@@ -40,10 +39,10 @@ void PEAnalyzer::analyze()
 
 Symbol* PEAnalyzer::getImport(const String &library, const String &api)
 {
-    Symbol* symbol = this->disassembler()->document()->symbol(IMPORT_TRAMPOLINE(library, api));
+    Symbol* symbol = r_disasm->document()->symbol(IMPORT_TRAMPOLINE(library, api));
 
     if(!symbol)
-        symbol = this->disassembler()->document()->symbol(IMPORT_NAME(library, api));
+        symbol = r_disasm->document()->symbol(IMPORT_NAME(library, api));
 
     return symbol;
 }
@@ -55,7 +54,7 @@ ReferenceVector PEAnalyzer::getAPIReferences(const String &library, const String
     if(!symbol)
         return ReferenceVector();
 
-    return this->disassembler()->getReferences(symbol->address);
+    return r_disasm->getReferences(symbol->address);
 }
 
 void PEAnalyzer::findAllWndProc()
@@ -71,7 +70,7 @@ void PEAnalyzer::findAllWndProc()
 
 void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 {
-    ListingDocumentIterator it(this->document(), address, ListingItemType::InstructionItem);
+    ListingDocumentIterator it(r_doc, address, ListingItemType::InstructionItem);
 
     if(!it.hasPrevious())
         return;
@@ -81,7 +80,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 
     while(arg < argidx)
     {
-        CachedInstruction instruction = this->document()->instruction(item->address());
+        CachedInstruction instruction = r_doc->instruction(item->address());
 
         if(!instruction)
             break;
@@ -93,12 +92,12 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
             if(arg == argidx)
             {
                 const Operand* op = instruction->op(0);
-                Segment* segment = this->document()->segment(op->u_value);
+                Segment* segment = r_doc->segment(op->u_value);
 
                 if(segment && segment->is(SegmentType::Code))
                 {
-                    this->document()->lockFunction(op->u_value, "DlgProc_" + String::hex(op->u_value));
-                    this->disassembler()->disassemble(op->u_value);
+                    r_doc->lockFunction(op->u_value, "DlgProc_" + String::hex(op->u_value));
+                    r_disasm->disassemble(op->u_value);
                 }
             }
         }
@@ -113,39 +112,39 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 
 void PEAnalyzer::findCRTWinMain()
 {
-    CachedInstruction instruction = this->document()->entryInstruction(); // Look for call
+    CachedInstruction instruction = r_doc->entryInstruction(); // Look for call
 
     if(!instruction || !instruction->is(InstructionType::Call))
         return;
 
-    Symbol* symbol = this->document()->symbol(PE_SECURITY_COOKIE_SYMBOL);
+    Symbol* symbol = r_doc->symbol(PE_SECURITY_COOKIE_SYMBOL);
 
     if(!symbol)
         return;
 
-    auto target = this->disassembler()->getTarget(instruction->address);
+    auto target = r_disasm->getTarget(instruction->address);
 
     if(!target.valid)
         return;
 
     bool found = false;
-    ReferenceVector refs = this->disassembler()->getReferences(symbol->address);
+    ReferenceVector refs = r_disasm->getReferences(symbol->address);
 
     for(address_t ref : refs)
     {
-        const ListingItem* scfuncitem = this->document()->functionStart(ref);
+        const ListingItem* scfuncitem = r_doc->functionStart(ref);
 
         if(!scfuncitem || ((target != scfuncitem->address())))
             continue;
 
-        this->document()->lock(scfuncitem->address(), PE_SECURITY_INIT_COOKIE_SYMBOL);
+        r_doc->lock(scfuncitem->address(), PE_SECURITY_INIT_COOKIE_SYMBOL);
         found = true;
         break;
     }
 
-    if(!found || !this->document()->advance(instruction) || !instruction->is(InstructionType::Jump))
+    if(!found || !r_doc->advance(instruction) || !instruction->is(InstructionType::Jump))
         return;
 
-    this->document()->lock(target, PE_MAIN_CRT_STARTUP, SymbolType::Function);
-    this->document()->setDocumentEntry(target);
+    r_doc->lock(target, PE_MAIN_CRT_STARTUP, SymbolType::Function);
+    r_doc->setDocumentEntry(target);
 }

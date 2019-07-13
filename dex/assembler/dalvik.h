@@ -21,8 +21,8 @@ class DalvikAssembler : public Assembler
         static String registerName(register_id_t regid);
 
     protected:
-        Printer* doCreatePrinter(Disassembler* disassembler) const override;
-        Algorithm* doCreateAlgorithm(Disassembler*  disassembler) const override;
+        Printer* doCreatePrinter() const override;
+        Algorithm* doCreateAlgorithm() const override;
         bool decodeInstruction(const BufferView& view, Instruction* instruction) override;
 
     private:

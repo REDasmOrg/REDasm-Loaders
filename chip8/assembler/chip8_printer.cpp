@@ -1,7 +1,7 @@
 #include "chip8_printer.h"
 #include "chip8_registers.h"
 
-Chip8Printer::Chip8Printer(Disassembler *disassembler): Printer(disassembler) { }
+Chip8Printer::Chip8Printer(): Printer() { }
 
 String Chip8Printer::reg(const RegisterOperand &regop) const
 {

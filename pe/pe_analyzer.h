@@ -10,7 +10,7 @@ class PEAnalyzer: public Analyzer
         typedef std::pair<size_t, String> APIInfo;
 
     public:
-        PEAnalyzer(const PEClassifier* classifier, Disassembler* disassembler);
+        PEAnalyzer(const PEClassifier* classifier);
         void analyze() override;
 
     private:

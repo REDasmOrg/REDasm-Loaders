@@ -6,7 +6,7 @@
 #define HAS_OPTIONAL_INFO(objdescr, objinfo) (objdescr.lpObjectInfo + sizeof(VBObjectInfo) != objinfo->base.lpConstants)
 #define VB_METHODNAME(pubobj, control, method) (pubobj + "_" + control + "_" + method)
 
-VBAnalyzer::VBAnalyzer(const PEClassifier *classifier, Disassembler *disassembler): PEAnalyzer(classifier, disassembler)
+VBAnalyzer::VBAnalyzer(const PEClassifier *classifier): PEAnalyzer(classifier)
 {
     m_loader = nullptr;
     m_vbheader = nullptr;
@@ -18,7 +18,7 @@ VBAnalyzer::VBAnalyzer(const PEClassifier *classifier, Disassembler *disassemble
 
 void VBAnalyzer::analyze()
 {
-    CachedInstruction instruction = this->document()->entryInstruction();
+    CachedInstruction instruction = r_doc->entryInstruction();
 
     if(!instruction->is(InstructionType::Push) || (instruction->operandsCount() != 1))
         return;
@@ -28,7 +28,7 @@ void VBAnalyzer::analyze()
 
     address_t thunrtdata = instruction->op(0)->u_value;
 
-    if(!this->document()->segment(thunrtdata) || !this->document()->advance(instruction) || !instruction->is(InstructionType::Call))
+    if(!r_doc->segment(thunrtdata) || !r_doc->advance(instruction) || !instruction->is(InstructionType::Call))
         return;
 
     instruction->type |= InstructionType::Stop;
@@ -44,7 +44,7 @@ void VBAnalyzer::disassembleTrampoline(address_t eventva, const String& name)
     if(!eventva)
         return;
 
-    CachedInstruction instruction = this->disassembler()->disassembleInstruction(eventva); // Disassemble trampoline
+    CachedInstruction instruction = r_disasm->disassembleInstruction(eventva); // Disassemble trampoline
 
     if(instruction->mnemonic == "sub")
     {
@@ -61,8 +61,8 @@ void VBAnalyzer::disassembleTrampoline(address_t eventva, const String& name)
         if(!op)
             return;
 
-        this->disassembler()->disassemble(op->u_value);
-        this->document()->lock(op->u_value, name, SymbolType::Function);
+        r_disasm->disassemble(op->u_value);
+        r_doc->lock(op->u_value, name, SymbolType::Function);
     }
 }
 
@@ -100,7 +100,7 @@ void VBAnalyzer::decompileObject(const VBPublicObjectDescriptor &pubobjdescr)
 
 bool VBAnalyzer::decompile(address_t thunrtdata)
 {
-    m_loader = this->disassembler()->loader();
+    m_loader = r_ldr;
     m_vbheader = m_loader->addrpointer<VBHeader>(thunrtdata);
 
     if(std::strncmp(m_vbheader->szVbMagic, "VB5!", VB_SIGNATURE_SIZE))
@@ -111,11 +111,11 @@ bool VBAnalyzer::decompile(address_t thunrtdata)
     m_vbobjtreeinfo = m_loader->addrpointer<VBObjectTreeInfo>(m_vbobjtable->lpObjectTreeInfo);
     m_vbpubobjdescr = m_loader->addrpointer<VBPublicObjectDescriptor>(m_vbobjtable->lpPubObjArray);
 
-    REDASM_SYMBOLIZE(VBHeader, this->disassembler(), thunrtdata);
-    REDASM_SYMBOLIZE(VBProjectInfo, this->disassembler(), m_vbheader->lpProjectData);
-    REDASM_SYMBOLIZE(VBObjectTable, this->disassembler(), m_vbprojinfo->lpObjectTable);
-    REDASM_SYMBOLIZE(VBObjectTreeInfo, this->disassembler(), m_vbobjtable->lpObjectTreeInfo);
-    REDASM_SYMBOLIZE(VBPublicObjectDescriptor, this->disassembler(), m_vbobjtable->lpPubObjArray);
+    REDASM_SYMBOLIZE(VBHeader, r_disasm, thunrtdata);
+    REDASM_SYMBOLIZE(VBProjectInfo, r_disasm, m_vbheader->lpProjectData);
+    REDASM_SYMBOLIZE(VBObjectTable, r_disasm, m_vbprojinfo->lpObjectTable);
+    REDASM_SYMBOLIZE(VBObjectTreeInfo, r_disasm, m_vbobjtable->lpObjectTreeInfo);
+    REDASM_SYMBOLIZE(VBPublicObjectDescriptor, r_disasm, m_vbobjtable->lpPubObjArray);
 
     for(size_t i = 0; i < m_vbobjtable->wTotalObjects; i++)
         this->decompileObject(m_vbpubobjdescr[i]);

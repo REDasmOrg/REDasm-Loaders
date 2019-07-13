@@ -7,6 +7,6 @@ using namespace REDasm;
 class Chip8Printer : public Printer
 {
     public:
-        Chip8Printer(Disassembler* disassembler);
+        Chip8Printer();
         String reg(const RegisterOperand& regop) const override;
 };

@@ -6,16 +6,16 @@
 #define LIBC_START_MAIN        "__libc_start_main"
 #define LIBC_START_MAIN_ARGC   7
 
-ElfAnalyzer::ElfAnalyzer(Disassembler *disassembler): Analyzer(disassembler) { }
+ElfAnalyzer::ElfAnalyzer(): Analyzer() { }
 
 void ElfAnalyzer::analyze()
 {
     Analyzer::analyze();
-    Symbol* symbol = this->document()->symbol("main");
+    Symbol* symbol = r_doc->symbol("main");
 
     if(!symbol)
     {
-        Assembler* assembler = this->disassembler()->assembler();
+        Assembler* assembler = r_asm;
         Symbol* symlibcmain = this->getLibStartMain();
 
         if(symlibcmain)
@@ -25,30 +25,30 @@ void ElfAnalyzer::analyze()
             else
                 r_ctx->log("Unhandled architecture " + assembler->description().quoted());
 
-            symbol = this->document()->symbol("main");
+            symbol = r_doc->symbol("main");
         }
     }
 
     if(symbol)
-        this->document()->setDocumentEntry(symbol->address);
+        r_doc->setDocumentEntry(symbol->address);
     else
         r_ctx->problem("Cannot find 'main' symbol");
 }
 
 void ElfAnalyzer::findMain_x86(const Symbol *symlibcmain)
 {
-    ReferenceVector refs = this->disassembler()->getReferences(symlibcmain->address);
+    ReferenceVector refs = r_disasm->getReferences(symlibcmain->address);
 
     if(refs.size() > 1)
         r_ctx->log(String(LIBC_START_MAIN).quoted() + " contains " + String::number(refs.size()) + " reference(s)");
 
 
-    ListingDocumentIterator it(this->document(), refs.front(), ListingItemType::InstructionItem);
+    ListingDocumentIterator it(r_doc, refs.front(), ListingItemType::InstructionItem);
 
     if(!it.hasNext())
         return;
 
-    if(this->disassembler()->assembler()->id() == "x86_64")
+    if(r_asm->id() == "x86_64")
         this->findMain_x86_64(it);
     else
         this->findMain_x86(it);
@@ -64,7 +64,7 @@ void ElfAnalyzer::findMain_x86(ListingDocumentIterator &it)
     {
         if(item->is(ListingItemType::InstructionItem))
         {
-            CachedInstruction instruction = this->document()->instruction(item->address());
+            CachedInstruction instruction = r_doc->instruction(item->address());
 
             if(instruction->is(InstructionType::Push))
             {
@@ -97,7 +97,7 @@ void ElfAnalyzer::findMain_x86_64(ListingDocumentIterator& it)
 
         if(item->is(ListingItemType::InstructionItem))
         {
-            CachedInstruction instruction = this->document()->instruction(item->address());
+            CachedInstruction instruction = r_doc->instruction(item->address());
 
             if(instruction->is(InstructionType::Load))
             {
@@ -125,8 +125,8 @@ void ElfAnalyzer::disassembleLibStartMain()
 {
     for(auto& it : m_libcmain)
     {
-        this->document()->lock(it.second, it.first, SymbolType::Function);
-        this->disassembler()->disassemble(it.second);
+        r_doc->lock(it.second, it.first, SymbolType::Function);
+        r_disasm->disassemble(it.second);
     }
 
     m_libcmain.clear();
@@ -134,10 +134,10 @@ void ElfAnalyzer::disassembleLibStartMain()
 
 Symbol* ElfAnalyzer::getLibStartMain()
 {
-    Symbol* symlibcmain = this->document()->symbol(Utils::trampoline(LIBC_START_MAIN));
+    Symbol* symlibcmain = r_doc->symbol(Utils::trampoline(LIBC_START_MAIN));
 
     if(!symlibcmain)
-        symlibcmain = this->document()->symbol(LIBC_START_MAIN);
+        symlibcmain = r_doc->symbol(LIBC_START_MAIN);
 
     return symlibcmain;
 }

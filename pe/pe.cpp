@@ -44,12 +44,12 @@ const ImageNtHeaders* PELoader::ntHeaders() const
     return Utils::relpointer<const ImageNtHeaders>(dosheader, dosheader->e_lfanew);
 }
 
-Analyzer *PELoader::createAnalyzer(Disassembler *disassembler) const
+Analyzer *PELoader::createAnalyzer() const
 {
     if(m_peformat->classifier()->isVisualBasic())
-        return new VBAnalyzer(m_peformat->classifier(), disassembler);
+        return new VBAnalyzer(m_peformat->classifier());
 
-    return new PEAnalyzer(m_peformat->classifier(), disassembler);
+    return new PEAnalyzer(m_peformat->classifier());
 }
 
 bool PELoader::test(const LoadRequest &request) const

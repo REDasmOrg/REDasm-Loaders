@@ -6,7 +6,7 @@
 class VBAnalyzer : public PEAnalyzer
 {
     public:
-        VBAnalyzer(const PEClassifier* classifier, Disassembler* disassembler);
+        VBAnalyzer(const PEClassifier* classifier);
         void analyze() override;
 
     private:

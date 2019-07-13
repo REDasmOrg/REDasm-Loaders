@@ -9,7 +9,7 @@ using namespace REDasm;
 class ElfAnalyzer: public Analyzer
 {
     public:
-        ElfAnalyzer(Disassembler* disassembler);
+        ElfAnalyzer();
         void analyze() override;
 
     private:

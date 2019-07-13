@@ -66,7 +66,7 @@ bool N64Loader::test(const LoadRequest &request) const
     return N64Loader::checkChecksum(header, request.view());
 }
 
-Analyzer *N64Loader::doCreateAnalyzer(Disassembler* disassembler) const { return new N64Analyzer(disassembler); }
+Analyzer *N64Loader::doCreateAnalyzer() const { return new N64Analyzer(); }
 
 void N64Loader::load()
 {

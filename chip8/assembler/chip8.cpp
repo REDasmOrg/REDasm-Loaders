@@ -24,7 +24,7 @@ Chip8Assembler::Chip8Assembler(): Assembler()
 }
 
 size_t Chip8Assembler::bits() const { return 16; }
-Printer *Chip8Assembler::doCreatePrinter(Disassembler *disassembler) const { return new Chip8Printer(disassembler); }
+Printer *Chip8Assembler::doCreatePrinter() const { return new Chip8Printer(); }
 
 bool Chip8Assembler::decodeInstruction(const BufferView& view, Instruction *instruction)
 {

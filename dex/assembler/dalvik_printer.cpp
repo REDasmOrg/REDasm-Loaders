@@ -2,17 +2,18 @@
 #include "dalvik_metadata.h"
 #include <redasm/disassembler/disassembler.h>
 #include <redasm/support/utils.h>
+#include <redasm/redasm.h>
 #include "../loader/dex_constants.h"
 #include "../loader/dex.h"
 #include "dalvik.h"
 
 #define HAS_ACCESS_FLAGS(dexmethod, ac) static_cast<DexAccessFlags>(dexmethod.access_flags) & ac
 
-DalvikPrinter::DalvikPrinter(Disassembler *disassembler): Printer(disassembler) { }
+DalvikPrinter::DalvikPrinter(): Printer() { }
 
 void DalvikPrinter::function(const Symbol *symbol, const Printer::FunctionCallback& headerfunc)
 {
-    auto* dexloader = dynamic_cast<DexLoader*>(this->disassembler()->loader());
+    auto* dexloader = dynamic_cast<DexLoader*>(r_ldr);
 
     if(!dexloader)
     {
@@ -62,7 +63,7 @@ String DalvikPrinter::imm(const Operand *op) const
 {
     DexLoader* dexloader = nullptr;
 
-    if(op->tag && (dexloader = dynamic_cast<DexLoader*>(this->disassembler()->loader())))
+    if(op->tag && (dexloader = dynamic_cast<DexLoader*>(r_ldr)))
     {
         switch(op->tag)
         {
