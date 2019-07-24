@@ -1,7 +1,6 @@
 #include "pe_analyzer.h"
 #include "pe_utils.h"
 #include "pe_constants.h"
-#include <redasm/disassembler/listing/listingdocumentiterator.h>
 
 #define IMPORT_NAME(library, name) PEUtils::importName(library, name)
 #define IMPORT_TRAMPOLINE(library, name) ("_" + IMPORT_NAME(library, name))
@@ -70,15 +69,15 @@ void PEAnalyzer::findAllWndProc()
 
 void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 {
-    ListingDocumentIterator it(r_doc, address, ListingItemType::InstructionItem);
+    size_t index = r_doc->findInstruction(address);
 
-    if(!it.hasPrevious())
+    if(!index || (index == REDasm::npos))
         return;
 
     size_t arg = 0;
-    const ListingItem* item = it.prev(); // Skip call
+    const ListingItem* item = r_doc->itemAt(--index); // Skip call
 
-    while(arg < argidx)
+    while(item && (arg < argidx))
     {
         CachedInstruction instruction = r_doc->instruction(item->address());
 
@@ -102,11 +101,11 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
             }
         }
 
-        if((arg == argidx) || !it.hasPrevious() || instruction->is(InstructionType::Stop))
+        if((arg == argidx) || !index || instruction->is(InstructionType::Stop))
             break;
 
 
-        item = it.prev();
+        item = r_doc->itemAt(--index);
     }
 }
 

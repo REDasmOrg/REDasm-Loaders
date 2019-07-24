@@ -40,28 +40,31 @@ void ElfAnalyzer::findMain_x86(const Symbol *symlibcmain)
     ReferenceVector refs = r_disasm->getReferences(symlibcmain->address);
 
     if(refs.size() > 1)
-        r_ctx->log(String(LIBC_START_MAIN).quoted() + " contains " + String::number(refs.size()) + " reference(s)");
+        r_ctx->problem(String(LIBC_START_MAIN).quoted() + " contains " + String::number(refs.size()) + " reference(s)");
 
 
-    ListingDocumentIterator it(r_doc, refs.front(), ListingItemType::InstructionItem);
+    size_t index = r_doc->findInstruction(refs.front());
 
-    if(!it.hasNext())
+    if(index == REDasm::npos)
         return;
 
     if(r_asm->id() == "x86_64")
-        this->findMain_x86_64(it);
+        this->findMain_x86_64(index);
     else
-        this->findMain_x86(it);
+        this->findMain_x86(index);
 
     this->disassembleLibStartMain();
 }
 
-void ElfAnalyzer::findMain_x86(ListingDocumentIterator &it)
+void ElfAnalyzer::findMain_x86(size_t index)
 {
-    const ListingItem* item = it.current();
-
-    for(int i = 0; it.hasPrevious() && (i < LIBC_START_MAIN_ARGC); item = it.prev())
+    for(size_t i = 0; (index < r_doc->size()) && (i < LIBC_START_MAIN_ARGC); index--)
     {
+        const ListingItem* item = r_doc->itemAt(index);
+
+        if(!item)
+            break;
+
         if(item->is(ListingItemType::InstructionItem))
         {
             CachedInstruction instruction = r_doc->instruction(item->address());
@@ -89,11 +92,11 @@ void ElfAnalyzer::findMain_x86(ListingDocumentIterator &it)
     }
 }
 
-void ElfAnalyzer::findMain_x86_64(ListingDocumentIterator& it)
+void ElfAnalyzer::findMain_x86_64(size_t index)
 {
-    while(it.hasPrevious())
+    for(; index < r_doc->size(); index--)
     {
-        const ListingItem* item = it.prev();
+        const ListingItem* item = r_doc->itemAt(index);
 
         if(item->is(ListingItemType::InstructionItem))
         {
