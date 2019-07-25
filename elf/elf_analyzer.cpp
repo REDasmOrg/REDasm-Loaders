@@ -37,13 +37,12 @@ void ElfAnalyzer::analyze()
 
 void ElfAnalyzer::findMain_x86(const Symbol *symlibcmain)
 {
-    ReferenceVector refs = r_disasm->getReferences(symlibcmain->address);
+    SortedSet refs = r_disasm->getReferences(symlibcmain->address);
 
     if(refs.size() > 1)
         r_ctx->problem(String(LIBC_START_MAIN).quoted() + " contains " + String::number(refs.size()) + " reference(s)");
 
-
-    size_t index = r_doc->findInstruction(refs.front());
+    size_t index = r_doc->findInstruction(refs.first().toU64());
 
     if(index == REDasm::npos)
         return;
