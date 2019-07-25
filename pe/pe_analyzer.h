@@ -15,7 +15,7 @@ class PEAnalyzer: public Analyzer
 
     private:
         Symbol *getImport(const String &library, const String &api);
-        ReferenceVector getAPIReferences(const String &library, const String &api);
+        SortedSet getAPIReferences(const String &library, const String &api);
         void findWndProc(address_t address, size_t argidx);
         void findCRTWinMain();
         void findAllWndProc();

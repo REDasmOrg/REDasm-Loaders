@@ -46,12 +46,12 @@ Symbol* PEAnalyzer::getImport(const String &library, const String &api)
     return symbol;
 }
 
-ReferenceVector PEAnalyzer::getAPIReferences(const String &library, const String &api)
+SortedSet PEAnalyzer::getAPIReferences(const String &library, const String &api)
 {
     Symbol* symbol = this->getImport(library, api);
 
     if(!symbol)
-        return ReferenceVector();
+        return SortedSet();
 
     return r_disasm->getReferences(symbol->address);
 }
@@ -60,10 +60,11 @@ void PEAnalyzer::findAllWndProc()
 {
     for(auto it = m_wndprocapi.begin(); it != m_wndprocapi.end(); it++)
     {
-        ReferenceVector refs = this->getAPIReferences("user32.dll", it->second);
+        SortedSet refs = this->getAPIReferences("user32.dll", it->second);
 
-        for(address_t ref : refs)
-            this->findWndProc(ref, it->first);
+        refs.each([&](const Variant& v) {
+            this->findWndProc(v.toU64(), it->first);
+        });
     }
 }
 
@@ -127,10 +128,11 @@ void PEAnalyzer::findCRTWinMain()
         return;
 
     bool found = false;
-    ReferenceVector refs = r_disasm->getReferences(symbol->address);
+    SortedSet refs = r_disasm->getReferences(symbol->address);
 
-    for(address_t ref : refs)
+    for(size_t i = 0; i < refs.size(); i++)
     {
+        address_t ref = refs[i].toU64();
         const ListingItem* scfuncitem = r_doc->functionStart(ref);
 
         if(!scfuncitem || ((target != scfuncitem->address())))
