@@ -2,6 +2,7 @@
 
 #define DOTNET_INDEX(i) (i - 1)
 
+#include <unordered_map>
 #include "dotnet_header.h"
 #include "dotnet_tables.h"
 

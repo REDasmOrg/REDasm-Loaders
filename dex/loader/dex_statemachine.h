@@ -2,6 +2,7 @@
 
 // https://source.android.com/devices/tech/dalvik/dex-format#debug-info-item
 
+#include <unordered_map>
 #include <redasm/redasm.h>
 #include "dex_header.h"
 

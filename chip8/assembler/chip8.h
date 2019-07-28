@@ -7,6 +7,7 @@
  * - https://massung.github.io/CHIP-8
  */
 
+#include <unordered_map>
 #include <redasm/redasm.h>
 #include <redasm/plugins/assembler/assembler.h>
 #include "chip8_registers.h"

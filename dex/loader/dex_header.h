@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <redasm/redasm.h>
 #include "dex_constants.h"
 
