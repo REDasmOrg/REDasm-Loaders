@@ -1,6 +1,7 @@
 #include "elf.h"
 #include "elf_header.h"
 #include "elf_analyzer.h"
+#include <cassert>
 
 ElfLoader::ElfLoader(): Loader() { }
 
