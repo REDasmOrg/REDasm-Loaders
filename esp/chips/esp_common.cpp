@@ -4,11 +4,23 @@
 
 ESPCommon::ESPCommon(ESPLoader *loader): m_loader(loader) { }
 
+void ESPCommon::load(offset_t offset)
+{
+    const u8* magic = m_loader->pointer<u8>(offset);
+
+    switch(*magic)
+    {
+        case ESP_IMAGE1_MAGIC: this->load(reinterpret_cast<const ESP8266RomHeader1*>(magic)); break;
+        case ESP_IMAGE2_MAGIC: this->load(reinterpret_cast<const ESP8266RomHeader2*>(magic)); break;
+        default:               r_ctx->log("Unknown magic: " + String::hex(*magic)); break;
+    }
+}
+
 bool ESPCommon::test(const LoadRequest &request)
 {
-    const ESPFirmwareHeader* h = request.pointer<ESPFirmwareHeader>();
+    const ESP8266RomHeader1* h = request.pointer<ESP8266RomHeader1>();
 
-    if(h->magic != ESP_IMAGE_MAGIC)
+    if(h->magic != ESP_IMAGE1_MAGIC)
         return false;
     if(h->segments > 16)
         return false;
@@ -43,19 +55,61 @@ bool ESPCommon::test(const LoadRequest &request)
     return true;
 }
 
-void ESPCommon::load()
+void ESPCommon::load(const ESP8266RomHeader1 *header, offset_location offset)
 {
-    const ESPFirmwareHeader* header = m_loader->pointer<ESPFirmwareHeader>();
-    const ESPFirmwareSegment* segment = Utils::relpointer<ESPFirmwareSegment>(header, sizeof(ESPFirmwareHeader));
+    const ESPSegment* segment = Utils::relpointer<ESPSegment>(header, sizeof(ESP8266RomHeader1));
 
     for(size_t i = 0 ; segment && (i < header->segments); i++)
     {
-        m_loader->document()->segment("seg" + String::number(i),
-                                      m_loader->fileoffset(segment) + sizeof(ESPFirmwareSegment),
-                                      segment->address, segment->size, SegmentType::Code | SegmentType::Data);
+        String segname;
+        SegmentType segtype;
 
-        segment = Utils::relpointer<ESPFirmwareSegment>(segment, sizeof(ESPFirmwareSegment) + segment->size);
+        if(segment->address == 0x40100000)
+        {
+            segname = ".user_rom";
+            segtype = SegmentType::Code;
+        }
+        else if(segment->address == 0x3FFE8000)
+        {
+            segname = ".user_rom_data";
+            segtype = SegmentType::Data;
+        }
+        else if(segment->address <= 0x3FFFFFFF)
+        {
+            segname = ".data_seg_" + String::number(i);
+            segtype = SegmentType::Data;
+        }
+        else if(segment->address > 0x40100000)
+        {
+            segname = ".code_seg_" + String::number(i);
+            segtype = SegmentType::Data;
+        }
+        else
+        {
+            segname = ".unknown_seg_" + String::number(i);
+            segtype = SegmentType::Data;
+        }
+
+        if(offset.valid)
+        {
+            m_loader->document()->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
+            offset.value += segment->size;
+        }
+        else
+            m_loader->document()->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
+
+        segment = Utils::relpointer<ESPSegment>(segment, sizeof(ESPSegment) + segment->size);
     }
 
     m_loader->document()->entry(header->entrypoint);
+}
+
+void ESPCommon::load(const ESP8266RomHeader2 *header)
+{
+    const ESP8266RomHeader1* header1 = Utils::relpointer<ESP8266RomHeader1>(header, sizeof(ESP8266RomHeader2) + header->size);
+
+    if(!header1 || (header1->magic != ESP_IMAGE1_MAGIC))
+        return;
+
+    this->load(header1, REDasm::make_location(m_loader->fileoffset(header) + sizeof(ESP8266RomHeader2)));
 }

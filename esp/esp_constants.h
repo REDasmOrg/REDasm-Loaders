@@ -1,7 +1,10 @@
 #pragma once
 
-#define ESP_IMAGE_MAGIC 0xE9 // First byte of the application image
-#define IMAGE_V2_MAGIC  0xEA // First byte of the "v2" application image
+#define ESP_IMAGE1_MAGIC 0xE9
+#define ESP_IMAGE2_MAGIC 0xEA
+
+#define ESP_IMAGE0_OFFSET       4096
+#define ESP_IMAGE1_OFFSET(size) (size / 2)
 
 #define SPI_FLASH_INTERFACE_QIO  0
 #define SPI_FLASH_INTERFACE_QOUT 1

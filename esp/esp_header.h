@@ -2,16 +2,23 @@
 
 #include <redasm/redasm.h>
 
-struct ESPFirmwareHeader
+struct ESP8266RomHeader1
 {
-    u8 magic;
-    u8 segments;
-    u8 flashmode;
-    u8 flashsizefreq;
+    u8 magic, segments;
+    u8 flashmode, flashsizefreq;
     u32 entrypoint;
 };
 
-struct ESPFirmwareSegment
+struct ESP8266RomHeader2
+{
+    u8 magic, segments;
+    u8 flashmode, flashsizefreq;
+    u32 entrypoint;
+    u8 unused[4];
+    u32 size;
+};
+
+struct ESPSegment
 {
     u32 address;
     u32 size;
