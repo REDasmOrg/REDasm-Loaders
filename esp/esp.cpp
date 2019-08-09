@@ -26,7 +26,6 @@ void ESPLoader::load()
         return;
 
     std::deque<ImageItem> images;
-
     const u8* magic = this->pointer<u8>();
 
     if(IS_VALID_MAGIC(*magic))
@@ -37,11 +36,10 @@ void ESPLoader::load()
     if(magic && IS_VALID_MAGIC(*magic))
         images.push_back({ ESP_IMAGE0_OFFSET, "Image 0" });
 
-    offset_t image1offset = ESP_IMAGE1_OFFSET(this->buffer()->size());
-    magic = this->pointer<u8>(image1offset);
+    magic = this->pointer<u8>(ESP_IMAGE1_OFFSET);
 
     if(magic && IS_VALID_MAGIC(*magic))
-        images.push_back({ image1offset, "Image 1" });
+        images.push_back({ ESP_IMAGE1_OFFSET, "Image 1" });
 
     List names;
     std::for_each(images.begin(), images.end(), [&names](const ImageItem& item) { names.append(item.second); });
