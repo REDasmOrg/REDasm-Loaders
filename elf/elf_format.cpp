@@ -15,6 +15,7 @@ template<size_t b, endianness_t e> AssemblerRequest ElfFormatT<b, e>::assembler(
         case EM_AVR: return "avr8";
         case EM_386: return ASSEMBLER_REQUEST("x86", "x86_32");
         case EM_X86_64: return ASSEMBLER_REQUEST("x86", "x86_64");
+        case EM_XTENSA: return ASSEMBLER_REQUEST("xtensa", (e == Endianness::BigEndian) ? "xtensabe" : "xtensale");
 
         case EM_ARM:
             if(this->m_ehdr->e_ident[EI_CLASS] == ELFCLASS64)
