@@ -31,8 +31,6 @@ void ElfAnalyzer::analyze()
 
     if(symbol)
         r_doc->setDocumentEntry(symbol->address);
-    else
-        r_ctx->problem("Cannot find 'main' symbol");
 }
 
 void ElfAnalyzer::findMain_x86(const Symbol *symlibcmain)
