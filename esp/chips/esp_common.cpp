@@ -2,6 +2,8 @@
 #include "../esp.h"
 #include <redasm/support/utils.h>
 
+#define IS_VALID_MAGIC(magic) ((magic == ESP_IMAGE1_MAGIC) || (magic == ESP_IMAGE2_MAGIC))
+
 ESPCommon::ESPCommon(ESPLoader *loader): m_loader(loader) { }
 
 void ESPCommon::load(offset_t offset)
@@ -82,7 +84,7 @@ void ESPCommon::load(const ESP8266RomHeader1 *header, offset_location offset)
         else if(segment->address > 0x40100000)
         {
             segname = ".code_seg_" + String::number(i);
-            segtype = SegmentType::Data;
+            segtype = SegmentType::Code;
         }
         else
         {
