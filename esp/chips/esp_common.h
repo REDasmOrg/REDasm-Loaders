@@ -12,7 +12,7 @@ class ESPCommon
 {
     public:
         ESPCommon(ESPLoader* loader);
-        void load(offset_t offset = 0);
+        virtual void load(offset_t offset = 0);
 
     public:
         static bool test(const LoadRequest& request);
