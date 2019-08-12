@@ -208,7 +208,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSymbols(const SHDR
             if(isexport)
                 m_loader->document()->lock(symvalue, symname, (info == STT_FUNC) ? SymbolType::ExportFunction : SymbolType::ExportData);
             else if(info == STT_FUNC)
-                m_loader->document()->lock(symvalue, symname);
+                m_loader->document()->lockFunction(symvalue, symname);
             else if(info == STT_OBJECT)
             {
                 const Segment* segment = m_loader->document()->segment(symvalue);
