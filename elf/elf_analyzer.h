@@ -14,8 +14,8 @@ class ElfAnalyzer: public Analyzer
 
     private:
         void findMain_x86(const Symbol* symlibcmain);
-        void findMain_x86_64(size_t index);
-        void findMain_x86(size_t index);
+        void findMainMode_x86_64(size_t index);
+        void findMainMode_x86(size_t index);
 
    private:
         void disassembleLibStartMain();
