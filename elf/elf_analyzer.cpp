@@ -11,22 +11,17 @@ ElfAnalyzer::ElfAnalyzer(): Analyzer() { }
 void ElfAnalyzer::analyze()
 {
     Analyzer::analyze();
-    Symbol* symbol = r_doc->symbol("main");
+    Symbol* symlibcmain = this->getLibStartMain();
 
-    if(!symbol)
+    if(symlibcmain)
     {
-        Symbol* symlibcmain = this->getLibStartMain();
-
-        if(symlibcmain)
-        {
-            if(r_asm->id().startsWith("x86"))
-                this->findMain_x86(symlibcmain);
-            else
-                r_ctx->log("Unhandled architecture " + r_asm->description().quoted());
-
-            symbol = r_doc->symbol("main");
-        }
+        if(r_asm->id().startsWith("x86"))
+            this->findMain_x86(symlibcmain);
+        else
+            r_ctx->log("Unhandled architecture " + r_asm->description().quoted());
     }
+
+    Symbol* symbol = r_doc->symbol("main");
 
     if(symbol)
         r_doc->setDocumentEntry(symbol->address);
@@ -46,13 +41,13 @@ void ElfAnalyzer::findMain_x86(const Symbol *symlibcmain)
 
     if(r_asm->request().modeIs("x86_64"))
         this->findMainMode_x86_64(index);
-    else if(r_asm->request().modeIs("x86"))
-        this->findMainMode_x86(index);
+    else if(r_asm->request().modeIs("x86_32"))
+        this->findMainMode_x86_32(index);
 
     this->disassembleLibStartMain();
 }
 
-void ElfAnalyzer::findMainMode_x86(size_t index)
+void ElfAnalyzer::findMainMode_x86_32(size_t index)
 {
     for(size_t i = 0; (index < r_doc->size()) && (i < LIBC_START_MAIN_ARGC); index--)
     {
