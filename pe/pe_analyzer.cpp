@@ -70,7 +70,7 @@ void PEAnalyzer::findAllWndProc()
 
 void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 {
-    size_t index = r_doc->findInstruction(address);
+    size_t index = r_doc->instructionIndex(address);
 
     if(!index || (index == REDasm::npos))
         return;
