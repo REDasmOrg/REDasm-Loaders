@@ -16,7 +16,7 @@ void VBAnalyzer::analyze()
 
     address_t thunrtdata = instruction->op(0)->u_value;
 
-    if(!r_doc->segment(thunrtdata) || !r_doc->next(instruction) || !instruction->typeIs(InstructionType::Call))
+    if(!r_doc->segment(thunrtdata) || !r_doc->next(instruction) || !instruction->isCall())
         return;
 
     instruction->type |= InstructionType::Stop;
@@ -37,7 +37,7 @@ void VBAnalyzer::disassembleTrampoline(address_t eventva, const String& name)
 
     r_ctx->statusAddress("Decoding " + name, eventva);
 
-    if(instruction->typeIs(InstructionType::Branch))
+    if(instruction->isBranch())
     {
         const Operand* op = instruction->target();
         if(!op) return;

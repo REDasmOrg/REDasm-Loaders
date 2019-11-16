@@ -270,7 +270,8 @@ bool DalvikAssembler::decodeIfOp2(BufferView& view, Instruction* instruction, co
 {
     instruction->mnemonic("if-" + cond);
     instruction->id = id;
-    instruction->type = InstructionType::Jump | InstructionType::Conditional;
+    instruction->type = InstructionType::Jump;
+    instruction->flags = InstructionFlags::Conditional;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++ & 0xF);
     instruction->imm(instruction->address + (sizeof(u16) * static_cast<s16>(view)));
@@ -282,7 +283,8 @@ bool DalvikAssembler::decodeIfOp3(BufferView& view, Instruction* instruction, co
 {
     instruction->mnemonic("if-" + cond);
     instruction->id = id;
-    instruction->type = InstructionType::Jump | InstructionType::Conditional;
+    instruction->type = InstructionType::Jump;
+    instruction->flags = InstructionFlags::Conditional;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view & 0xF);
     instruction->reg((*view++ & 0xF0) >> 4);
@@ -489,7 +491,8 @@ bool DalvikAssembler::decode2C(BufferView& view, Instruction* instruction)
 {
     instruction->mnemonic("sparse-switch");
     instruction->id = DalvikOpcodes::SparseSwitch;
-    instruction->type = InstructionType::ConditionalJump;
+    instruction->type = InstructionType::Jump;
+    instruction->flags = InstructionFlags::Conditional;
     instruction->size = sizeof(u16) * 3;
     instruction->reg(*view++);
     instruction->imm(instruction->address + (static_cast<s32>(view) * sizeof(u16)), DalvikOperands::SparseSwitchTable);

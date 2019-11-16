@@ -279,11 +279,7 @@ void DalvikAlgorithm::checkImport(const State* state)
 
 bool DalvikAlgorithm::canContinue(const CachedInstruction& instruction) const
 {
-    if(instruction->typeIs(InstructionType::Stop))
-        return false;
-
-    if(instruction->typeIs(InstructionType::Jump) && !instruction->typeIs(InstructionType::Conditional))
-        return false;
-
+    if(instruction->isStop()) return false;
+    if(instruction->isJump() && !instruction->isConditional()) return false;
     return true;
 }

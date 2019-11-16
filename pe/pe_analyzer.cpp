@@ -95,7 +95,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
             }
         }
 
-        if((arg == argidx) || !index || instruction->typeIs(InstructionType::Stop))
+        if((arg == argidx) || !index || instruction->isStop())
             break;
 
         item = r_doc->itemAt(--index);
@@ -105,7 +105,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 void PEAnalyzer::findCRTWinMain()
 {
     CachedInstruction instruction = r_doc->entryInstruction(); // Look for call
-    if(!instruction || !instruction->typeIs(InstructionType::Call)) return;
+    if(!instruction || !instruction->isCall()) return;
 
     const Symbol* symbol = r_doc->symbol(PE_SECURITY_COOKIE_SYMBOL);
     if(!symbol) return;
@@ -129,7 +129,7 @@ void PEAnalyzer::findCRTWinMain()
         break;
     }
 
-    if(!found || !r_doc->next(instruction) || !instruction->typeIs(InstructionType::Jump))
+    if(!found || !r_doc->next(instruction) || !instruction->isJump())
         return;
 
     r_doc->function(target, PE_MAIN_CRT_STARTUP);

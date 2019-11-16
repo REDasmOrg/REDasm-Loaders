@@ -47,7 +47,10 @@ void Chip8Assembler::onDecoded(Instruction *instruction)
     else if(instruction->is("jmp"))
         instruction->type = InstructionType::Jump;
     else if((instruction->is("ske") || instruction->is("skne") || instruction->is("skp") || instruction->is("sknp")))
-        instruction->type = InstructionType::ConditionalJump;
+    {
+        instruction->type = InstructionType::Jump;
+        instruction->flags = InstructionFlags::Conditional;
+    }
     else if(instruction->is("call"))
         instruction->type = InstructionType::Call;
     else if(instruction->is("add"))
@@ -65,7 +68,7 @@ void Chip8Assembler::onDecoded(Instruction *instruction)
     else if(instruction->is("stra"))
         instruction->type = InstructionType::Store;
     else if(instruction->is("sys"))
-        instruction->type = InstructionType::Privileged;
+        instruction->flags = InstructionFlags::Privileged;
 }
 
 bool Chip8Assembler::decode0xxx(u16 opcode, Instruction *instruction) const
