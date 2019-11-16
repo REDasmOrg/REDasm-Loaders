@@ -35,7 +35,7 @@ void XbeLoader::load()
         return;
     }
 
-    this->document()->entry(entrypoint);
+    ldrdoc->entry(entrypoint);
     this->displayXbeInfo(header);
 }
 
@@ -70,12 +70,12 @@ void XbeLoader::displayXbeInfo(const XbeImageHeader* header)
 bool XbeLoader::decodeEP(u32 encodedep, address_t& ep)
 {
     ep = encodedep ^ XBE_ENTRYPOINT_XOR_RETAIL;
-    Segment* segment = this->document()->segment(ep);
+    const Segment* segment = ldrdoc->segment(ep);
 
     if(!segment)
     {
         ep = encodedep ^ XBE_ENTRYPOINT_XOR_DEBUG;
-        segment = this->document()->segment(ep);
+        segment = ldrdoc->segment(ep);
 
         if(segment)
             r_ctx->log("Executable Type: DEBUG");
@@ -89,12 +89,12 @@ bool XbeLoader::decodeEP(u32 encodedep, address_t& ep)
 bool XbeLoader::decodeKernel(u32 encodedthunk, u32 &thunk)
 {
     thunk = encodedthunk ^ XBE_KERNEL_XOR_RETAIL;
-    Segment* segment = this->document()->segment(thunk);
+    const Segment* segment = ldrdoc->segment(thunk);
 
     if(!segment)
     {
         thunk = encodedthunk ^ XBE_KERNEL_XOR_DEBUG;
-        segment = this->document()->segment(thunk);
+        segment = ldrdoc->segment(thunk);
     }
 
     return segment != nullptr;
@@ -120,10 +120,10 @@ void XbeLoader::loadSections(const XbeImageHeader* header, XbeSectionHeader *sec
         if(!sectionhdr[i].RawSize)
             secttype = SegmentType::Bss;
 
-        this->document()->segment(sectname, sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
+        ldrdoc->segment(sectname, sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
     }
 
-    this->document()->segment("XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, SegmentType::Bss);
+    ldrdoc->segment("XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, SegmentType::Bss);
 }
 
 bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)
@@ -146,7 +146,7 @@ bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)
     while(*pthunk)
     {
         String ordinalname = ordinals.name(*pthunk ^ XBE_ORDINAL_FLAG, "XBoxKrnl!");
-        this->document()->lock(*pthunk, ordinalname, SymbolType::Import);
+        ldrdoc->imported(*pthunk, sizeof(u32), ordinalname);
         pthunk++;
     }
 

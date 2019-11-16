@@ -19,7 +19,7 @@ class ElfAnalyzer: public Analyzer
 
    private:
         void disassembleLibStartMain();
-        Symbol *getLibStartMain();
+        const Symbol* getLibStartMain();
 
    protected:
         std::unordered_map<String, address_t> m_libcmain;

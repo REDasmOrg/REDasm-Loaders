@@ -3,7 +3,7 @@
 #include <redasm/plugins/loader/loader.h>
 #include "elf_header.h"
 
-#define ELF_STRING_TABLE this->m_shdr[this->m_ehdr->e_shstrndx];
+#define ELF_STRING_TABLE this->m_shdr[this->m_ehdr->e_shstrndx]
 #define ELF_STRING(shdr, offset) String(m_loader->pointer<const char>((shdr)->sh_offset + offset))
 
 using namespace REDasm;

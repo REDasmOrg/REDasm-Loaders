@@ -152,7 +152,7 @@ void PEClassifier::classifyDelphi(const ImageDosHeader* dosheader, const ImageNt
 
 void PEClassifier::classify(const ImageNtHeaders *ntheaders)
 {
-    if(this->isVisualBasic() || !this->isClassified())
+    if(!this->isVisualBasic() || !this->isClassified())
     {
         if(ntheaders->OptionalHeaderMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
             this->checkLinkerVersion(ntheaders->OptionalHeader64.MajorLinkerVersion, ntheaders->OptionalHeader64.MinorLinkerVersion);

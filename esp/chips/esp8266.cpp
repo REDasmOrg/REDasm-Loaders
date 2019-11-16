@@ -10,10 +10,10 @@ ESP8266::ESP8266(ESPLoader *loader): ESPCommon(loader) { this->initImports(); }
 
 void ESP8266::load(offset_t offset)
 {
-    m_loader->document()->segment(".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentType::Bss);
+    ldrdoc_r(m_loader)->segment(".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentType::Bss);
 
     for(auto it = m_imports.begin(); it != m_imports.end(); it++)
-        m_loader->document()->symbol(it->first, it->second, SymbolType::Import);
+        ldrdoc_r(m_loader)->imported(it->first, sizeof(u32), it->second);
 
     ESPCommon::load(offset);
 }

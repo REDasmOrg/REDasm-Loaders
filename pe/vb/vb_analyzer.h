@@ -15,10 +15,9 @@ class VBAnalyzer : public PEAnalyzer
         bool decompile(address_t thunrtdata);
 
     private:
-        const Loader* m_loader;
-        VBHeader* m_vbheader;
-        VBProjectInfo* m_vbprojinfo;
-        VBObjectTable* m_vbobjtable;
-        VBObjectTreeInfo* m_vbobjtreeinfo;
-        VBPublicObjectDescriptor* m_vbpubobjdescr;
+        VBHeader* m_vbheader{nullptr};
+        VBProjectInfo* m_vbprojinfo{nullptr};
+        VBObjectTable* m_vbobjtable{nullptr};
+        VBObjectTreeInfo* m_vbobjtreeinfo{nullptr};
+        VBPublicObjectDescriptor* m_vbpubobjdescr{nullptr};
 };

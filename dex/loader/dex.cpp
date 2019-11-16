@@ -41,8 +41,8 @@ void DexLoader::load()
     if(m_header->field_ids_off && m_header->field_ids_size)
         m_fields = pointer<DEXFieldIdItem>(m_header->field_ids_off);
 
-    this->document()->segment("CODE", m_header->data_off, m_header->data_off, m_header->data_size, SegmentType::Code);
-    this->document()->segment("IMPORT", 0, IMPORT_SECTION_ADDRESS, IMPORT_SECTION_SIZE, SegmentType::Bss);
+    ldrdoc->segment("CODE", m_header->data_off, m_header->data_off, m_header->data_size, SegmentType::Code);
+    ldrdoc->segment("IMPORT", 0, IMPORT_SECTION_ADDRESS, IMPORT_SECTION_SIZE, SegmentType::Bss);
 
     DEXClassIdItem* dexclasses = pointer<DEXClassIdItem>(m_header->class_defs_off);
     this->filterClasses(dexclasses);
@@ -60,15 +60,15 @@ bool DexLoader::getMethodOffset(u32 idx, offset_t &offset) const
     return true;
 }
 
-bool DexLoader::getStringOffset(u32 idx, offset_t& offset) const
+size_t DexLoader::getStringOffset(u32 idx, offset_t& offset) const
 {
     if(!m_strings || (idx >= m_header->string_ids_size))
-        return false;
+        return 0;
 
     u8* pstringdata = pointer<u8>(m_strings[idx].string_data_off);
     LEB128::unsignedOf<u32>(pstringdata, &pstringdata);
     offset = fileoffset(pstringdata);
-    return true;
+    return std::strlen(reinterpret_cast<const char*>(pstringdata)) + 1;
 }
 
 const String &DexLoader::getString(u32 idx)
@@ -269,13 +269,10 @@ bool DexLoader::getClassData(const DEXClassIdItem &dexclass, DEXClassData &dexcl
 
 void DexLoader::loadMethod(const DexEncodedMethod &dexmethod, u16& idx, bool filter)
 {
-    if(!dexmethod.code_off)
-        return;
+    if(!dexmethod.code_off) return;
 
-    if(!idx)
-        idx = dexmethod.method_idx_diff;
-    else
-        idx += dexmethod.method_idx_diff;
+    if(!idx) idx = dexmethod.method_idx_diff;
+    else idx += dexmethod.method_idx_diff;
 
     DEXCodeItem* dexcode = pointer<DEXCodeItem>(dexmethod.code_off);
 
@@ -285,9 +282,9 @@ void DexLoader::loadMethod(const DexEncodedMethod &dexmethod, u16& idx, bool fil
     const String& methodname = this->getMethodName(idx);
 
     if(filter)
-        this->document()->lock(fileoffset(&dexcode->insns), methodname, SymbolType::Import, idx);
+        ldrdoc->imported(fileoffset(&dexcode->insns), sizeof(u16), methodname); // FIXME: idx missing
     else
-        this->document()->symbol(fileoffset(&dexcode->insns), methodname, SymbolType::ExportFunction, idx);
+        ldrdoc->exportedFunction(fileoffset(&dexcode->insns), methodname); // FIXME , idx);
 }
 
 void DexLoader::loadClass(const DEXClassIdItem &dexclass, bool filter)

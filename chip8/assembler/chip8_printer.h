@@ -8,5 +8,5 @@ class Chip8Printer : public Printer
 {
     public:
         Chip8Printer();
-        String reg(const RegisterOperand& regop) const override;
+        String reg(const RegisterOperand* regop) const override;
 };

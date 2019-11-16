@@ -54,7 +54,7 @@ bool DalvikAssembler::decodeInstruction(const BufferView &view, Instruction *ins
 
 bool DalvikAssembler::decodeOp0(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->type = type;
     return true;
@@ -62,7 +62,7 @@ bool DalvikAssembler::decodeOp0(BufferView& view, Instruction* instruction, cons
 
 bool DalvikAssembler::decodeOp1(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->type = type;
     instruction->reg(*view & 0xF);
@@ -71,7 +71,7 @@ bool DalvikAssembler::decodeOp1(BufferView& view, Instruction* instruction, cons
 
 bool DalvikAssembler::decodeOp2(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->reg(*view & 0xF);
     instruction->reg((*view & 0xF0) >> 4);
@@ -80,7 +80,7 @@ bool DalvikAssembler::decodeOp2(BufferView& view, Instruction* instruction, cons
 
 bool DalvikAssembler::decodeOp3(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->type = type;
     instruction->size = sizeof(u16) * 2;
@@ -92,7 +92,7 @@ bool DalvikAssembler::decodeOp3(BufferView& view, Instruction* instruction, cons
 
 bool DalvikAssembler::decodeOp2_s(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++);
@@ -102,7 +102,7 @@ bool DalvikAssembler::decodeOp2_s(BufferView& view, Instruction* instruction, co
 
 bool DalvikAssembler::decodeOp2_t(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++);
@@ -112,7 +112,7 @@ bool DalvikAssembler::decodeOp2_t(BufferView& view, Instruction* instruction, co
 
 bool DalvikAssembler::decodeOp2_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->type = type;
     instruction->size = sizeof(u16) * 2;
@@ -123,7 +123,7 @@ bool DalvikAssembler::decodeOp2_f(BufferView& view, Instruction* instruction, co
 
 bool DalvikAssembler::decodeOp2_16(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++);
@@ -134,7 +134,7 @@ bool DalvikAssembler::decodeOp2_16(BufferView& view, Instruction* instruction, c
 bool DalvikAssembler::decodeOp2_16_16(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
     view++; // Skip first byte
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(static_cast<u16>(view));
@@ -145,7 +145,7 @@ bool DalvikAssembler::decodeOp2_16_16(BufferView &view, Instruction* instruction
 
 bool DalvikAssembler::decodeOp2_imm4(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->imm((*view & 0xF0) >> 4);
@@ -154,7 +154,7 @@ bool DalvikAssembler::decodeOp2_imm4(BufferView& view, Instruction* instruction,
 
 bool DalvikAssembler::decodeOp2_imm16(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++);
@@ -164,7 +164,7 @@ bool DalvikAssembler::decodeOp2_imm16(BufferView& view, Instruction* instruction
 
 bool DalvikAssembler::decodeOp2_imm32(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 3;
     instruction->reg(*view++);
@@ -174,7 +174,7 @@ bool DalvikAssembler::decodeOp2_imm32(BufferView& view, Instruction* instruction
 
 bool DalvikAssembler::decodeOp2_imm64(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) + sizeof(u64);
     instruction->reg(*view++);
@@ -184,7 +184,7 @@ bool DalvikAssembler::decodeOp2_imm64(BufferView &view, Instruction* instruction
 
 bool DalvikAssembler::decodeOp2_cnst4(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16);
     instruction->reg(*view & 0xF);
@@ -194,7 +194,7 @@ bool DalvikAssembler::decodeOp2_cnst4(BufferView &view, Instruction* instruction
 
 bool DalvikAssembler::decodeOp2_cnst16(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++);
@@ -204,7 +204,7 @@ bool DalvikAssembler::decodeOp2_cnst16(BufferView &view, Instruction* instructio
 
 bool DalvikAssembler::decodeOp2_cnst32(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 3;
     instruction->reg(*view++);
@@ -214,7 +214,7 @@ bool DalvikAssembler::decodeOp2_cnst32(BufferView &view, Instruction* instructio
 
 bool DalvikAssembler::decodeOp2_cnst64(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) + sizeof(u64);
     instruction->reg(*view++);
@@ -224,7 +224,7 @@ bool DalvikAssembler::decodeOp2_cnst64(BufferView &view, Instruction* instructio
 
 bool DalvikAssembler::decodeOp3_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->type = type;
     instruction->size = sizeof(u16) * 2;
@@ -236,7 +236,7 @@ bool DalvikAssembler::decodeOp3_f(BufferView& view, Instruction* instruction, co
 
 bool DalvikAssembler::decodeOp3_t(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->type = type;
     instruction->size = sizeof(u16) * 2;
@@ -248,7 +248,7 @@ bool DalvikAssembler::decodeOp3_t(BufferView& view, Instruction* instruction, co
 
 bool DalvikAssembler::decodeOp3_imm8(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg(*view++);
@@ -258,7 +258,7 @@ bool DalvikAssembler::decodeOp3_imm8(BufferView& view, Instruction* instruction,
 
 bool DalvikAssembler::decodeOp3_imm16(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
 {
-    instruction->mnemonic = mnemonic;
+    instruction->mnemonic(mnemonic);
     instruction->id = id;
     instruction->size = sizeof(u16) * 2;
     instruction->reg((*view++ & 0xF0) >> 4);
@@ -268,7 +268,7 @@ bool DalvikAssembler::decodeOp3_imm16(BufferView& view, Instruction* instruction
 
 bool DalvikAssembler::decodeIfOp2(BufferView& view, Instruction* instruction, const String& cond, instruction_id_t id)
 {
-    instruction->mnemonic = "if-" + cond;
+    instruction->mnemonic("if-" + cond);
     instruction->id = id;
     instruction->type = InstructionType::Jump | InstructionType::Conditional;
     instruction->size = sizeof(u16) * 2;
@@ -280,7 +280,7 @@ bool DalvikAssembler::decodeIfOp2(BufferView& view, Instruction* instruction, co
 
 bool DalvikAssembler::decodeIfOp3(BufferView& view, Instruction* instruction, const String& cond, instruction_id_t id)
 {
-    instruction->mnemonic = "if-" + cond;
+    instruction->mnemonic("if-" + cond);
     instruction->id = id;
     instruction->type = InstructionType::Jump | InstructionType::Conditional;
     instruction->size = sizeof(u16) * 2;
@@ -339,7 +339,7 @@ bool DalvikAssembler::decodeInvoke(BufferView& view, Instruction* instruction, c
 
     instruction->imm(midx, DalvikOperands::MethodIndex);
     instruction->type = InstructionType::Call;
-    instruction->mnemonic = "invoke-" + kind;
+    instruction->mnemonic("invoke-" + kind);
     return true;
 }
 
@@ -348,7 +348,7 @@ bool DalvikAssembler::decodeInvokeRange(BufferView &view, Instruction* instructi
     instruction->id = id;
     instruction->size = sizeof(u16) * 3;
     instruction->type = InstructionType::Call;
-    instruction->mnemonic = "invoke-" + kind + "/range";
+    instruction->mnemonic("invoke-" + kind + "/range");
 
     u8 argc = view++;
     u16 midx = view;
@@ -447,7 +447,7 @@ bool DalvikAssembler::decode27(BufferView& view, Instruction* instruction) { ret
 
 bool DalvikAssembler::decode28(BufferView& view, Instruction* instruction)
 {
-    instruction->mnemonic = "goto";
+    instruction->mnemonic("goto");
     instruction->id = DalvikOpcodes::Goto;
     instruction->type = InstructionType::Jump;
     instruction->size = sizeof(u16);
@@ -460,7 +460,7 @@ bool DalvikAssembler::decode29(BufferView& view, Instruction* instruction)
 {
     view++; // Skip byte
 
-    instruction->mnemonic = "goto/16";
+    instruction->mnemonic("goto/16");
     instruction->id = DalvikOpcodes::Goto_16;
     instruction->type = InstructionType::Jump;
     instruction->size = sizeof(u16) * 2;
@@ -476,7 +476,7 @@ bool DalvikAssembler::decode2A(BufferView& view, Instruction* instruction)
 
 bool DalvikAssembler::decode2B(BufferView& view, Instruction* instruction)
 {
-    instruction->mnemonic = "packed-switch";
+    instruction->mnemonic("packed-switch");
     instruction->id = DalvikOpcodes::PackedSwitch;
     instruction->type = InstructionType::Jump;
     instruction->size = sizeof(u16) * 3;
@@ -487,7 +487,7 @@ bool DalvikAssembler::decode2B(BufferView& view, Instruction* instruction)
 
 bool DalvikAssembler::decode2C(BufferView& view, Instruction* instruction)
 {
-    instruction->mnemonic = "sparse-switch";
+    instruction->mnemonic("sparse-switch");
     instruction->id = DalvikOpcodes::SparseSwitch;
     instruction->type = InstructionType::ConditionalJump;
     instruction->size = sizeof(u16) * 3;

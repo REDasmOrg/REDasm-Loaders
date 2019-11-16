@@ -94,16 +94,16 @@ void ESPCommon::load(const ESP8266RomHeader1 *header, offset_location offset)
 
         if(offset.valid)
         {
-            m_loader->document()->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
+            ldrdoc_r(m_loader)->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
             offset.value += segment->size;
         }
         else
-            m_loader->document()->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
+            ldrdoc_r(m_loader)->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
 
         segment = Utils::relpointer<ESPSegment>(segment, sizeof(ESPSegment) + segment->size);
     }
 
-    m_loader->document()->entry(header->entrypoint);
+    ldrdoc_r(m_loader)->entry(header->entrypoint);
 }
 
 void ESPCommon::load(const ESP8266RomHeader2 *header)

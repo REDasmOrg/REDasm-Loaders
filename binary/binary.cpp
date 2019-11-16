@@ -16,8 +16,8 @@ void BinaryLoader::build(const String &assembler, offset_t offset, address_t bas
     if(entrypoint >= vsize)
         vsize = entrypoint << 1;
 
-    this->document()->segment("BINARY", offset, baseaddress, this->buffer()->size(), vsize, SegmentType::Code | SegmentType::Data);
-    this->document()->entry(baseaddress + entrypoint);
+    ldrdoc->segment("BINARY", offset, baseaddress, this->buffer()->size(), vsize, SegmentType::Code | SegmentType::Data);
+    ldrdoc->entry(baseaddress + entrypoint);
 }
 
 REDASM_LOADER("Binary", "Dax", "MIT", 1)

@@ -20,6 +20,6 @@ bool Chip8Loader::test(const LoadRequest &request) const
 
 void Chip8Loader::load()
 {
-    this->document()->segment("MEMORY", 0, 0x200, 0x1000, SegmentType::Code | SegmentType::Data);
-    this->document()->entry(0x200);
+    ldrdoc->segment("MEMORY", 0, 0x200, 0x1000, SegmentType::Code | SegmentType::Data);
+    ldrdoc->entry(0x200);
 }

@@ -1,6 +1,7 @@
 #include "pe_analyzer.h"
 #include "pe_utils.h"
 #include "pe_constants.h"
+#include <redasm/support/utils.h>
 
 #define IMPORT_NAME(library, name) PEUtils::importName(library, name)
 #define IMPORT_TRAMPOLINE(library, name) ("_" + IMPORT_NAME(library, name))
@@ -36,22 +37,18 @@ void PEAnalyzer::analyze()
     this->findAllWndProc();
 }
 
-Symbol* PEAnalyzer::getImport(const String &library, const String &api)
+const Symbol* PEAnalyzer::getImport(const String &library, const String &api)
 {
-    Symbol* symbol = r_disasm->document()->symbol(IMPORT_TRAMPOLINE(library, api));
-
-    if(!symbol)
-        symbol = r_disasm->document()->symbol(IMPORT_NAME(library, api));
+    const Symbol* symbol = r_doc->symbol(IMPORT_TRAMPOLINE(library, api));
+    if(!symbol) symbol = r_doc->symbol(IMPORT_NAME(library, api));
 
     return symbol;
 }
 
 SortedSet PEAnalyzer::getAPIReferences(const String &library, const String &api)
 {
-    Symbol* symbol = this->getImport(library, api);
-
-    if(!symbol)
-        return SortedSet();
+    const Symbol* symbol = this->getImport(library, api);
+    if(!symbol) return SortedSet();
 
     return r_disasm->getReferences(symbol->address);
 }
@@ -70,41 +67,36 @@ void PEAnalyzer::findAllWndProc()
 
 void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 {
-    size_t index = r_doc->instructionIndex(address);
-
-    if(!index || (index == REDasm::npos))
-        return;
+    size_t index = r_doc->itemInstructionIndex(address);
+    if(!index || (index == REDasm::npos)) return;
 
     size_t arg = 0;
-    const ListingItem* item = r_doc->itemAt(--index); // Skip call
+    ListingItem item = r_doc->itemAt(--index); // Skip call
 
-    while(item && (arg < argidx))
+    while(item.isValid() && (arg < argidx))
     {
-        CachedInstruction instruction = r_doc->instruction(item->address());
+        CachedInstruction instruction = r_doc->instruction(item.address);
+        if(!instruction) break;
 
-        if(!instruction)
-            break;
-
-        if(instruction->is(InstructionType::Push))
+        if(instruction->typeIs(InstructionType::Push))
         {
             arg++;
 
             if(arg == argidx)
             {
                 const Operand* op = instruction->op(0);
-                Segment* segment = r_doc->segment(op->u_value);
+                const Segment* segment = r_doc->segment(op->u_value);
 
                 if(segment && segment->is(SegmentType::Code))
                 {
-                    r_doc->lockFunction(op->u_value, "DlgProc_" + String::hex(op->u_value));
+                    r_doc->function(op->u_value, "DlgProc_" + String::hex(op->u_value));
                     r_disasm->disassemble(op->u_value);
                 }
             }
         }
 
-        if((arg == argidx) || !index || instruction->is(InstructionType::Stop))
+        if((arg == argidx) || !index || instruction->typeIs(InstructionType::Stop))
             break;
-
 
         item = r_doc->itemAt(--index);
     }
@@ -113,19 +105,13 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 void PEAnalyzer::findCRTWinMain()
 {
     CachedInstruction instruction = r_doc->entryInstruction(); // Look for call
+    if(!instruction || !instruction->typeIs(InstructionType::Call)) return;
 
-    if(!instruction || !instruction->is(InstructionType::Call))
-        return;
-
-    Symbol* symbol = r_doc->symbol(PE_SECURITY_COOKIE_SYMBOL);
-
-    if(!symbol)
-        return;
+    const Symbol* symbol = r_doc->symbol(PE_SECURITY_COOKIE_SYMBOL);
+    if(!symbol) return;
 
     auto target = r_disasm->getTarget(instruction->address);
-
-    if(!target.valid)
-        return;
+    if(!target.valid) return;
 
     bool found = false;
     SortedSet refs = r_disasm->getReferences(symbol->address);
@@ -133,19 +119,19 @@ void PEAnalyzer::findCRTWinMain()
     for(size_t i = 0; i < refs.size(); i++)
     {
         address_t ref = refs[i].toU64();
-        const ListingItem* scfuncitem = r_doc->functionStart(ref);
+        ListingItem scfuncitem = r_doc->functionStart(ref);
 
-        if(!scfuncitem || ((target != scfuncitem->address())))
+        if(!scfuncitem.isValid() || ((target != scfuncitem.address)))
             continue;
 
-        r_doc->lock(scfuncitem->address(), PE_SECURITY_INIT_COOKIE_SYMBOL);
+        r_doc->data(scfuncitem.address, (m_classifier->bits() / CHAR_BIT), PE_SECURITY_INIT_COOKIE_SYMBOL);
         found = true;
         break;
     }
 
-    if(!found || !r_doc->advance(instruction) || !instruction->is(InstructionType::Jump))
+    if(!found || !r_doc->next(instruction) || !instruction->typeIs(InstructionType::Jump))
         return;
 
-    r_doc->lock(target, PE_MAIN_CRT_STARTUP, SymbolType::Function);
-    r_doc->setDocumentEntry(target);
+    r_doc->function(target, PE_MAIN_CRT_STARTUP);
+    r_doc->setEntry(target);
 }

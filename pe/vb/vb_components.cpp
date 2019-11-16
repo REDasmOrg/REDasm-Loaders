@@ -5,7 +5,7 @@
 #define DECLARE_COMPONENT(g, n, e) Component COMPONENT_VAR(n); \
                                    COMPONENT_VAR(n).name = #n; \
                                    COMPONENT_VAR(n).events = e; \
-                                   m_components[g] = COMPONENT_VAR(n);
+                                   m_components[g] = COMPONENT_VAR(n)
 
 VBComponents::Components VBComponents::m_components;
 
@@ -147,9 +147,7 @@ String VBComponents::guidString(GUID *guid)
     for(size_t i = 0; i < sizeof(guid->data4); i++)
     {
         strguid += String::number(guid->data4[i], 16, 2, '0');
-
-        if(i == 1)
-            strguid += "-";
+        if(i == 1) strguid += "-";
     }
 
     return "{" + strguid.toUpper() + "}";

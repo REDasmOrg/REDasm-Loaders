@@ -40,8 +40,8 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::load()
     this->checkProgramHeader();
     this->checkArray();
 
-    if(m_loader->document()->segment(this->m_ehdr->e_entry))
-        m_loader->document()->entry(this->m_ehdr->e_entry);
+    if(ldrdoc_r(m_loader)->segment(this->m_ehdr->e_entry))
+        ldrdoc_r(m_loader)->entry(this->m_ehdr->e_entry);
 }
 
 template<size_t b, endianness_t e> u64 ElfFormatT<b, e>::relocationSymbol(const REL* rel) const
@@ -116,7 +116,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSegments()
             type = SegmentType::Bss;
 
         String name = ELF_STRING(&shstr, shdr.sh_name);
-        m_loader->document()->segment(name, shdr.sh_offset, shdr.sh_addr, shdr.sh_size, type);
+        ldrdoc_r(m_loader)->segment(name, shdr.sh_offset, shdr.sh_addr, shdr.sh_size, type);
     }
 }
 
@@ -132,7 +132,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::checkProgramHeader()
         if((phdr.p_type != PT_LOAD) || !phdr.p_memsz)
             continue;
 
-        m_loader->document()->segment("LOAD", phdr.p_offset, phdr.p_vaddr, phdr.p_memsz, SegmentType::Code);
+        ldrdoc_r(m_loader)->segment("LOAD", phdr.p_offset, phdr.p_vaddr, phdr.p_memsz, SegmentType::Code);
     }
 }
 
@@ -165,8 +165,8 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::checkArray()
                 continue;
 
             address_t address = m_loader->addressof(arr);
-            m_loader->document()->symbol(address, SymbolTable::name(address, prefix, SymbolType::Pointer), SymbolType::Pointer | SymbolType::Data);
-            m_loader->document()->function(val, SymbolTable::name(val, prefix, SymbolType::Function));
+            ldrdoc_r(m_loader)->pointer(address, SymbolTable::name(address, prefix, SymbolType::Pointer));
+            ldrdoc_r(m_loader)->function(val, SymbolTable::name(val, prefix, SymbolType::Function));
         }
     }
 }
@@ -206,19 +206,22 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSymbols(const SHDR
                 isexport = true;
 
             if(isexport)
-                m_loader->document()->lock(symvalue, symname, (info == STT_FUNC) ? SymbolType::ExportFunction : SymbolType::ExportData);
+            {
+                if(info == STT_FUNC) ldrdoc_r(m_loader)->exportedFunction(symvalue, symname);
+                else ldrdoc_r(m_loader)->exported(symvalue, symname);
+            }
             else if(info == STT_FUNC)
-                m_loader->document()->lockFunction(symvalue, symname);
+                ldrdoc_r(m_loader)->function(symvalue, symname);
             else if(info == STT_OBJECT)
             {
-                const Segment* segment = m_loader->document()->segment(symvalue);
+                const Segment* segment = ldrdoc_r(m_loader)->segment(symvalue);
 
                 if(segment && !segment->is(SegmentType::Code))
-                    m_loader->document()->lock(symvalue, symname, SymbolType::Data);
+                    ldrdoc_r(m_loader)->data(symvalue, sym->st_size, symname);
             }
         }
         else
-            m_loader->document()->lock(symvalue, symname, SymbolType::Import);
+            ldrdoc_r(m_loader)->imported(symvalue, sym->st_size, symname);
 
         offset += sizeof(SYM);
     }

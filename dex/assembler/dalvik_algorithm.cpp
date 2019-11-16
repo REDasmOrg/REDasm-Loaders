@@ -48,7 +48,7 @@ void DalvikAlgorithm::onDecoded(const CachedInstruction& instruction)
 
 void DalvikAlgorithm::decodeState(const State *state)
 {
-    Symbol* symbol = r_doc->symbol(state->address);
+    const Symbol* symbol = r_doc->symbol(state->address);
 
     if(symbol && symbol->isFunction())
     {
@@ -66,11 +66,12 @@ void DalvikAlgorithm::stringIndexState(const State *state)
 
     const Operand* op = state->operand();
     offset_t offset = 0;
+    size_t len = 0;
 
-    if(!m_dexloader->getStringOffset(op->u_value, offset))
+    if(!(len = m_dexloader->getStringOffset(op->u_value, offset)))
         return;
 
-    r_doc->symbol(offset, SymbolType::String);
+    r_doc->asciiString(offset, len);
     r_disasm->pushReference(offset, state->instruction->address);
 }
 
@@ -111,18 +112,15 @@ void DalvikAlgorithm::packedSwitchTableState(const State *state)
         address_t target = instruction->address + (*targets * sizeof(u16));
         this->enqueue(target);
 
-        r_doc->lock(r_ldr->addressof(targets), "packed_switch_" + String::hex(op->u_value) + "_case_" + String::number(caseidx), SymbolType::Pointer | SymbolType::Data);
-        r_doc->symbol(target, SymbolType::Code);
+        r_doc->pointer(r_ldr->addressof(targets), "packed_switch_" + String::hex(op->u_value) + "_case_" + String::number(caseidx));
+        r_doc->label(target);
         r_disasm->pushReference(target, instruction->address);
         r_disasm->pushTarget(target, instruction->address);
         this->enqueue(target);
 
         auto it = cases.find(target);
-
-        if(it != cases.end())
-            it->second.push_back(caseidx);
-        else
-            cases[target] = { caseidx };
+        if(it != cases.end()) it->second.push_back(caseidx);
+        else cases[target] = { caseidx };
     }
 
     this->emitCaseInfo(op->u_value, cases);
@@ -148,15 +146,15 @@ void DalvikAlgorithm::sparseSwitchTableState(const State *state)
     for(u32 i = 0; i < sparseswitchpayload->size; i++)
     {
         address_t address = r_ldr->addressof(&keys[i]);
-        r_doc->symbol(address, SymbolTable::name("sparse_switch.key", address), SymbolType::Data);
+        r_doc->data(address, sizeof(u32), SymbolTable::name("sparse_switch.key", address));
     }
 
     for(u32 i = 0; i < sparseswitchpayload->size; i++)
     {
         address_t address = r_ldr->addressof(&targets[i]);
         address_t target = instruction->address + (targets[i] * sizeof(u16));
-        r_doc->symbol(address, SymbolTable::name("sparse_switch.target", address), SymbolType::Pointer | SymbolType::Data);
-        r_doc->symbol(target, SymbolType::Code);
+        r_doc->pointer(address, SymbolTable::name("sparse_switch.target", address));
+        r_doc->label(target);
         r_disasm->pushReference(target, instruction->address);
         r_disasm->pushTarget(target, instruction->address);
         cases[keys[i]] = target;
@@ -179,20 +177,14 @@ void DalvikAlgorithm::fillArrayDataState(const State *state)
 
 void DalvikAlgorithm::debugInfoState(const State *state)
 {
-    Symbol* symbol = r_doc->symbol(state->address);
-
-    if(!symbol || !symbol->isFunction())
-        return;
+    const Symbol* symbol = r_doc->symbol(state->address);
+    if(!symbol || !symbol->isFunction()) return;
 
     DexEncodedMethod dexmethod;
-
-    if(!m_dexloader->getMethodInfo(symbol->tag, dexmethod))
-        return;
+    if(!m_dexloader->getMethodInfo(symbol->tag, dexmethod)) return;
 
     DexDebugInfo dexdebuginfo;
-
-    if(!m_dexloader->getDebugInfo(symbol->tag, dexdebuginfo))
-        return;
+    if(!m_dexloader->getDebugInfo(symbol->tag, dexdebuginfo)) return;
 
     this->emitArguments(state, dexmethod, dexdebuginfo);
     this->emitDebugData(dexdebuginfo);
@@ -274,27 +266,23 @@ void DalvikAlgorithm::checkImport(const State* state)
     const String& methodname = m_dexloader->getMethodName(op->u_value);
 
     auto it = m_imports.find(methodname);
-
-    if(it != m_imports.end())
-        return;
+    if(it != m_imports.end()) return;
 
     m_imports.insert(methodname);
     address_t importaddress = 0;
 
-    if(!methodname.startsWith("java."))
-        r_doc->symbol(m_dexloader->nextImport(&importaddress), methodname, SymbolType::Import);
-    else
-        return;
+    if(!methodname.startsWith("java.")) r_doc->imported(m_dexloader->nextImport(&importaddress), sizeof(u16), methodname);
+    else return;
 
     r_disasm->pushReference(importaddress, state->instruction->address);
 }
 
 bool DalvikAlgorithm::canContinue(const CachedInstruction& instruction) const
 {
-    if(instruction->is(InstructionType::Stop))
+    if(instruction->typeIs(InstructionType::Stop))
         return false;
 
-    if(instruction->is(InstructionType::Jump) && !instruction->is(InstructionType::Conditional))
+    if(instruction->typeIs(InstructionType::Jump) && !instruction->typeIs(InstructionType::Conditional))
         return false;
 
     return true;

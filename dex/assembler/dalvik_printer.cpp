@@ -46,20 +46,15 @@ void DalvikPrinter::function(const Symbol *symbol, const Printer::FunctionCallba
                symbol->name, dexloader->getParameters(symbol->tag));
 }
 
-String DalvikPrinter::reg(const RegisterOperand &regop) const
+String DalvikPrinter::reg(const RegisterOperand* regop) const
 {
-    String s = DalvikAssembler::registerName(regop.r);
-
-    if(regop.tag & DalvikOperands::ParameterFirst)
-        s = "{" + s;
-
-    if(regop.tag & DalvikOperands::ParameterLast)
-        s += "}";
-
+    String s = DalvikAssembler::registerName(regop->r);
+    if(regop->tag & DalvikOperands::ParameterFirst) s = "{" + s;
+    if(regop->tag & DalvikOperands::ParameterLast) s += "}";
     return s;
 }
 
-String DalvikPrinter::imm(const Operand *op) const
+String DalvikPrinter::imm(const Operand* op) const
 {
     DexLoader* dexloader = nullptr;
 

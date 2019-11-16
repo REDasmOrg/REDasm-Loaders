@@ -14,7 +14,7 @@ class PEAnalyzer: public Analyzer
         void analyze() override;
 
     private:
-        Symbol *getImport(const String &library, const String &api);
+        const Symbol* getImport(const String &library, const String &api);
         SortedSet getAPIReferences(const String &library, const String &api);
         void findWndProc(address_t address, size_t argidx);
         void findCRTWinMain();

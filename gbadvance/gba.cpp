@@ -52,14 +52,14 @@ bool GbaLoader::test(const LoadRequest &request) const
 
 void GbaLoader::load()
 {
-    this->document()->segment("EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), SegmentType::Bss);
-    this->document()->segment("IWRAM", 0, GBA_SEGMENT_AREA(IWRAM), SegmentType::Bss);
-    this->document()->segment("IOREG", 0, GBA_SEGMENT_AREA(IOREG), SegmentType::Bss);
-    this->document()->segment("PALETTE", 0, GBA_SEGMENT_AREA(PALETTE), SegmentType::Bss);
-    this->document()->segment("VRAM", 0, GBA_SEGMENT_AREA(VRAM), SegmentType::Bss);
-    this->document()->segment("OAM", 0, GBA_SEGMENT_AREA(OAM), SegmentType::Bss);
-    this->document()->segment("ROM", 0, GBA_ROM_START_ADDR, this->buffer()->size(), SegmentType::Code | SegmentType::Data);
-    this->document()->entry(this->getEP());
+    ldrdoc->segment("EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), SegmentType::Bss);
+    ldrdoc->segment("IWRAM", 0, GBA_SEGMENT_AREA(IWRAM), SegmentType::Bss);
+    ldrdoc->segment("IOREG", 0, GBA_SEGMENT_AREA(IOREG), SegmentType::Bss);
+    ldrdoc->segment("PALETTE", 0, GBA_SEGMENT_AREA(PALETTE), SegmentType::Bss);
+    ldrdoc->segment("VRAM", 0, GBA_SEGMENT_AREA(VRAM), SegmentType::Bss);
+    ldrdoc->segment("OAM", 0, GBA_SEGMENT_AREA(OAM), SegmentType::Bss);
+    ldrdoc->segment("ROM", 0, GBA_ROM_START_ADDR, this->buffer()->size(), SegmentType::Code | SegmentType::Data);
+    ldrdoc->entry(this->getEP());
 }
 
 bool GbaLoader::isUppercaseAscii(const char *s, size_t c)

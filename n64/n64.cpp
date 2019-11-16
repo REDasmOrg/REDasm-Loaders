@@ -75,9 +75,9 @@ void N64Loader::load()
     if(header->magic_0 != N64_MAGIC_BE_B1)
         REDasm::swapEndianness<u16>(this->buffer());
 
-    this->document()->segment("KSEG0", N64_ROM_HEADER_SIZE, this->getEP(header), this->buffer()->size() - N64_ROM_HEADER_SIZE, SegmentType::Code | SegmentType::Data);
+    ldrdoc->segment("KSEG0", N64_ROM_HEADER_SIZE, this->getEP(header), this->buffer()->size() - N64_ROM_HEADER_SIZE, SegmentType::Code | SegmentType::Data);
     // TODO: map other segments
-    this->document()->entry(this->getEP(header));
+    ldrdoc->entry(this->getEP(header));
 }
 
 u32 N64Loader::getEP(const N64RomHeader* header)

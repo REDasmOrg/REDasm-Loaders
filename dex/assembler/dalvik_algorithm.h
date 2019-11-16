@@ -26,7 +26,7 @@ class DalvikAlgorithm: public Algorithm
 
     protected:
         void validateTarget(const CachedInstruction&) const override;
-        void onDecodedOperand(const Operand *op, const CachedInstruction& instruction) override;
+        void onDecodedOperand(const Operand* op, const CachedInstruction& instruction) override;
         void onDecoded(const CachedInstruction &instruction) override;
         void decodeState(const State *state) override;
 

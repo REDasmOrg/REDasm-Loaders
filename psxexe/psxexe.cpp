@@ -14,14 +14,14 @@ void PsxExeLoader::load()
     auto* header = this->pointer<PsxExeHeader>();
 
     if(header->t_addr > PSX_USER_RAM_START)
-        this->document()->segment("RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), SegmentType::Bss);
+        ldrdoc->segment("RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), SegmentType::Bss);
 
-    this->document()->segment("TEXT", PSXEXE_TEXT_OFFSET, header->t_addr, header->t_size, SegmentType::Code | SegmentType::Data);
+    ldrdoc->segment("TEXT", PSXEXE_TEXT_OFFSET, header->t_addr, header->t_size, SegmentType::Code | SegmentType::Data);
 
     if((header->t_addr + header->t_size) < PSX_USER_RAM_END)
-        this->document()->segment("RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), SegmentType::Bss);
+        ldrdoc->segment("RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), SegmentType::Bss);
 
-    this->document()->entry(header->pc0);
+    ldrdoc->entry(header->pc0);
 }
 
 REDASM_LOADER("PS-X Executable", "Dax", "MIT", 1)

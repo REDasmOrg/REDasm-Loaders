@@ -18,7 +18,7 @@ class DexLoader : public Loader
 
     public:
         bool getMethodOffset(u32 idx, offset_t &offset) const;
-        bool getStringOffset(u32 idx, offset_t &offset) const;
+        size_t getStringOffset(u32 idx, offset_t &offset) const;
         const String& getType(u32 idx, bool full = false);
         const String& getString(u32 idx);
         const String& getMethodName(u32 idx);

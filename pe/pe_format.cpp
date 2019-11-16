@@ -5,6 +5,7 @@
 #include "pe_debug.h"
 #include "dotnet/dotnet.h"
 #include "borland/borland_version.h"
+#include <redasm/support/utils.h>
 #include <redasm/context.h>
 
 template<size_t b> PEFormatT<b>::PEFormatT(PELoader *peloader): m_peloader(peloader), m_sectiontable(nullptr), m_datadirectory(nullptr)
@@ -178,7 +179,7 @@ template<size_t b> void PEFormatT<b>::loadDotNet(ImageCor20Header* corheader)
         return;
 
     m_dotnetreader->iterateTypes([&](u32 rva, const String& name) {
-        m_peloader->document()->lockFunction(m_imagebase + rva, name);
+        ldrdoc_r(m_peloader)->function(m_imagebase + rva, name);
     });
 }
 
@@ -196,7 +197,7 @@ template<size_t b> void PEFormatT<b>::loadDefault()
     this->checkDebugInfo();
     this->checkResources();
 
-    m_peloader->document()->entry(m_entrypoint);
+    ldrdoc_r(m_peloader)->entry(m_entrypoint);
     m_classifier.classify(m_peloader->ntHeaders());
 
     for(const auto& sig : m_classifier.signatures())
@@ -231,10 +232,10 @@ template<size_t b> void PEFormatT<b>::loadSections()
         if(name.empty()) // Rename unnamed sections
             name = "sect" + String::number(i);
 
-        m_peloader->document()->segment(name, section.PointerToRawData, m_imagebase + section.VirtualAddress, section.SizeOfRawData, vsize, flags);
+        ldrdoc_r(m_peloader)->segment(name, section.PointerToRawData, m_imagebase + section.VirtualAddress, section.SizeOfRawData, vsize, flags);
     }
 
-    Segment* segment = m_peloader->document()->segment(m_entrypoint);
+    Segment* segment = m_peloader->documentNew()->segment(m_entrypoint);
 
     if(segment) // Entry points always points to code segment
         segment->type |= SegmentType::Code;
@@ -264,102 +265,80 @@ template<size_t b> void PEFormatT<b>::loadExports()
 
     for(size_t i = 0; i < exporttable->NumberOfFunctions; i++)
     {
-        if(!functions[i])
-            continue;
+        if(!functions[i]) continue;
 
         bool namedfunction = false;
         u64 funcep = m_imagebase + functions[i];
-        const Segment* segment = m_peloader->document()->segment(funcep);
+        const Segment* segment = ldrdoc_r(m_peloader)->segment(funcep);
+        if(!segment) continue;
 
-        if(!segment)
-            continue;
-
-        SymbolType symboltype = segment->is(SegmentType::Code) ? SymbolType::ExportFunction :
-                                                           SymbolType::ExportData;
+        bool isfunction = segment->is(SegmentType::Code);
 
         for(pe_integer_t j = 0; j < exporttable->NumberOfNames; j++)
         {
-            if(nameords[j] != i)
-                continue;
-
+            if(nameords[j] != i) continue;
             namedfunction = true;
-            m_peloader->document()->lock(funcep, m_peloader->rvaPointer<const char>(names[j]), symboltype);
+
+            if(isfunction) ldrdoc_r(m_peloader)->exportedFunction(funcep, m_peloader->rvaPointer<const char>(names[j]));
+            else ldrdoc_r(m_peloader)->exported(funcep, m_peloader->rvaPointer<const char>(names[j]));
             break;
         }
 
-        if(namedfunction)
-            continue;
-
-        m_peloader->document()->lock(funcep, Ordinals::ordinal(exporttable->Base + 1), symboltype);
+        if(namedfunction) continue;
+        if(isfunction) ldrdoc_r(m_peloader)->exportedFunction(funcep, Ordinals::ordinal(exporttable->Base + 1));
+        else ldrdoc_r(m_peloader)->exported(funcep, Ordinals::ordinal(exporttable->Base + 1));
     }
 }
 
 template<size_t b> bool PEFormatT<b>::loadImports()
 {
     const ImageDataDirectory& importdir = m_datadirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-
-    if(!importdir.VirtualAddress)
-        return false;
+    if(!importdir.VirtualAddress) return false;
 
     ImageImportDescriptor* importtable = m_peloader->rvaPointer<ImageImportDescriptor>(importdir.VirtualAddress);
-
-    if(!importtable)
-        return false;
+    if(!importtable) return false;
 
     for(size_t i = 0; i < importtable[i].FirstThunk; i++)
         this->readDescriptor(importtable[i], b == 64 ? IMAGE_ORDINAL_FLAG64 : IMAGE_ORDINAL_FLAG32);
 
-    Segment* segment = m_peloader->document()->segment(m_imagebase + importdir.VirtualAddress);
-    return segment && (m_validimportsections.find(segment->name) != m_validimportsections.end());
+    Segment* segment = ldrdoc_r(m_peloader)->segment(m_imagebase + importdir.VirtualAddress);
+    return segment && (m_validimportsections.find(segment->name()) != m_validimportsections.end());
 }
 
 template<size_t b> void PEFormatT<b>::loadExceptions()
 {
     const ImageDataDirectory& exceptiondir = m_datadirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
-
-    if(!exceptiondir.VirtualAddress || !exceptiondir.Size)
-        return;
+    if(!exceptiondir.VirtualAddress || !exceptiondir.Size) return;
 
     ImageRuntimeFunctionEntry* runtimeentry = m_peloader->rvaPointer<ImageRuntimeFunctionEntry>(exceptiondir.VirtualAddress);
-
-    if(!runtimeentry)
-        return;
+    if(!runtimeentry) return;
 
     u64 c = 0, csize = 0;
 
     for(pe_integer_t i = 0; csize < exceptiondir.Size; i++, csize += sizeof(ImageRuntimeFunctionEntry))
     {
         address_t va = m_imagebase + runtimeentry[i].BeginAddress;
-
-        if(!m_peloader->document()->segment(va) || (runtimeentry[i].UnwindInfoAddress & 1))
-            continue;
+        if(!ldrdoc_r(m_peloader)->segment(va) || (runtimeentry[i].UnwindInfoAddress & 1)) continue;
 
         UnwindInfo* unwindinfo = m_peloader->rvaPointer<UnwindInfo>(runtimeentry[i].UnwindInfoAddress & ~1u);
+        if(!unwindinfo || (unwindinfo->Flags & UNW_FLAG_CHAININFO)) continue;
 
-        if(!unwindinfo || (unwindinfo->Flags & UNW_FLAG_CHAININFO))
-            continue;
-
-        m_peloader->document()->function(va);
+        ldrdoc_r(m_peloader)->function(va);
         c++;
     }
 
-    if(c)
-        r_ctx->log("Found " + String::number(c) + " function(s) in Exception Directory");
+    if(c) r_ctx->log("Found " + String::number(c) + " function(s) in Exception Directory");
 }
 
 template<size_t b> void PEFormatT<b>::loadConfig()
 {
     const ImageDataDirectory& configdir = m_datadirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG];
-
-    if(!configdir.VirtualAddress)
-        return;
+    if(!configdir.VirtualAddress) return;
 
     ImageLoadConfigDirectory* loadconfigdir = m_peloader->rvaPointer<ImageLoadConfigDirectory>(configdir.VirtualAddress);
+    if(!loadconfigdir || !loadconfigdir->SecurityCookie) return;
 
-    if(!loadconfigdir || !loadconfigdir->SecurityCookie)
-        return;
-
-    m_peloader->document()->lock(loadconfigdir->SecurityCookie, PE_SECURITY_COOKIE_SYMBOL, SymbolType::Data);
+    ldrdoc_r(m_peloader)->data(loadconfigdir->SecurityCookie, b, PE_SECURITY_COOKIE_SYMBOL);
 }
 
 template<size_t b> void PEFormatT<b>::loadTLS()
@@ -394,17 +373,14 @@ template<size_t b> void PEFormatT<b>::readTLSCallbacks(const ImageTlsDirectory *
     pe_integer_t* callbacks = m_peloader->addrpointer<pe_integer_t>(tlsdirectory->AddressOfCallBacks);
 
     for(pe_integer_t i = 0; *callbacks; i++, callbacks++)
-        m_peloader->document()->lock(*callbacks, "TlsCallback_" + String::number(i), SymbolType::Function);
+        ldrdoc_r(m_peloader)->function(*callbacks, "TlsCallback_" + String::number(i));
 }
 
 template<size_t b> void PEFormatT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor, pe_integer_t ordinalflag)
 {
     // Check if OFT exists
-    ImageThunkData* thunk = m_peloader->rvaPointer<ImageThunkData>(importdescriptor.OriginalFirstThunk ? importdescriptor.OriginalFirstThunk :
-                                                                                                   importdescriptor.FirstThunk);
-
-    if(!thunk)
-        return;
+    ImageThunkData* thunk = m_peloader->rvaPointer<ImageThunkData>(importdescriptor.OriginalFirstThunk ? importdescriptor.OriginalFirstThunk : importdescriptor.FirstThunk);
+    if(!thunk) return;
 
     String descriptorname = String(m_peloader->rvaPointer<const char>(importdescriptor.Name)).toLower();
     m_classifier.classifyImport(descriptorname);
@@ -417,9 +393,7 @@ template<size_t b> void PEFormatT<b>::readDescriptor(const ImageImportDescriptor
         if(!(thunk[i] & ordinalflag))
         {
             ImageImportByName* importbyname = m_peloader->rvaPointer<ImageImportByName>(thunk[i]);
-
-            if(!importbyname)
-                continue;
+            if(!importbyname) continue;
 
             importname = PEUtils::importName(descriptorname, reinterpret_cast<const char*>(&importbyname->Name));
         }
@@ -427,13 +401,11 @@ template<size_t b> void PEFormatT<b>::readDescriptor(const ImageImportDescriptor
         {
             u16 ordinal = static_cast<u16>(ordinalflag ^ thunk[i]);
 
-            if(!PEImports::importName<b>(descriptorname, ordinal, importname))
-                importname = PEUtils::importName(descriptorname, ordinal);
-            else
-                importname = PEUtils::importName(descriptorname, importname);
+            if(!PEImports::importName<b>(descriptorname, ordinal, importname)) importname = PEUtils::importName(descriptorname, ordinal);
+            else importname = PEUtils::importName(descriptorname, importname);
         }
 
-        m_peloader->document()->lock(address, importname, SymbolType::Import);
+        ldrdoc_r(m_peloader)->imported(address, REDasm::bytes_val_count<b>::value, importname);
     }
 }
 

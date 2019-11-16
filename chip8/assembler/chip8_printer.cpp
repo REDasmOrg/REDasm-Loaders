@@ -3,16 +3,11 @@
 
 Chip8Printer::Chip8Printer(): Printer() { }
 
-String Chip8Printer::reg(const RegisterOperand &regop) const
+String Chip8Printer::reg(const RegisterOperand* regop) const
 {
-    if(regop.tag == CHIP8_REG_I)
-        return "i";
+    if(regop->tag == CHIP8_REG_I) return "i";
+    if(regop->tag == CHIP8_REG_DT) return "dt";
+    if(regop->tag == CHIP8_REG_ST) return "st";
 
-    if(regop.tag == CHIP8_REG_DT)
-        return "dt";
-
-    if(regop.tag == CHIP8_REG_ST)
-        return "st";
-
-    return ((regop.tag == CHIP8_REG_K) ? "k" : "v") + String::hex(regop.r);
+    return ((regop->tag == CHIP8_REG_K) ? "k" : "v") + String::hex(regop->r);
 }
