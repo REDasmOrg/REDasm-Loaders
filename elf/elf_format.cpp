@@ -165,7 +165,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::checkArray()
                 continue;
 
             address_t address = m_loader->addressof(arr);
-            ldrdoc_r(m_loader)->pointer(address, SymbolTable::name(address, prefix, SymbolType::Pointer));
+            ldrdoc_r(m_loader)->pointer(address, SymbolTable::name(address, prefix, SymbolType::Data, SymbolFlags::Pointer));
             ldrdoc_r(m_loader)->function(val, SymbolTable::name(val, prefix, SymbolType::Function));
         }
     }

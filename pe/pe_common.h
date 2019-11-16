@@ -1,6 +1,7 @@
 #pragma once
 
 #include <redasm/redasm.h>
+#include <redasm/libs/visit_struct/visit_struct.hpp>
 
 struct GUID
 {

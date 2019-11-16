@@ -53,7 +53,7 @@ void ElfAnalyzer::findMainMode_x86_32(size_t index)
 
             const Operand* op = instruction->op(0);
 
-            if(Operand::isNumeric(op))
+            if(op->isNumeric())
             {
                 if(i == 0) m_libcmain["main"] = op->u_value;
                 else if(i == 3) m_libcmain["init"] = op->u_value;
@@ -84,7 +84,7 @@ void ElfAnalyzer::findMainMode_x86_64(size_t index)
                 const Operand* op1 = instruction->op(0);
                 const Operand* op2 = instruction->op(1);
 
-                if(!REDasm::typeIs(op1, OperandType::Register) || !Operand::isNumeric(op2))
+                if(!REDasm::typeIs(op1, OperandType::Register) || !op2->isNumeric())
                     continue;
 
                 if(op1->reg.r == X86_REG_RDI) m_libcmain["main"] = op2->u_value;

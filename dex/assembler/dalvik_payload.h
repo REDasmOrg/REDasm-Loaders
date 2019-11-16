@@ -1,6 +1,7 @@
 #pragma once
 
 #include <redasm/redasm.h>
+#include <redasm/libs/visit_struct/visit_struct.hpp>
 
 #define DALVIK_PACKED_SWITCH_IDENT   0x0100
 #define DALVIK_SPARSE_SWITCH_IDENT   0x0200

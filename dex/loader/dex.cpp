@@ -282,9 +282,9 @@ void DexLoader::loadMethod(const DexEncodedMethod &dexmethod, u16& idx, bool fil
     const String& methodname = this->getMethodName(idx);
 
     if(filter)
-        ldrdoc->imported(fileoffset(&dexcode->insns), sizeof(u16), methodname); // FIXME: idx missing
+        ldrdoc->imported(fileoffset(&dexcode->insns), sizeof(u16), methodname, idx);
     else
-        ldrdoc->exportedFunction(fileoffset(&dexcode->insns), methodname); // FIXME , idx);
+        ldrdoc->exportedFunction(fileoffset(&dexcode->insns), methodname, idx);
 }
 
 void DexLoader::loadClass(const DEXClassIdItem &dexclass, bool filter)
