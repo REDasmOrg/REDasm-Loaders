@@ -19,7 +19,7 @@ void VBAnalyzer::analyze()
     if(!r_doc->segment(thunrtdata) || !r_doc->next(instruction) || !instruction->isCall())
         return;
 
-    instruction->type |= InstructionType::Stop;
+    instruction->type = InstructionType::Stop;
     if(!this->decompile(thunrtdata)) return;
     PEAnalyzer::analyze();
 }
@@ -88,11 +88,11 @@ bool VBAnalyzer::decompile(address_t thunrtdata)
     m_vbobjtreeinfo = r_ldr->addrpointer<VBObjectTreeInfo>(m_vbobjtable->lpObjectTreeInfo);
     m_vbpubobjdescr = r_ldr->addrpointer<VBPublicObjectDescriptor>(m_vbobjtable->lpPubObjArray);
 
-    REDASM_SYMBOLIZE(VBHeader, r_disasm, thunrtdata);
-    REDASM_SYMBOLIZE(VBProjectInfo, r_disasm, m_vbheader->lpProjectData);
-    REDASM_SYMBOLIZE(VBObjectTable, r_disasm, m_vbprojinfo->lpObjectTable);
-    REDASM_SYMBOLIZE(VBObjectTreeInfo, r_disasm, m_vbobjtable->lpObjectTreeInfo);
-    REDASM_SYMBOLIZE(VBPublicObjectDescriptor, r_disasm, m_vbobjtable->lpPubObjArray);
+    REDASM_SYMBOLIZE(VBHeader, thunrtdata);
+    REDASM_SYMBOLIZE(VBProjectInfo, m_vbheader->lpProjectData);
+    REDASM_SYMBOLIZE(VBObjectTable, m_vbprojinfo->lpObjectTable);
+    REDASM_SYMBOLIZE(VBObjectTreeInfo, m_vbobjtable->lpObjectTreeInfo);
+    REDASM_SYMBOLIZE(VBPublicObjectDescriptor, m_vbobjtable->lpPubObjArray);
 
     for(size_t i = 0; i < m_vbobjtable->wTotalObjects; i++)
         this->decompileObject(m_vbpubobjdescr[i]);

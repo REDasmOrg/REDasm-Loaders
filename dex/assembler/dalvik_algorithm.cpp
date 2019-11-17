@@ -99,7 +99,7 @@ void DalvikAlgorithm::packedSwitchTableState(const State *state)
     if(!packedswitchpayload || (packedswitchpayload->ident != DALVIK_PACKED_SWITCH_IDENT))
         return;
 
-    REDasm::symbolize<DalvikPackedSwitchPayload>(r_disasm, op->u_value, "packed_switch");
+    REDasm::symbolize<DalvikPackedSwitchPayload>(op->u_value, "packed_switch");
 
     CachedInstruction instruction = state->instruction;
     r_doc->autoComment(instruction->address, String::number(packedswitchpayload->size) + " case(s)");
@@ -134,7 +134,7 @@ void DalvikAlgorithm::sparseSwitchTableState(const State *state)
     if(!sparseswitchpayload || (sparseswitchpayload->ident != DALVIK_SPARSE_SWITCH_IDENT))
         return;
 
-    REDasm::symbolize<DalvikSparseSwitchPayload>(r_disasm, op->u_value, "sparse_switch");
+    REDasm::symbolize<DalvikSparseSwitchPayload>(op->u_value, "sparse_switch");
 
     CachedInstruction instruction = state->instruction;
     r_doc->autoComment(instruction->address, String::number(sparseswitchpayload->size) + " case(s)");
@@ -172,7 +172,7 @@ void DalvikAlgorithm::fillArrayDataState(const State *state)
     if(!fillarraydatapayload || (fillarraydatapayload->ident != DALVIK_FILL_ARRAY_DATA_IDENT))
         return;
 
-    REDasm::symbolize<DalvikFillArrayDataPayload>(r_disasm, op->u_value, "array_payload");
+    REDasm::symbolize<DalvikFillArrayDataPayload>(op->u_value, "array_payload");
 }
 
 void DalvikAlgorithm::debugInfoState(const State *state)
