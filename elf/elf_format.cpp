@@ -183,7 +183,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSymbols(const SHDR
         u8 info = ELF_ST_TYPE(sym->st_info);
         u64 symvalue = sym->st_value;
 
-        if(!sym->st_name)
+        if(!sym->st_name || !sym->st_size)
         {
             offset += sizeof(SYM);
             continue;
