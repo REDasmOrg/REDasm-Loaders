@@ -4,7 +4,7 @@
 BinaryLoader::BinaryLoader(): Loader() {  }
 int BinaryLoader::weight() const { return std::numeric_limits<int>::max(); }
 AssemblerRequest BinaryLoader::assembler() const { return m_assembler.c_str(); }
-LoaderFlags BinaryLoader::flags() const { return LoaderFlags::Binary; }
+flag_t BinaryLoader::flags() const { return LoaderFlags::Binary; }
 bool BinaryLoader::test(const LoadRequest &request) const { return true; }
 void BinaryLoader::load() { /* NOP */ }
 

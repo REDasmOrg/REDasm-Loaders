@@ -7,7 +7,7 @@
 #include "../loader/dex.h"
 #include "dalvik.h"
 
-#define HAS_ACCESS_FLAGS(dexmethod, ac) static_cast<DexAccessFlags>(dexmethod.access_flags) & ac
+#define HAS_ACCESS_FLAGS(dexmethod, ac) static_cast<flag_t>(dexmethod.access_flags) & ac
 
 DalvikPrinter::DalvikPrinter(): Printer() { }
 

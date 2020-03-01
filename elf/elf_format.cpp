@@ -101,7 +101,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSegments()
                 continue;
         }
 
-        SegmentType type = SegmentType::Data;
+        type_t type = SegmentType::Data;
 
         if(shdr.sh_type == SHT_PROGBITS)
         {

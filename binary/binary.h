@@ -11,7 +11,7 @@ class BinaryLoader: public Loader
         BinaryLoader();
         int weight() const override;
         AssemblerRequest assembler() const override;
-        LoaderFlags flags() const override;
+        flag_t flags() const override;
         bool test(const LoadRequest &request) const override;
         void load() override;
         void build(const String &assembler, offset_t offset, address_t baseaddress, address_t entrypoint) override;

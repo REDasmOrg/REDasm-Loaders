@@ -52,7 +52,7 @@ bool DalvikAssembler::decodeInstruction(const BufferView &view, Instruction *ins
     return res;
 }
 
-bool DalvikAssembler::decodeOp0(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
+bool DalvikAssembler::decodeOp0(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
 {
     instruction->mnemonic(mnemonic);
     instruction->id = id;
@@ -60,7 +60,7 @@ bool DalvikAssembler::decodeOp0(BufferView& view, Instruction* instruction, cons
     return true;
 }
 
-bool DalvikAssembler::decodeOp1(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
+bool DalvikAssembler::decodeOp1(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
 {
     instruction->mnemonic(mnemonic);
     instruction->id = id;
@@ -78,7 +78,7 @@ bool DalvikAssembler::decodeOp2(BufferView& view, Instruction* instruction, cons
     return true;
 }
 
-bool DalvikAssembler::decodeOp3(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
+bool DalvikAssembler::decodeOp3(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
 {
     instruction->mnemonic(mnemonic);
     instruction->id = id;
@@ -110,7 +110,7 @@ bool DalvikAssembler::decodeOp2_t(BufferView& view, Instruction* instruction, co
     return true;
 }
 
-bool DalvikAssembler::decodeOp2_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
+bool DalvikAssembler::decodeOp2_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
 {
     instruction->mnemonic(mnemonic);
     instruction->id = id;
@@ -222,7 +222,7 @@ bool DalvikAssembler::decodeOp2_cnst64(BufferView &view, Instruction* instructio
     return true;
 }
 
-bool DalvikAssembler::decodeOp3_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
+bool DalvikAssembler::decodeOp3_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
 {
     instruction->mnemonic(mnemonic);
     instruction->id = id;
@@ -234,7 +234,7 @@ bool DalvikAssembler::decodeOp3_f(BufferView& view, Instruction* instruction, co
     return true;
 }
 
-bool DalvikAssembler::decodeOp3_t(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, InstructionType type)
+bool DalvikAssembler::decodeOp3_t(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
 {
     instruction->mnemonic(mnemonic);
     instruction->id = id;

@@ -105,7 +105,7 @@ void XbeLoader::loadSections(const XbeImageHeader* header, XbeSectionHeader *sec
     for(u32 i = 0; i < header->NumberOfSections; i++)
     {
         String sectname = this->memoryoffset<const char>(header, sectionhdr[i].SectionName);
-        SegmentType secttype = SegmentType::None;
+        type_t secttype = SegmentType::None;
 
         if(sectionhdr[i].Flags.Executable)
         {

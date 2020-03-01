@@ -64,7 +64,7 @@ void ESPCommon::load(const ESP8266RomHeader1 *header, offset_location offset)
     for(size_t i = 0 ; segment && (i < header->segments); i++)
     {
         String segname;
-        SegmentType segtype;
+        type_t segtype;
 
         if(segment->address == 0x40100000)
         {

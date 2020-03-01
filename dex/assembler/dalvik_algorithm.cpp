@@ -217,7 +217,7 @@ void DalvikAlgorithm::emitCaseInfo(address_t address, const CachedInstruction& i
 
 void DalvikAlgorithm::emitArguments(const State* state, const DexEncodedMethod& dexmethod, const DexDebugInfo& dexdebuginfo)
 {
-    u32 delta = (static_cast<DexAccessFlags>(dexmethod.access_flags) & DexAccessFlags::Static) ? 0 : 1;
+    u32 delta = (static_cast<flag_t>(dexmethod.access_flags) & DexAccessFlags::Static) ? 0 : 1;
 
     for(size_t i = 0; i < dexdebuginfo.parameter_names.size(); i++)
     {
