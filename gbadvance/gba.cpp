@@ -52,13 +52,13 @@ bool GbaLoader::test(const LoadRequest &request) const
 
 void GbaLoader::load()
 {
-    ldrdoc->segment("EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), SegmentType::Bss);
-    ldrdoc->segment("IWRAM", 0, GBA_SEGMENT_AREA(IWRAM), SegmentType::Bss);
-    ldrdoc->segment("IOREG", 0, GBA_SEGMENT_AREA(IOREG), SegmentType::Bss);
-    ldrdoc->segment("PALETTE", 0, GBA_SEGMENT_AREA(PALETTE), SegmentType::Bss);
-    ldrdoc->segment("VRAM", 0, GBA_SEGMENT_AREA(VRAM), SegmentType::Bss);
-    ldrdoc->segment("OAM", 0, GBA_SEGMENT_AREA(OAM), SegmentType::Bss);
-    ldrdoc->segment("ROM", 0, GBA_ROM_START_ADDR, this->buffer()->size(), SegmentType::Code | SegmentType::Data);
+    ldrdoc->segment("EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), Segment::T_Bss);
+    ldrdoc->segment("IWRAM", 0, GBA_SEGMENT_AREA(IWRAM), Segment::T_Bss);
+    ldrdoc->segment("IOREG", 0, GBA_SEGMENT_AREA(IOREG), Segment::T_Bss);
+    ldrdoc->segment("PALETTE", 0, GBA_SEGMENT_AREA(PALETTE), Segment::T_Bss);
+    ldrdoc->segment("VRAM", 0, GBA_SEGMENT_AREA(VRAM), Segment::T_Bss);
+    ldrdoc->segment("OAM", 0, GBA_SEGMENT_AREA(OAM), Segment::T_Bss);
+    ldrdoc->segment("ROM", 0, GBA_ROM_START_ADDR, this->buffer()->size(), Segment::T_Code | Segment::T_Data);
     ldrdoc->entry(this->getEP());
 }
 

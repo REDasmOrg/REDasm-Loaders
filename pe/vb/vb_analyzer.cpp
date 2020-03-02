@@ -11,15 +11,15 @@ VBAnalyzer::VBAnalyzer(const PEClassifier *classifier): PEAnalyzer(classifier) {
 void VBAnalyzer::analyze()
 {
     CachedInstruction instruction = r_doc->entryInstruction();
-    if(!instruction->typeIs(InstructionType::Push) || (instruction->operandscount != 1)) return;
-    if(!REDasm::typeIs(instruction->op(0), OperandType::Immediate)) return;
+    if(!instruction->typeIs(Instruction::T_Push) || (instruction->operandscount != 1)) return;
+    if(!REDasm::typeIs(instruction->op(0), Operand::T_Immediate)) return;
 
     address_t thunrtdata = instruction->op(0)->u_value;
 
     if(!r_doc->segment(thunrtdata) || !r_doc->next(instruction) || !instruction->isCall())
         return;
 
-    instruction->type = InstructionType::Stop;
+    instruction->type = Instruction::T_Stop;
     if(!this->decompile(thunrtdata)) return;
     PEAnalyzer::analyze();
 }

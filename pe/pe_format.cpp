@@ -209,18 +209,18 @@ template<size_t b> void PEFormatT<b>::loadSections()
     for(size_t i = 0; i < m_peloader->ntHeaders()->FileHeader.NumberOfSections; i++)
     {
         const ImageSectionHeader& section = m_sectiontable[i];
-        type_t flags = SegmentType::None;
+        type_t flags = Segment::T_None;
 
         if((section.Characteristics & IMAGE_SCN_CNT_CODE) || (section.Characteristics & IMAGE_SCN_MEM_EXECUTE))
-            flags |= SegmentType::Code;
+            flags |= Segment::T_Code;
 
         if((section.Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA) || (section.Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA))
-            flags |= SegmentType::Data;
+            flags |= Segment::T_Data;
 
         u64 vsize = section.Misc.VirtualSize;
 
         if(!section.SizeOfRawData)
-            flags |= SegmentType::Bss;
+            flags |= Segment::T_Bss;
 
         u64 diff = vsize % m_sectionalignment;
 
@@ -238,7 +238,7 @@ template<size_t b> void PEFormatT<b>::loadSections()
     Segment* segment = m_peloader->documentNew()->segment(m_entrypoint);
 
     if(segment) // Entry points always points to code segment
-        segment->type |= SegmentType::Code;
+        segment->type |= Segment::T_Code;
 }
 
 template<size_t b> void PEFormatT<b>::loadExports()
@@ -272,7 +272,7 @@ template<size_t b> void PEFormatT<b>::loadExports()
         const Segment* segment = ldrdoc_r(m_peloader)->segment(funcep);
         if(!segment) continue;
 
-        bool isfunction = segment->is(SegmentType::Code);
+        bool isfunction = segment->is(Segment::T_Code);
 
         for(pe_integer_t j = 0; j < exporttable->NumberOfNames; j++)
         {

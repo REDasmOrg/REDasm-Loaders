@@ -78,7 +78,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
         CachedInstruction instruction = r_doc->instruction(item.address);
         if(!instruction) break;
 
-        if(instruction->typeIs(InstructionType::Push))
+        if(instruction->typeIs(Instruction::T_Push))
         {
             arg++;
 
@@ -87,7 +87,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
                 const Operand* op = instruction->op(0);
                 const Segment* segment = r_doc->segment(op->u_value);
 
-                if(segment && segment->is(SegmentType::Code))
+                if(segment && segment->is(Segment::T_Code))
                 {
                     r_doc->function(op->u_value, "DlgProc_" + String::hex(op->u_value));
                     r_disasm->disassemble(op->u_value);

@@ -101,7 +101,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSegments()
                 continue;
         }
 
-        type_t type = SegmentType::Data;
+        type_t type = Segment::T_Data;
 
         if(shdr.sh_type == SHT_PROGBITS)
         {
@@ -109,11 +109,11 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSegments()
                 continue;
 
             if(shdr.sh_flags & SHF_EXECINSTR)
-                type = SegmentType::Code;
+                type = Segment::T_Code;
         }
 
         if(shdr.sh_type == SHT_NOBITS)
-            type = SegmentType::Bss;
+            type = Segment::T_Bss;
 
         String name = ELF_STRING(&shstr, shdr.sh_name);
         ldrdoc_r(m_loader)->segment(name, shdr.sh_offset, shdr.sh_addr, shdr.sh_size, type);
@@ -132,7 +132,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::checkProgramHeader()
         if((phdr.p_type != PT_LOAD) || !phdr.p_memsz)
             continue;
 
-        ldrdoc_r(m_loader)->segment("LOAD", phdr.p_offset, phdr.p_vaddr, phdr.p_memsz, SegmentType::Code);
+        ldrdoc_r(m_loader)->segment("LOAD", phdr.p_offset, phdr.p_vaddr, phdr.p_memsz, Segment::T_Code);
     }
 }
 
@@ -165,8 +165,8 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::checkArray()
                 continue;
 
             address_t address = m_loader->addressof(arr);
-            ldrdoc_r(m_loader)->pointer(address, SymbolTable::name(address, prefix, SymbolType::Data, SymbolFlags::Pointer));
-            ldrdoc_r(m_loader)->function(val, SymbolTable::name(val, prefix, SymbolType::Function));
+            ldrdoc_r(m_loader)->pointer(address, SymbolTable::name(address, prefix, Symbol::T_Data, Symbol::F_Pointer));
+            ldrdoc_r(m_loader)->function(val, SymbolTable::name(val, prefix, Symbol::T_Function));
         }
     }
 }
@@ -216,7 +216,7 @@ template<size_t b, endianness_t e> void ElfFormatT<b, e>::loadSymbols(const SHDR
             {
                 const Segment* segment = ldrdoc_r(m_loader)->segment(symvalue);
 
-                if(segment && !segment->is(SegmentType::Code))
+                if(segment && !segment->is(Segment::T_Code))
                     ldrdoc_r(m_loader)->data(symvalue, sym->st_size, symname);
             }
         }

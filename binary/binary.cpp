@@ -16,7 +16,7 @@ void BinaryLoader::build(const String &assembler, offset_t offset, address_t bas
     if(entrypoint >= vsize)
         vsize = entrypoint << 1;
 
-    ldrdoc->segment("BINARY", offset, baseaddress, this->buffer()->size(), vsize, SegmentType::Code | SegmentType::Data);
+    ldrdoc->segment("BINARY", offset, baseaddress, this->buffer()->size(), vsize, Segment::T_Code | Segment::T_Data);
     ldrdoc->entry(baseaddress + entrypoint);
 }
 

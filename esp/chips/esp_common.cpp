@@ -69,27 +69,27 @@ void ESPCommon::load(const ESP8266RomHeader1 *header, offset_location offset)
         if(segment->address == 0x40100000)
         {
             segname = ".user_rom";
-            segtype = SegmentType::Code;
+            segtype = Segment::T_Code;
         }
         else if(segment->address == 0x3FFE8000)
         {
             segname = ".user_rom_data";
-            segtype = SegmentType::Data;
+            segtype = Segment::T_Data;
         }
         else if(segment->address <= 0x3FFFFFFF)
         {
             segname = ".data_seg_" + String::number(i);
-            segtype = SegmentType::Data;
+            segtype = Segment::T_Data;
         }
         else if(segment->address > 0x40100000)
         {
             segname = ".code_seg_" + String::number(i);
-            segtype = SegmentType::Code;
+            segtype = Segment::T_Code;
         }
         else
         {
             segname = ".unknown_seg_" + String::number(i);
-            segtype = SegmentType::Data;
+            segtype = Segment::T_Data;
         }
 
         if(offset.valid)

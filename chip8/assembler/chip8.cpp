@@ -43,32 +43,32 @@ bool Chip8Assembler::decodeInstruction(const BufferView& view, Instruction *inst
 void Chip8Assembler::onDecoded(Instruction *instruction)
 {
     if(instruction->is("rts"))
-        instruction->type = InstructionType::Stop;
+        instruction->type = Instruction::T_Stop;
     else if(instruction->is("jmp"))
-        instruction->type = InstructionType::Jump;
+        instruction->type = Instruction::T_Jump;
     else if((instruction->is("ske") || instruction->is("skne") || instruction->is("skp") || instruction->is("sknp")))
     {
-        instruction->type = InstructionType::Jump;
-        instruction->flags = InstructionFlags::Conditional;
+        instruction->type = Instruction::T_Jump;
+        instruction->flags = Instruction::F_Conditional;
     }
     else if(instruction->is("call"))
-        instruction->type = InstructionType::Call;
+        instruction->type = Instruction::T_Call;
     else if(instruction->is("add"))
-        instruction->type = InstructionType::Add;
+        instruction->type = Instruction::T_Add;
     else if(instruction->is("sub"))
-        instruction->type = InstructionType::Sub;
+        instruction->type = Instruction::T_Sub;
     else if(instruction->is("and"))
-        instruction->type = InstructionType::And;
+        instruction->type = Instruction::T_And;
     else if(instruction->is("or"))
-        instruction->type = InstructionType::Or;
+        instruction->type = Instruction::T_Or;
     else if(instruction->is("xor"))
-        instruction->type = InstructionType::Xor;
+        instruction->type = Instruction::T_Xor;
     else if(instruction->is("mov") || instruction->is("ldra"))
-        instruction->type = InstructionType::Load;
+        instruction->type = Instruction::T_Load;
     else if(instruction->is("stra"))
-        instruction->type = InstructionType::Store;
+        instruction->type = Instruction::T_Store;
     else if(instruction->is("sys"))
-        instruction->flags = InstructionFlags::Privileged;
+        instruction->flags = Instruction::F_Privileged;
 }
 
 bool Chip8Assembler::decode0xxx(u16 opcode, Instruction *instruction) const

@@ -41,8 +41,8 @@ void DexLoader::load()
     if(m_header->field_ids_off && m_header->field_ids_size)
         m_fields = pointer<DEXFieldIdItem>(m_header->field_ids_off);
 
-    ldrdoc->segment("CODE", m_header->data_off, m_header->data_off, m_header->data_size, SegmentType::Code);
-    ldrdoc->segment("IMPORT", 0, IMPORT_SECTION_ADDRESS, IMPORT_SECTION_SIZE, SegmentType::Bss);
+    ldrdoc->segment("CODE", m_header->data_off, m_header->data_off, m_header->data_size, Segment::T_Code);
+    ldrdoc->segment("IMPORT", 0, IMPORT_SECTION_ADDRESS, IMPORT_SECTION_SIZE, Segment::T_Bss);
 
     DEXClassIdItem* dexclasses = pointer<DEXClassIdItem>(m_header->class_defs_off);
     this->filterClasses(dexclasses);

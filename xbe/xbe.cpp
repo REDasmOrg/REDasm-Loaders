@@ -105,25 +105,25 @@ void XbeLoader::loadSections(const XbeImageHeader* header, XbeSectionHeader *sec
     for(u32 i = 0; i < header->NumberOfSections; i++)
     {
         String sectname = this->memoryoffset<const char>(header, sectionhdr[i].SectionName);
-        type_t secttype = SegmentType::None;
+        type_t secttype = Segment::T_None;
 
         if(sectionhdr[i].Flags.Executable)
         {
             if((sectname[0] == '.') && sectname.contains("data"))
-                secttype = SegmentType::Data;
+                secttype = Segment::T_Data;
             else
-                secttype = SegmentType::Code;
+                secttype = Segment::T_Code;
         }
         else
-            secttype = SegmentType::Data;
+            secttype = Segment::T_Data;
 
         if(!sectionhdr[i].RawSize)
-            secttype = SegmentType::Bss;
+            secttype = Segment::T_Bss;
 
         ldrdoc->segment(sectname, sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
     }
 
-    ldrdoc->segment("XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, SegmentType::Bss);
+    ldrdoc->segment("XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, Segment::T_Bss);
 }
 
 bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)

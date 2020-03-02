@@ -49,7 +49,7 @@ void ElfAnalyzer::findMainMode_x86_32(size_t index)
         {
             CachedInstruction instruction = r_doc->instruction(item.address);
 
-            if(!instruction->typeIs(InstructionType::Push)) continue;
+            if(!instruction->typeIs(Instruction::T_Push)) continue;
 
             const Operand* op = instruction->op(0);
 
@@ -79,12 +79,12 @@ void ElfAnalyzer::findMainMode_x86_64(size_t index)
         {
             CachedInstruction instruction = r_doc->instruction(item.address);
 
-            if(instruction->typeIs(InstructionType::Load))
+            if(instruction->typeIs(Instruction::T_Load))
             {
                 const Operand* op1 = instruction->op(0);
                 const Operand* op2 = instruction->op(1);
 
-                if(!REDasm::typeIs(op1, OperandType::Register) || !op2->isNumeric())
+                if(!REDasm::typeIs(op1, Operand::T_Register) || !op2->isNumeric())
                     continue;
 
                 if(op1->reg.r == X86_REG_RDI) m_libcmain["main"] = op2->u_value;

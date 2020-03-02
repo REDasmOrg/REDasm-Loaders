@@ -14,12 +14,12 @@ void PsxExeLoader::load()
     auto* header = this->pointer<PsxExeHeader>();
 
     if(header->t_addr > PSX_USER_RAM_START)
-        ldrdoc->segment("RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), SegmentType::Bss);
+        ldrdoc->segment("RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), Segment::T_Bss);
 
-    ldrdoc->segment("TEXT", PSXEXE_TEXT_OFFSET, header->t_addr, header->t_size, SegmentType::Code | SegmentType::Data);
+    ldrdoc->segment("TEXT", PSXEXE_TEXT_OFFSET, header->t_addr, header->t_size, Segment::T_Code | Segment::T_Data);
 
     if((header->t_addr + header->t_size) < PSX_USER_RAM_END)
-        ldrdoc->segment("RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), SegmentType::Bss);
+        ldrdoc->segment("RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), Segment::T_Bss);
 
     ldrdoc->entry(header->pc0);
 }
