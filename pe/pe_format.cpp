@@ -235,7 +235,7 @@ template<size_t b> void PEFormatT<b>::loadSections()
         ldrdoc_r(m_peloader)->segment(name, section.PointerToRawData, m_imagebase + section.VirtualAddress, section.SizeOfRawData, vsize, flags);
     }
 
-    Segment* segment = m_peloader->documentNew()->segment(m_entrypoint);
+    Segment* segment = m_peloader->document()->segment(m_entrypoint);
 
     if(segment) // Entry points always points to code segment
         segment->type |= Segment::T_Code;

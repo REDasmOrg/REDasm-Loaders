@@ -45,7 +45,7 @@ void ElfAnalyzer::findMainMode_x86_32(size_t index)
         ListingItem item = r_doc->itemAt(index);
         if(!item.isValid()) break;
 
-        if(item.is(ListingItemType::InstructionItem))
+        if(item.is(ListingItem::InstructionItem))
         {
             CachedInstruction instruction = r_doc->instruction(item.address);
 
@@ -75,7 +75,7 @@ void ElfAnalyzer::findMainMode_x86_64(size_t index)
     {
         ListingItem item = r_doc->itemAt(index);
 
-        if(item.is(ListingItemType::InstructionItem))
+        if(item.is(ListingItem::InstructionItem))
         {
             CachedInstruction instruction = r_doc->instruction(item.address);
 
