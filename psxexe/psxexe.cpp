@@ -11,6 +11,8 @@ bool PsxExeLoader::test(const LoadRequest &request) const
 
 void PsxExeLoader::load()
 {
+    this->signature("psyq");
+
     auto* header = this->pointer<PsxExeHeader>();
 
     if(header->t_addr > PSX_USER_RAM_START)
