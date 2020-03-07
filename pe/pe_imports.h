@@ -3,7 +3,7 @@
 #include <map>
 #include <redasm/redasm.h>
 #include <redasm/support/ordinals.h>
-#include <redasm/support/path.h>
+#include <redasm/support/filesystem.h>
 
 using namespace REDasm;
 
@@ -34,14 +34,15 @@ template<int b> void PEImports::checkX64(String &modulename)
 
 template<int b> void PEImports::loadImport(const String& dllname)
 {
-    String modulename = Path::fileNameOnly(dllname);
+    String modulename = FS::Path(dllname).stem();
     PEImports::checkX64<b>(modulename);
 
     if(m_libraries.find(dllname) != m_libraries.end())
         return;
 
     Ordinals ordinals;
-    ordinals.load(r_ctx->loaderdb("pe", "ordinals", modulename + ".json"));
+    auto path = REDasm::FS::Path("pe").append("ordinals").append(modulename + ".json");
+    ordinals.load(r_ctx->loaderdb(path));
     m_libraries[dllname] = ordinals;
 }
 

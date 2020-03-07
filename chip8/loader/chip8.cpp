@@ -1,20 +1,14 @@
 #include "chip8.h"
-#include <redasm/support/path.h>
+#include <redasm/support/filesystem.h>
 
 Chip8Loader::Chip8Loader(): Loader() { }
 AssemblerRequest Chip8Loader::assembler() const { return "chip8asm"; }
 
 bool Chip8Loader::test(const LoadRequest &request) const
 {
-    if(Path::extIs(request.filePath(), "chip8"))
-        return true;
-
-    if(Path::extIs(request.filePath(), "ch8"))
-        return true;
-
-    if(Path::extIs(request.filePath(), "rom"))
-        return true;
-
+    if(FS::Path(request.filePath()).ext() == ".chip8") return true;
+    if(FS::Path(request.filePath()).ext() == ".ch8") return true;
+    if(FS::Path(request.filePath()).ext() == "rom") return true;
     return false;
 }
 

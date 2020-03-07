@@ -1,5 +1,5 @@
 #include "xbe.h"
-#include <redasm/support/utils.h>
+#include <redasm/support/filesystem.h>
 #include <redasm/support/ordinals.h>
 
 #define XBE_XBOXKRNL_BASEADDRESS 0x80000000
@@ -129,7 +129,7 @@ void XbeLoader::loadSections(const XbeImageHeader* header, XbeSectionHeader *sec
 bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)
 {
     Ordinals ordinals;
-    ordinals.load(r_ctx->db("xbe", "xboxkrnl.json"));
+    ordinals.load(r_ctx->db(REDasm::FS::Path::join("xbe", "xboxkrnl.json")));
 
     u32 kernelimagethunk = 0;
 
