@@ -1,6 +1,6 @@
 #pragma once
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 #include "pe_common.h"
 
 #define PE_PDB_NB10_SIGNATURE 0x3031424E // 01BN

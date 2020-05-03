@@ -1,5 +1,8 @@
 #pragma once
 
+#include <functional>
+#include <map>
+#include <rdapi/types.h>
 #include "pe_constants.h"
 #include "pe_header.h"
 #include "pe_utils.h"
@@ -15,26 +18,26 @@ class PEResources
                     VERSION_INFO = 16, HTML_PAGES = 23, CONFIGURATION_FILES = 24 };
 
         typedef std::pair<ImageResourceDirectory*, ImageResourceDirectoryEntry*> ResourceItem;
-        typedef std::function<offset_location(address_t)> RvaToOffsetCallback;
+        typedef std::function<RDLocation(address_t)> RvaToOffsetCallback;
 
     public:
         PEResources(ImageResourceDirectory* resourcedirectory);
         ResourceItem find(u16 id) const;
-        ResourceItem find(const String& name) const;
+        ResourceItem find(const std::string& name) const;
         ResourceItem find(u16 id, const ResourceItem& parentres) const;
-        ResourceItem find(const String& name, const ResourceItem& parentres) const;
+        ResourceItem find(const std::string& name, const ResourceItem& parentres) const;
 
     public:
         template<typename T1, typename T2> T1* data(const PEResources::ResourceItem &item, T2 loaderbase, const ImageNtHeaders* ntheaders, u64* size = nullptr) const;
 
     private:
         ResourceItem find(u16 id, ImageResourceDirectory* resourcedir) const;
-        ResourceItem find(const String& name, ImageResourceDirectory* resourcedir) const;
-        String entryName(ImageResourceDirectoryEntry* entry) const;
-        String resourceid(u16 id) const;
+        ResourceItem find(const std::string& name, ImageResourceDirectory* resourcedir) const;
+        std::string entryName(ImageResourceDirectoryEntry* entry) const;
+        std::string resourceid(u16 id) const;
 
     private:
-        std::map<u16, String> m_resourcenames;
+        std::map<u16, std::string> m_resourcenames;
         ImageResourceDirectory* m_resourcedirectory;
 };
 
@@ -46,23 +49,17 @@ template<typename T1, typename T2> T1* PEResources::data(const PEResources::Reso
             return nullptr;
 
         ImageResourceDataEntry* dataentry = RESOURCE_PTR(ImageResourceDataEntry, m_resourcedirectory, item.second->OffsetToData);
+        if(size) *size = dataentry->Size;
 
-        if(size)
-            *size = dataentry->Size;
+        RDLocation offset = PEUtils::rvaToOffset(ntheaders, dataentry->OffsetToData);
+        if(!offset.valid) return nullptr;
 
-        offset_location offset = PEUtils::rvaToOffset(ntheaders, dataentry->OffsetToData);
-
-        if(!offset.valid)
-            return nullptr;
-
-        return reinterpret_cast<T1*>(reinterpret_cast<size_t>(loaderbase) + offset);
+        return reinterpret_cast<T1*>(reinterpret_cast<size_t>(loaderbase) + offset.valid);
     }
 
     ImageResourceDirectory* resourcedir = RESOURCE_PTR(ImageResourceDirectory, m_resourcedirectory, item.second->OffsetToDirectory);
     size_t c = resourcedir->NumberOfIdEntries + resourcedir->NumberOfNamedEntries;
-
-    if(c != 1)
-        return nullptr;
+    if(c != 1) return nullptr;
 
     ImageResourceDirectoryEntry* entry = reinterpret_cast<ImageResourceDirectoryEntry*>(resourcedir + 1);
     return this->data<T1, T2>(std::make_pair(resourcedir, entry), loaderbase, ntheaders, size);

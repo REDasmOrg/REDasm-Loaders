@@ -1,25 +1,23 @@
 #include "dotnet_reader.h"
 #include "dotnet.h"
-#include <redasm/support/utils.h>
+#include <rdapi/support.h>
 
 #define IS_STREAM_VALID(s) (s && s->Offset)
 
 DotNetReader::DotNetReader(ImageCor20MetaData *cormetadata): m_cormetadata(cormetadata), m_cortablesheader(nullptr)
 {
-    r_ctx->log(".NET Version: " + PeDotNet::getVersion(cormetadata));
+    RD_Log((".NET Version: " + PeDotNet::getVersion(cormetadata)).c_str());
     ImageStreamHeader* streamheader = PeDotNet::getStream(cormetadata, "#~");
+    if(!IS_STREAM_VALID(streamheader)) return;
 
-    if(!IS_STREAM_VALID(streamheader))
-        return;
-
-    m_cortablesheader = Utils::relpointer<ImageCor20TablesHeader>(cormetadata, streamheader->Offset);
+    m_cortablesheader = reinterpret_cast<ImageCor20TablesHeader*>(RD_RelPointer(cormetadata, streamheader->Offset));
     PeDotNet::getTables(m_cortablesheader, m_cortables);
     streamheader = PeDotNet::getStream(cormetadata, "#Strings");
 
     if(!IS_STREAM_VALID(streamheader))
         return;
 
-    m_corstrings = Utils::relpointer<char>(cormetadata, streamheader->Offset);
+    m_corstrings = reinterpret_cast<char*>(RD_RelPointer(cormetadata, streamheader->Offset));
 }
 
 void DotNetReader::iterateTypes(const MethodCallback& cbmethods) const
@@ -49,11 +47,11 @@ bool DotNetReader::isValid() const
 
 const CorTableRows &DotNetReader::getTableRows(u32 cortable) const { return m_cortables.items.at(cortable); }
 
-void DotNetReader::buildType(String &dest, u32 stringidx) const
+void DotNetReader::buildType(std::string &dest, u32 stringidx) const
 {
-    String s = this->getString(stringidx);
+    std::string s = this->getString(stringidx);
 
-    if(s.first() != '.' && !dest.empty() && (dest.last() != '.'))
+    if(s.front() != '.' && !dest.empty() && (dest.back() != '.'))
         dest += ".";
 
     dest += s;
@@ -61,7 +59,7 @@ void DotNetReader::buildType(String &dest, u32 stringidx) const
 
 void DotNetReader::iterateMethods(const CorTablePtr& cortypedef, u32 methodcount, const MethodCallback& cbmethods) const
 {
-    String tname;
+    std::string tname;
 
     if(cortypedef->typeDef.typeNamespace)
         this->buildType(tname, cortypedef->typeDef.typeNamespace);
@@ -74,7 +72,7 @@ void DotNetReader::iterateMethods(const CorTablePtr& cortypedef, u32 methodcount
 
     for(u32 i = 0; (it != cormdrows.end()) && (i < methodcount); it++, i++)
     {
-        String mname = tname;
+        std::string mname = tname;
         this->buildType(mname, (*it)->methodDef.name);
         cbmethods((*it)->methodDef.rva, mname + "()");
     }
@@ -85,21 +83,14 @@ u32 DotNetReader::getListCount(CorTableRows::const_iterator rowsit, const CorTab
     u32 index = cbindex(*rowsit), lastindex = 0;
     rowsit++;
 
-    if(rowsit != cortablerows.end())
-        lastindex = std::min(maxrows, cbindex(*rowsit));
-    else
-        lastindex = maxrows;
-
+    if(rowsit != cortablerows.end()) lastindex = std::min(maxrows, cbindex(*rowsit));
+    else lastindex = maxrows;
     return lastindex - index;
 }
 
-String DotNetReader::getString(u32 index) const
+std::string DotNetReader::getString(u32 index) const
 {
-    if(!index)
-        return "string_null";
-
-    if(!m_corstrings)
-        return "string_" + String::number(index);
-
+    if(!index) return "string_null";
+    if(!m_corstrings) return "string_" + std::to_string(index);
     return m_corstrings + index;
 }

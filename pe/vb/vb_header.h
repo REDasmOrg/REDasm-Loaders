@@ -1,13 +1,13 @@
 #pragma once
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 #include "../pe_common.h"
 
 #define VB_SIGNATURE_SIZE 4
 
 struct VBHeader
 {
-    char szVbMagic[VB_SIGNATURE_SIZE]; // “VB5!” String
+    char szVbMagic[VB_SIGNATURE_SIZE]; // “VB5!” std::string
     u16 wRuntimeBuild;                 // Build of the VB6 Runtime
     char szLangDll[14];                // Language Extension DLL
     char szSecLangDll[14];             // 2nd Language Extension DLL
@@ -181,29 +181,3 @@ struct VBEventInfo // LocalDispatcher
     u32 lpEVENT_SINK_Release;        //
     u32 lpEvents[1];                 //
 };
-
-VISITABLE_STRUCT(VBHeader, szVbMagic, wRuntimeBuild, szLangDll, szSecLangDll,
-                 wRuntimeRevision, dwLCID, dwSecLCID, lpSubMain, lpProjectData,
-                 fMdlIntCtls, fMdlIntCtls2, dwThreadFlags, dwThreadCount,
-                 wFormCount, wExternalCount, dwThunkCount, lpGuiTable,
-                 lpExternalCompTable, lpComRegisterData,
-                 bszProjectDescription, bszProjectExeName,
-                 bszProjectHelpFile, bszProjectName);
-
-VISITABLE_STRUCT(VBProjectInfo, dwVersion, lpObjectTable, dwNull,
-                 lpCodeStart, lpCodeEnd, dwDataSize, lpThreadSpace, lpVbaSeh,
-                 lpNativeCode, szPathInformation, lpExternalTable, dwExternalCount);
-
-VISITABLE_STRUCT(VBObjectTable, lpHeapLink, lpExecProj, lpObjectTreeInfo,
-                 dwReserved, dwNull, lpProjectObject, uuidObject, fCompileState,
-                 wTotalObjects, wCompiledObjects, wObjectsInUse, lpPubObjArray,
-                 fIdeFlag, lpIdeData, lpIdeData2, lpszProjectName, dwLcid,
-                 dwLcid2, lpIdeData3, dwIdentifier);
-
-VISITABLE_STRUCT(VBObjectTreeInfo, lpHeapLink, lpObjectTable, dwReserved,
-                 lpFormList, dwUnused2, szProjectDescription, szProjectHelpFile,
-                 dwReserved2, dwHelpContextId);
-
-VISITABLE_STRUCT(VBPublicObjectDescriptor, lpObjectInfo, dwReserved,
-                 lpPublicBytes, lpStaticBytes, lpModulePublic, lpszObjectName,
-                 dwMethodCount, lpMethodNames, bStaticVars, fObjectType, dwNull);

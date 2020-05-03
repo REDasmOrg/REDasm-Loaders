@@ -1,6 +1,8 @@
 #pragma once
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
+#include <vector>
+#include <map>
 
 #define DOTNET_TAG_F(n) u8 n##_tag; u32 n
 

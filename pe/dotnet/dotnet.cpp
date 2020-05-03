@@ -1,6 +1,8 @@
 #include "dotnet.h"
-#include <redasm/support/utils.h>
+#include <rdapi/rdapi.h>
+#include <rdapi/support.h>
 #include <cstring>
+#include <climits>
 #include <iostream>
 
 #define PUSH_TABLE(t) m_tables.push_back(CorMetadataTables::t); \
@@ -11,10 +13,10 @@
 std::list<u32> PeDotNet::m_tables;
 PeDotNet::TableDispatcher PeDotNet::m_dispatcher;
 
-String PeDotNet::getVersion(ImageCor20MetaData *cormetadata) { return String(cormetadata->VersionString); }
+std::string PeDotNet::getVersion(ImageCor20MetaData *cormetadata) { return std::string(cormetadata->VersionString); }
 u16 PeDotNet::getNumberOfStreams(ImageCor20MetaData *cormetadata) { return *reinterpret_cast<u16*>(reinterpret_cast<u8*>(&cormetadata->VersionString) + cormetadata->VersionLength + sizeof(u16)); /* Flags */ }
 
-ImageStreamHeader *PeDotNet::getStream(ImageCor20MetaData *cormetadata, const String& id)
+ImageStreamHeader *PeDotNet::getStream(ImageCor20MetaData *cormetadata, const std::string& id)
 {
     u16 n = PeDotNet::getNumberOfStreams(cormetadata);
     u8* p = reinterpret_cast<u8*>(&cormetadata->VersionString) + (cormetadata->VersionLength + (sizeof(u16) * 2)); // Flags + NumberOfStreams
@@ -22,15 +24,15 @@ ImageStreamHeader *PeDotNet::getStream(ImageCor20MetaData *cormetadata, const St
 
     for(u16 i = 0; i < n; i++)
     {
-        if(String(pstreamheader->szAlignedAnsi) == id)
+        if(std::string(pstreamheader->szAlignedAnsi) == id)
             return pstreamheader;
 
         size_t len = std::strlen(pstreamheader->szAlignedAnsi) + 1;
         pstreamheader = reinterpret_cast<ImageStreamHeader*>(reinterpret_cast<u8*>(pstreamheader) +
-                                                             ((sizeof(u32) * 2) + Utils::aligned(len, 4)));
+                                                             ((sizeof(u32) * 2) + PeDotNet::aligned(len, 4)));
     }
 
-    r_ctx->problem("Cannot find Stream Id " + id.quoted());
+    rd_problem("Cannot find Stream Id '" + id + "'");
     return nullptr;
 }
 
@@ -41,10 +43,10 @@ bool PeDotNet::getTables(ImageCor20TablesHeader *cortablesheader, CorTables &tab
     tables.guidoffsize = PeDotNet::getSizeOfHeap(cortablesheader, 1);
     tables.bloboffsize = PeDotNet::getSizeOfHeap(cortablesheader, 2);
 
-    u32* tabledata = Utils::relpointer<u32>(cortablesheader, sizeof(ImageCor20TablesHeader));
+    u32* tabledata = reinterpret_cast<u32*>(RD_RelPointer(cortablesheader, sizeof(ImageCor20TablesHeader)));
 
     // Read rows
-    for(u32 i = 0; i < static_cast<u32>(bits_count<u64>::value); i++)
+    for(u32 i = 0; i < static_cast<u32>(sizeof(u64) * CHAR_BIT); i++)
     {
         u64 tablebit = (static_cast<u64>(1) << i);
 
@@ -64,7 +66,7 @@ bool PeDotNet::getTables(ImageCor20TablesHeader *cortablesheader, CorTables &tab
 
         if(it == m_dispatcher.end())
         {
-            r_ctx->problem("Cannot find table " + String::number(rit->first).quoted());
+            rd_problem("Cannot find table '" + std::to_string(rit->first) + "'");
             return false;
         }
 
@@ -72,7 +74,7 @@ bool PeDotNet::getTables(ImageCor20TablesHeader *cortablesheader, CorTables &tab
 
         for(u32 i = 0; i < rit->second; i++)
         {
-            CorTablePtr table = std::make_unique<CorTable>();
+            CorTablePtr table(new CorTable());
             it->second(&tabledata, tables, table);
             rows.push_back(std::move(table));
         }
@@ -92,9 +94,9 @@ u32 PeDotNet::getSizeOfHeap(ImageCor20TablesHeader *cortablesheader, u32 bitno)
 u32 PeDotNet::getValueIdx(u32 **data, u32 offsize)
 {
     if(offsize == sizeof(u32))
-        return Utils::readpointer<u32>(data);
+        return PeDotNet::readPointer<u32>(data);
 
-    return Utils::readpointer<u16>(data);
+    return PeDotNet::readPointer<u16>(data);
 }
 
 u32 PeDotNet::getTableIdx(u32 **data, const CorTables &tables, u32 table)
@@ -106,9 +108,9 @@ u32 PeDotNet::getTableIdx(u32 **data, const CorTables &tables, u32 table)
         return static_cast<u32>(-1);
 
     if(it->second > 0xFFFF)
-        return Utils::readpointer<u32>(data);
+        return PeDotNet::readPointer<u32>(data);
 
-    return Utils::readpointer<u16>(data);
+    return PeDotNet::readPointer<u16>(data);
 }
 
 u32 PeDotNet::getStringIdx(u32 **data, const CorTables &tables) { return PeDotNet::getValueIdx(data, tables.stringoffsize); }
@@ -170,9 +172,9 @@ void PeDotNet::getTaggedField(u32 **data, u32 &value, u8 &tag, u8 tagbits, const
     u32 tagvalue = 0, maxrows = PeDotNet::maxRows(tables, tablerefs);
 
     if(maxrows > maxvalue) // 32-bit is needed
-        tagvalue = Utils::readpointer<u32>(data);
+        tagvalue = PeDotNet::readPointer<u32>(data);
     else
-        tagvalue = Utils::readpointer<u16>(data);
+        tagvalue = PeDotNet::readPointer<u16>(data);
 
     value = tagvalue >> tagbits;
     tag = tagvalue & mask;
@@ -195,7 +197,7 @@ u32 PeDotNet::maxRows(const CorTables &tables, const std::list<u32> &tablerefs)
 
 void PeDotNet::getModule(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->module.generation = Utils::readpointer<u16>(data);
+    table->module.generation = PeDotNet::readPointer<u16>(data);
     table->module.name = PeDotNet::getStringIdx(data, tables);
     table->module.mvId = PeDotNet::getGuidIdx(data, tables);
     table->module.encId = PeDotNet::getGuidIdx(data, tables);
@@ -213,7 +215,7 @@ void PeDotNet::getTypeRef(u32 **data, const CorTables &tables, CorTablePtr &tabl
 
 void PeDotNet::getTypeDef(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->typeDef.flags = Utils::readpointer<u32>(data);
+    table->typeDef.flags = PeDotNet::readPointer<u32>(data);
     table->typeDef.typeName = PeDotNet::getStringIdx(data, tables);
     table->typeDef.typeNamespace = PeDotNet::getStringIdx(data, tables);
 
@@ -226,16 +228,16 @@ void PeDotNet::getTypeDef(u32 **data, const CorTables &tables, CorTablePtr &tabl
 
 void PeDotNet::getFieldDef(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->fieldDef.flags = Utils::readpointer<u16>(data);
+    table->fieldDef.flags = PeDotNet::readPointer<u16>(data);
     table->fieldDef.name = PeDotNet::getStringIdx(data, tables);
     table->fieldDef.signature = PeDotNet::getBlobIdx(data, tables);
 }
 
 void PeDotNet::getMethodDef(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->methodDef.rva = Utils::readpointer<u32>(data);
-    table->methodDef.implFlags = Utils::readpointer<u16>(data);
-    table->methodDef.flags = Utils::readpointer<u16>(data);
+    table->methodDef.rva = PeDotNet::readPointer<u32>(data);
+    table->methodDef.implFlags = PeDotNet::readPointer<u16>(data);
+    table->methodDef.flags = PeDotNet::readPointer<u16>(data);
     table->methodDef.name = PeDotNet::getStringIdx(data, tables);
     table->methodDef.signature = PeDotNet::getBlobIdx(data, tables);
     table->methodDef.paramList = PeDotNet::getTableIdx(data, tables, CorMetadataTables::ParamDef);
@@ -243,8 +245,8 @@ void PeDotNet::getMethodDef(u32 **data, const CorTables &tables, CorTablePtr &ta
 
 void PeDotNet::getParamDef(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->paramDef.flags = Utils::readpointer<u16>(data);
-    table->paramDef.sequence = Utils::readpointer<u16>(data);
+    table->paramDef.flags = PeDotNet::readPointer<u16>(data);
+    table->paramDef.sequence = PeDotNet::readPointer<u16>(data);
     table->paramDef.name = PeDotNet::getStringIdx(data, tables);
 }
 
@@ -268,7 +270,7 @@ void PeDotNet::getMemberRef(u32 **data, const CorTables &tables, CorTablePtr &ta
 
 void PeDotNet::getConstant(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->constant.type = Utils::readpointer<u16>(data);
+    table->constant.type = PeDotNet::readPointer<u16>(data);
 
     GET_TAGGED_FIELD(3, data, table->constant.parent, 2, tables,
                      { CorMetadataTables::FieldDef, CorMetadataTables::ParamDef, CorMetadataTables::Property });
@@ -303,7 +305,7 @@ void PeDotNet::getFieldMarshal(u32 **data, const CorTables &tables, CorTablePtr 
 
 void PeDotNet::getDeclSecurity(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->declSecurity.action = Utils::readpointer<u16>(data);
+    table->declSecurity.action = PeDotNet::readPointer<u16>(data);
 
     GET_TAGGED_FIELD(3, data, table->declSecurity.parent, 2, tables,
                      { CorMetadataTables::TypeDef, CorMetadataTables::MethodDef, CorMetadataTables::Assembly });
@@ -313,14 +315,14 @@ void PeDotNet::getDeclSecurity(u32 **data, const CorTables &tables, CorTablePtr 
 
 void PeDotNet::getClassLayout(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->classLayout.packingSize = Utils::readpointer<u16>(data);
-    table->classLayout.classSize = Utils::readpointer<u32>(data);
+    table->classLayout.packingSize = PeDotNet::readPointer<u16>(data);
+    table->classLayout.classSize = PeDotNet::readPointer<u32>(data);
     table->classLayout.parent = PeDotNet::getTableIdx(data, tables, CorMetadataTables::TypeDef);
 }
 
 void PeDotNet::getFieldLayout(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->fieldLayout.offset = Utils::readpointer<u32>(data);
+    table->fieldLayout.offset = PeDotNet::readPointer<u32>(data);
     table->fieldLayout.field = PeDotNet::getTableIdx(data, tables, CorMetadataTables::FieldDef);
 }
 
@@ -337,7 +339,7 @@ void PeDotNet::getEventMap(u32 **data, const CorTables &tables, CorTablePtr &tab
 
 void PeDotNet::getEvent(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->event.eventFlags = Utils::readpointer<u16>(data);
+    table->event.eventFlags = PeDotNet::readPointer<u16>(data);
     table->event.name = PeDotNet::getStringIdx(data, tables);
 
     GET_TAGGED_FIELD(3, data, table->event.eventType, 2, tables,
@@ -352,14 +354,14 @@ void PeDotNet::getPropertyMap(u32 **data, const CorTables &tables, CorTablePtr &
 
 void PeDotNet::getProperty(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->property.flags = Utils::readpointer<u16>(data);
+    table->property.flags = PeDotNet::readPointer<u16>(data);
     table->property.name = PeDotNet::getStringIdx(data, tables);
     table->property.type = PeDotNet::getBlobIdx(data, tables);
 }
 
 void PeDotNet::getMethodSemantics(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->methodSemantics.semantics = Utils::readpointer<u16>(data);
+    table->methodSemantics.semantics = PeDotNet::readPointer<u16>(data);
     table->methodSemantics.method = PeDotNet::getTableIdx(data, tables, CorMetadataTables::MethodDef);
 
     GET_TAGGED_FIELD(2, data, table->methodSemantics.association, 1, tables,
@@ -389,7 +391,7 @@ void PeDotNet::getTypeSpec(u32 **data, const CorTables &tables, CorTablePtr &tab
 
 void PeDotNet::getImplMap(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->implMap.mappingFlags = Utils::readpointer<u16>(data);
+    table->implMap.mappingFlags = PeDotNet::readPointer<u16>(data);
 
     GET_TAGGED_FIELD(2, data, table->implMap.memberForwarded, 1, tables,
                      { CorMetadataTables::FieldDef, CorMetadataTables::MethodDef });
@@ -400,18 +402,18 @@ void PeDotNet::getImplMap(u32 **data, const CorTables &tables, CorTablePtr &tabl
 
 void PeDotNet::getFieldRVA(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->fieldRVA.rva = Utils::readpointer<u32>(data);
+    table->fieldRVA.rva = PeDotNet::readPointer<u32>(data);
     table->fieldRVA.field = PeDotNet::getTableIdx(data, tables, CorMetadataTables::FieldDef);
 }
 
 void PeDotNet::getAssembly(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->assembly.hashAlgId = Utils::readpointer<u32>(data);
-    table->assembly.major = Utils::readpointer<u16>(data);
-    table->assembly.minor = Utils::readpointer<u16>(data);
-    table->assembly.build = Utils::readpointer<u16>(data);
-    table->assembly.revision = Utils::readpointer<u16>(data);
-    table->assembly.flags = Utils::readpointer<u32>(data);
+    table->assembly.hashAlgId = PeDotNet::readPointer<u32>(data);
+    table->assembly.major = PeDotNet::readPointer<u16>(data);
+    table->assembly.minor = PeDotNet::readPointer<u16>(data);
+    table->assembly.build = PeDotNet::readPointer<u16>(data);
+    table->assembly.revision = PeDotNet::readPointer<u16>(data);
+    table->assembly.flags = PeDotNet::readPointer<u32>(data);
     table->assembly.publicKey = PeDotNet::getBlobIdx(data, tables);
     table->assembly.name = PeDotNet::getStringIdx(data, tables);
     table->assembly.culture = PeDotNet::getStringIdx(data, tables);
@@ -419,24 +421,24 @@ void PeDotNet::getAssembly(u32 **data, const CorTables &tables, CorTablePtr &tab
 
 void PeDotNet::getAssemblyProcessor(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->assemblyProcessor.processor = Utils::readpointer<u32>(data);
+    table->assemblyProcessor.processor = PeDotNet::readPointer<u32>(data);
 }
 
 void PeDotNet::getAssemblyOS(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->assemblyOS.platformId = Utils::readpointer<u32>(data);
-    table->assemblyOS.major = Utils::readpointer<u32>(data);
-    table->assemblyOS.minor = Utils::readpointer<u32>(data);
+    table->assemblyOS.platformId = PeDotNet::readPointer<u32>(data);
+    table->assemblyOS.major = PeDotNet::readPointer<u32>(data);
+    table->assemblyOS.minor = PeDotNet::readPointer<u32>(data);
 }
 
 void PeDotNet::getAssemblyRef(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->assemblyRef.major = Utils::readpointer<u16>(data);
-    table->assemblyRef.minor = Utils::readpointer<u16>(data);
-    table->assemblyRef.build = Utils::readpointer<u16>(data);
-    table->assemblyRef.revision = Utils::readpointer<u16>(data);
-    table->assemblyRef.flags = Utils::readpointer<u32>(data);
-    table->assemblyRef.flags = Utils::readpointer<u32>(data);
+    table->assemblyRef.major = PeDotNet::readPointer<u16>(data);
+    table->assemblyRef.minor = PeDotNet::readPointer<u16>(data);
+    table->assemblyRef.build = PeDotNet::readPointer<u16>(data);
+    table->assemblyRef.revision = PeDotNet::readPointer<u16>(data);
+    table->assemblyRef.flags = PeDotNet::readPointer<u32>(data);
+    table->assemblyRef.flags = PeDotNet::readPointer<u32>(data);
     table->assemblyRef.publicKeyOrToken = PeDotNet::getBlobIdx(data, tables);
     table->assemblyRef.name = PeDotNet::getStringIdx(data, tables);
     table->assemblyRef.culture = PeDotNet::getStringIdx(data, tables);
@@ -445,29 +447,29 @@ void PeDotNet::getAssemblyRef(u32 **data, const CorTables &tables, CorTablePtr &
 
 void PeDotNet::getAssemblyRefProcessor(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->assemblyRefProcessor.processor = Utils::readpointer<u32>(data);
+    table->assemblyRefProcessor.processor = PeDotNet::readPointer<u32>(data);
     table->assemblyRefProcessor.assemblyRef = PeDotNet::getTableIdx(data, tables, CorMetadataTables::AssemblyRef);
 }
 
 void PeDotNet::getAssemblyRefOS(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->assemblyRefOS.platformId = Utils::readpointer<u32>(data);
-    table->assemblyRefOS.major = Utils::readpointer<u32>(data);
-    table->assemblyRefOS.minor = Utils::readpointer<u32>(data);
+    table->assemblyRefOS.platformId = PeDotNet::readPointer<u32>(data);
+    table->assemblyRefOS.major = PeDotNet::readPointer<u32>(data);
+    table->assemblyRefOS.minor = PeDotNet::readPointer<u32>(data);
     table->assemblyRefOS.assemblyRef = PeDotNet::getTableIdx(data, tables, CorMetadataTables::AssemblyRef);
 }
 
 void PeDotNet::getFile(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->file.flags = Utils::readpointer<u32>(data);
+    table->file.flags = PeDotNet::readPointer<u32>(data);
     table->file.name = PeDotNet::getStringIdx(data, tables);
     table->file.hashValue = PeDotNet::getBlobIdx(data, tables);
 }
 
 void PeDotNet::getExportedType(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->exportedType.flags = Utils::readpointer<u32>(data);
-    table->exportedType.typeDefId = Utils::readpointer<u32>(data);
+    table->exportedType.flags = PeDotNet::readPointer<u32>(data);
+    table->exportedType.typeDefId = PeDotNet::readPointer<u32>(data);
     table->exportedType.typeName = PeDotNet::getStringIdx(data, tables);
     table->exportedType.typeNamespace = PeDotNet::getStringIdx(data, tables);
 
@@ -477,8 +479,8 @@ void PeDotNet::getExportedType(u32 **data, const CorTables &tables, CorTablePtr 
 
 void PeDotNet::getManifestResource(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->manifestResource.offset = Utils::readpointer<u32>(data);
-    table->manifestResource.flags = Utils::readpointer<u32>(data);
+    table->manifestResource.offset = PeDotNet::readPointer<u32>(data);
+    table->manifestResource.flags = PeDotNet::readPointer<u32>(data);
     table->manifestResource.name = PeDotNet::getStringIdx(data, tables);
 
     GET_TAGGED_FIELD(3, data, table->manifestResource.implementation, 2, tables,
@@ -493,8 +495,8 @@ void PeDotNet::getNestedClass(u32 **data, const CorTables &tables, CorTablePtr &
 
 void PeDotNet::getGenericParam(u32 **data, const CorTables &tables, CorTablePtr &table)
 {
-    table->genericParam.number = Utils::readpointer<u16>(data);
-    table->genericParam.flags = Utils::readpointer<u16>(data);
+    table->genericParam.number = PeDotNet::readPointer<u16>(data);
+    table->genericParam.flags = PeDotNet::readPointer<u16>(data);
 
     GET_TAGGED_FIELD(3, data, table->genericParam.owner, 2, tables,
                      { CorMetadataTables::TypeDef, CorMetadataTables::TypeRef, CorMetadataTables::TypeSpec });
@@ -509,3 +511,4 @@ void PeDotNet::getGenericParamConstraint(u32 **data, const CorTables &tables, Co
     GET_TAGGED_FIELD(3, data, table->genericParamConstraint.constraint, 2, tables,
                      { CorMetadataTables::TypeDef, CorMetadataTables::TypeRef, CorMetadataTables::TypeSpec });
 }
+

@@ -7,7 +7,7 @@
  * https://www.red-gate.com/simple-talk/blogs/anatomy-of-a-net-assembly-clr-metadata-3
  */
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 #include "../pe_header.h"
 
 #define PE_IS_DOTNET20(corheader) (corheader.MajorRuntimeVersion >= 2)

@@ -1,4 +1,7 @@
 #include "vb_components.h"
+#include <rdapi/rdapi.h>
+#include <rdapi/support.h>
+#include <algorithm>
 
 #define EVENTS(...) __VA_ARGS__
 #define COMPONENT_VAR(n) c ## _ ## n
@@ -13,13 +16,13 @@ const VBComponents::Component *VBComponents::get(GUID *guid)
 {
     VBComponents::initComponents();
 
-    String guidstring = guidString(guid);
+    std::string guidstring = guidString(guid);
     auto it = m_components.find(guidstring);
 
     if(it != m_components.end())
         return &(it->second);
 
-    r_ctx->problem("Cannot find component " + guidstring);
+    rd_problem("Cannot find component " + guidstring);
     return nullptr;
 }
 
@@ -138,17 +141,18 @@ void VBComponents::initComponents()
                                "KeyPress", "KeyUp", "LostFocus", "Scroll", "Validate" }));
 }
 
-String VBComponents::guidString(GUID *guid)
+std::string VBComponents::guidString(GUID *guid)
 {
-    String strguid = String::number(guid->data1, 16, 8, '0') + "-" +
-                     String::number(guid->data2, 16, 4, '0') + "-" +
-                     String::number(guid->data3, 16, 4, '0') + "-" ;
+    std::string strguid = rd_tostringbase(guid->data1, 16, 8, '0') + "-" +
+                          rd_tostringbase(guid->data2, 16, 4, '0') + "-" +
+                          rd_tostringbase(guid->data3, 16, 4, '0') + "-" ;
 
     for(size_t i = 0; i < sizeof(guid->data4); i++)
     {
-        strguid += String::number(guid->data4[i], 16, 2, '0');
+        strguid += rd_tostringbase(guid->data4[i], 16, 2, '0');
         if(i == 1) strguid += "-";
     }
 
-    return "{" + strguid.toUpper() + "}";
+    std::transform(strguid.begin(), strguid.end(), strguid.begin(), ::toupper);
+    return "{" + strguid + "}";
 }

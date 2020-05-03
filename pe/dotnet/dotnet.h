@@ -3,10 +3,10 @@
 #define DOTNET_INDEX(i) (i - 1)
 
 #include <unordered_map>
+#include <functional>
+#include <list>
 #include "dotnet_header.h"
 #include "dotnet_tables.h"
-
-using namespace REDasm;
 
 class PeDotNet
 {
@@ -18,9 +18,9 @@ class PeDotNet
         PeDotNet() = default;
 
     public:
-        static String getVersion(ImageCor20MetaData *cormetadata);
+        static std::string getVersion(ImageCor20MetaData *cormetadata);
         static u16 getNumberOfStreams(ImageCor20MetaData* cormetadata);
-        static ImageStreamHeader* getStream(ImageCor20MetaData* cormetadata, const String &id);
+        static ImageStreamHeader* getStream(ImageCor20MetaData* cormetadata, const std::string &id);
         static bool getTables(ImageCor20TablesHeader* cortablesheader, CorTables& tables);
 
     private:
@@ -72,8 +72,21 @@ class PeDotNet
     private:
         static void getTaggedField(u32** data, u32& value, u8& tag, u8 tagbits, const CorTables& tables, const std::list<u32>& tablerefs);
         static u32 maxRows(const CorTables& tables, const std::list<u32>& tablerefs);
+        template<typename T, typename U> static T readPointer(U** p);
+        template<typename T, typename U> static T aligned(T t, U a);
 
     private:
         static std::list<u32> m_tables;
         static TableDispatcher m_dispatcher;
 };
+
+template<typename T, typename U>
+T PeDotNet::readPointer(U** p)
+{
+    T v = *reinterpret_cast<T*>(*p);
+    *p = reinterpret_cast<U*>(reinterpret_cast<size_t>(*p) + sizeof(T));
+    return v;
+}
+
+template<typename T, typename U>
+T PeDotNet::aligned(T t, U a) { T r = t % a; return r ? (t + (a - r)) : t; }

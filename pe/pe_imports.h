@@ -1,59 +1,41 @@
 #pragma once
 
-#include <map>
-#include <redasm/redasm.h>
-#include <redasm/support/ordinals.h>
-#include <redasm/support/filesystem.h>
+#include <filesystem>
+#include <algorithm>
+#include <cctype>
+#include <rdapi/rdapi.h>
 
-using namespace REDasm;
+typedef u16 ordinal_t;
 
 class PEImports
 {
-    private:
-        typedef std::map<String, Ordinals> ResolveMap;
-
-    private:
-        template<int b> static void loadImport(const String &dllname);
-        template<int b> static void checkX64(String& modulename);
-
     public:
-        PEImports() = delete;
-        template<int b> static bool importName(const String& dllname, ordinal_t ordinal, String& name);
+        PEImports();
+        template<int b> bool importName(const std::string& dllname, ordinal_t ordinal, std::string& name);
 
     private:
-        static ResolveMap m_libraries;
+        template<int b> static void checkX64(std::string& modulename);
+
+    private:
+        rd_ptr<RDDatabase> m_ordinalsdb;
 };
 
-template<int b> void PEImports::checkX64(String &modulename)
+template<int b> bool PEImports::importName(const std::string &dllname, ordinal_t ordinal, std::string &name)
 {
-    if((b != 64) || modulename.startsWith("mfc"))
-        return;
-
-    modulename += "!x64";
-}
-
-template<int b> void PEImports::loadImport(const String& dllname)
-{
-    String modulename = FS::Path(dllname).stem();
+    std::string modulename = std::filesystem::path(dllname).stem();
+    std::transform(modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
     PEImports::checkX64<b>(modulename);
 
-    if(m_libraries.find(dllname) != m_libraries.end())
-        return;
+    if(!RDDatabase_Select(m_ordinalsdb.get(), modulename.c_str())) return false;
 
-    Ordinals ordinals;
-    auto path = REDasm::FS::Path("pe").append("ordinals").append(modulename + ".json");
-    ordinals.load(r_ctx->loaderdb(path));
-    m_libraries[dllname] = ordinals;
+    RDDatabaseItem item;
+    if(!RDDatabase_Find(m_ordinalsdb.get(), std::to_string(ordinal).c_str(), &item)) return false;
+    name = item.s_value;
+    return true;
 }
 
-template<int b> bool PEImports::importName(const String &dllname, ordinal_t ordinal, String &name)
+template<int b> void PEImports::checkX64(std::string &modulename)
 {
-    PEImports::loadImport<b>(dllname);
-    auto it = m_libraries.find(dllname);
-
-    if(it == m_libraries.end())
-        return false;
-
-    name = it->second.name(ordinal);
-    return true;
+    if((b != 64) || !modulename.find("mfc")) return;
+    modulename += "!x64";
 }

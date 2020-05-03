@@ -1,6 +1,6 @@
 #pragma once
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 #include "pe_constants.h"
 
 #define IMAGE_FIRST_SECTION(ntheaders) reinterpret_cast<ImageSectionHeader*>(reinterpret_cast<size_t>(ntheaders) + \

@@ -3,6 +3,7 @@
 #include "../pe_analyzer.h"
 #include "vb_header.h"
 
+/*
 class VBAnalyzer : public PEAnalyzer
 {
     public:
@@ -10,7 +11,7 @@ class VBAnalyzer : public PEAnalyzer
         void analyze() override;
 
     private:
-        void disassembleTrampoline(address_t eventva, const String &name);
+        void disassembleTrampoline(address_t eventva, const std::string &name);
         void decompileObject(const VBPublicObjectDescriptor& pubobjdescr);
         bool decompile(address_t thunrtdata);
 
@@ -21,3 +22,4 @@ class VBAnalyzer : public PEAnalyzer
         VBObjectTreeInfo* m_vbobjtreeinfo{nullptr};
         VBPublicObjectDescriptor* m_vbpubobjdescr{nullptr};
 };
+*/

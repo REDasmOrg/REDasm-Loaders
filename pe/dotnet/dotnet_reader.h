@@ -1,14 +1,13 @@
 #pragma once
 
+#include <functional>
 #include "dotnet_header.h"
 #include "dotnet_tables.h"
-
-using namespace REDasm;
 
 class DotNetReader
 {
     private:
-        typedef std::function<void(u32, const String&)> MethodCallback;
+        typedef std::function<void(u32, const std::string&)> MethodCallback;
         typedef std::function<u32(const CorTablePtr&)> IndexCallback;
 
     public:
@@ -18,10 +17,10 @@ class DotNetReader
 
     private:
         const CorTableRows& getTableRows(u32 cortable) const;
-        void buildType(String& s, u32 stringidx) const;
+        void buildType(std::string& s, u32 stringidx) const;
         void iterateMethods(const CorTablePtr &cortypedef, u32 methodcount, const MethodCallback &cbmethods) const;
         u32 getListCount(CorTableRows::const_iterator rowsit, const CorTableRows &cortablerows, u32 maxrows, const IndexCallback &cbindex) const;
-        String getString(u32 index) const;
+        std::string getString(u32 index) const;
 
     private:
         ImageCor20MetaData* m_cormetadata;

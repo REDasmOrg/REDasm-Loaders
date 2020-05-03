@@ -1,10 +1,11 @@
 #include "pe_utils.h"
 #include "pe_constants.h"
+#include <rdapi/support.h>
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
 
-String PEUtils::sectionName(const char *psectionname)
+std::string PEUtils::sectionName(const char *psectionname)
 {
     const char *pend = psectionname;
     size_t i = 0;
@@ -15,34 +16,32 @@ String PEUtils::sectionName(const char *psectionname)
             break;
     }
 
-    return String(psectionname, i);
+    return std::string(psectionname, i);
 }
 
-String PEUtils::importName(String library, const String &name)
+std::string PEUtils::importName(std::string library, const std::string &name)
 {
-    library = library.toLower();
-
-    if(!library.endsWith(".dll"))
-        library += ".dll";
-
+    std::transform(library.begin(), library.end(), library.begin(), ::tolower);
+    if(library.find(".dll") == std::string::npos) library += ".dll";
     return library + "_" + name;
 }
 
-String PEUtils::importName(const String& library, s64 ordinal) { return PEUtils::importName(library, "Ordinal__" + String::number(ordinal, 16, 4, '0').toUpper()); }
-
-bool PEUtils::checkMsvcImport(const String &importdescriptor)
+std::string PEUtils::importName(const std::string& library, s64 ordinal)
 {
-    if(importdescriptor.contains("vcruntime"))
-        return true;
-    if(importdescriptor.contains("mfc"))
-        return true;
-    if(importdescriptor.contains("api-ms-win-crt-"))
-        return true;
+    std::string ordinalstring = rd_tostringbase(ordinal, 16, 4, '0');
+    std::transform(ordinalstring.begin(), ordinalstring.end(), ordinalstring.begin(), ::toupper);
+    return PEUtils::importName(library, "Ordinal__" + ordinalstring);
+}
 
+bool PEUtils::checkMsvcImport(const std::string &importdescriptor)
+{
+    if(importdescriptor.find("vcruntime") != std::string::npos) return true;
+    if(importdescriptor.find("mfc") != std::string::npos) return true;
+    if(importdescriptor.find("api-ms-win-crt-") != std::string::npos) return true;
     return false;
 }
 
-offset_location PEUtils::rvaToOffset(const ImageNtHeaders *ntheaders, u64 rva)
+RDLocation PEUtils::rvaToOffset(const ImageNtHeaders *ntheaders, u64 rva)
 {
     const ImageSectionHeader* sectiontable = IMAGE_FIRST_SECTION(ntheaders);
 
@@ -56,9 +55,9 @@ offset_location PEUtils::rvaToOffset(const ImageNtHeaders *ntheaders, u64 rva)
                 break;
 
             offset_t offset = section.PointerToRawData + (rva - section.VirtualAddress);
-            return REDasm::make_location(offset, offset < (section.PointerToRawData + section.SizeOfRawData));
+            return { offset, offset < (section.PointerToRawData + section.SizeOfRawData) };
         }
     }
 
-    return REDasm::invalid_location<offset_t>();
+    return {0, false};
 }

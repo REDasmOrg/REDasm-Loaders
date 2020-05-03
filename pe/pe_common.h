@@ -1,7 +1,6 @@
 #pragma once
 
-#include <redasm/redasm.h>
-#include <redasm/libs/visit_struct/visit_struct.hpp>
+#include <rdapi/rdapi.h>
 
 struct GUID
 {
@@ -11,5 +10,3 @@ struct GUID
 };
 
 typedef u32 LCID;
-
-VISITABLE_STRUCT(GUID, data1, data2, data3, data4);

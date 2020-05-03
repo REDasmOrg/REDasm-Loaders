@@ -9,10 +9,10 @@ class BorlandVersion
         BorlandVersion(PackageInfoHeader* packageinfo, const PEResources::ResourceItem& resourceitem, u64 size);
         bool isDelphi() const;
         bool isCpp() const;
-        String getSignature() const;
+        std::string getSignature() const;
 
     private:
-        bool contains(const String& s) const;
+        bool contains(const std::string& s) const;
 
     private:
         PackageInfoHeader* m_packageinfo;

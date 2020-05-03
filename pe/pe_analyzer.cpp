@@ -1,13 +1,13 @@
 #include "pe_analyzer.h"
-#include "pe_utils.h"
 #include "pe_constants.h"
-#include <redasm/support/utils.h>
+#include "pe_utils.h"
+#include "pe.h"
 
-#define IMPORT_NAME(library, name) PEUtils::importName(library, name)
+#define IMPORT_NAME(library, name)       PEUtils::importName(library, name)
 #define IMPORT_TRAMPOLINE(library, name) ("_" + IMPORT_NAME(library, name))
-#define ADD_WNDPROC_API(argidx, name) m_wndprocapi.emplace_front(argidx, name)
+#define ADD_WNDPROC_API(argidx, name)    m_wndprocapi.emplace_front(argidx, name)
 
-PEAnalyzer::PEAnalyzer(const PEClassifier *classifier): Analyzer(), m_classifier(classifier)
+PEAnalyzer::PEAnalyzer(PELoader* loader, RDDisassembler* disassembler): m_disassembler(disassembler), m_loader(loader)
 {
     ADD_WNDPROC_API(4, "DialogBoxA");
     ADD_WNDPROC_API(4, "DialogBoxW");
@@ -18,6 +18,16 @@ PEAnalyzer::PEAnalyzer(const PEClassifier *classifier): Analyzer(), m_classifier
     ADD_WNDPROC_API(4, "CreateDialogIndirectParamA");
     ADD_WNDPROC_API(4, "CreateDialogIndirectParamW");
 }
+
+void PEAnalyzer::analyze()
+{
+    const PEClassifier* classifier = m_loader->classifier();
+
+    if(!classifier->isClassified() || classifier->isVisualStudio())
+        this->findCRTWinMain();
+}
+
+/*
 
 void PEAnalyzer::analyze()
 {
@@ -37,7 +47,7 @@ void PEAnalyzer::analyze()
     this->findAllWndProc();
 }
 
-const Symbol* PEAnalyzer::getImport(const String &library, const String &api)
+const Symbol* PEAnalyzer::getImport(const std::string &library, const std::string &api)
 {
     const Symbol* symbol = r_doc->symbol(IMPORT_TRAMPOLINE(library, api));
     if(!symbol) symbol = r_doc->symbol(IMPORT_NAME(library, api));
@@ -45,7 +55,7 @@ const Symbol* PEAnalyzer::getImport(const String &library, const String &api)
     return symbol;
 }
 
-SortedSet PEAnalyzer::getAPIReferences(const String &library, const String &api)
+SortedSet PEAnalyzer::getAPIReferences(const std::string &library, const std::string &api)
 {
     const Symbol* symbol = this->getImport(library, api);
     if(!symbol) return SortedSet();
@@ -89,7 +99,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
 
                 if(segment && segment->is(Segment::T_Code))
                 {
-                    r_doc->function(op->u_value, "DlgProc_" + String::hex(op->u_value));
+                    r_doc->function(op->u_value, "DlgProc_" + std::string::hex(op->u_value));
                     r_disasm->disassemble(op->u_value);
                 }
             }
@@ -101,37 +111,41 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
         item = r_doc->itemAt(--index);
     }
 }
+*/
 
 void PEAnalyzer::findCRTWinMain()
 {
-    CachedInstruction instruction = r_doc->entryInstruction(); // Look for call
-    if(!instruction || !instruction->isCall()) return;
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
 
-    const Symbol* symbol = r_doc->symbol(PE_SECURITY_COOKIE_SYMBOL);
-    if(!symbol) return;
+    InstructionLock instruction(doc, RDDocument_EntryPoint(doc));
+    if(!instruction || (instruction->type != InstructionType_Call)) return;
 
-    auto target = r_disasm->getTarget(instruction->address);
+    RDSymbol symbol;
+    if(!RDDocument_GetSymbolByName(doc, PE_SECURITY_COOKIE_SYMBOL, &symbol)) return;
+
+    RDLocation target = RDDisassembler_GetTarget(m_disassembler, instruction->address);
     if(!target.valid) return;
 
     bool found = false;
-    SortedSet refs = r_disasm->getReferences(symbol->address);
+    const address_t* references = nullptr;
+    size_t c = RDDisassembler_GetReferences(m_disassembler, symbol.address, &references);
 
-    for(size_t i = 0; i < refs.size(); i++)
+    for(size_t i = 0; i < c; i++)
     {
-        address_t ref = refs[i].toU64();
-        ListingItem scfuncitem = r_doc->functionStart(ref);
+        address_t ref = references[i];
+        // ListingItem scfuncitem = r_doc->functionStart(ref);
 
-        if(!scfuncitem.isValid() || ((target != scfuncitem.address)))
-            continue;
+        // if(!scfuncitem.isValid() || ((target != scfuncitem.address)))
+        //     continue;
 
-        r_doc->data(scfuncitem.address, (m_classifier->bits() / CHAR_BIT), PE_SECURITY_INIT_COOKIE_SYMBOL);
-        found = true;
-        break;
+        // r_doc->data(scfuncitem.address, (m_classifier->bits() / CHAR_BIT), PE_SECURITY_INIT_COOKIE_SYMBOL);
+        // found = true;
+        // break;
     }
 
-    if(!found || !r_doc->next(instruction) || !instruction->isJump())
-        return;
+    //if(!found || !r_doc->next(instruction) || !instruction->isJump())
+        //return;
 
-    r_doc->function(target, PE_MAIN_CRT_STARTUP);
-    r_doc->setEntry(target);
+    //r_doc->function(target, PE_MAIN_CRT_STARTUP);
+    //r_doc->setEntry(target);
 }

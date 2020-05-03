@@ -1,8 +1,8 @@
 #include "vb_analyzer.h"
 #include "vb_components.h"
 #include "../pe.h"
-#include <redasm/support/symbolize.h>
 
+/*
 #define HAS_OPTIONAL_INFO(objdescr, objinfo) (objdescr.lpObjectInfo + sizeof(VBObjectInfo) != objinfo->base.lpConstants)
 #define VB_METHODNAME(pubobj, control, method) (pubobj + "_" + control + "_" + method)
 
@@ -24,7 +24,7 @@ void VBAnalyzer::analyze()
     PEAnalyzer::analyze();
 }
 
-void VBAnalyzer::disassembleTrampoline(address_t eventva, const String& name)
+void VBAnalyzer::disassembleTrampoline(address_t eventva, const std::string& name)
 {
     if(!eventva) return;
     CachedInstruction instruction = r_disasm->decodeInstruction(eventva); // Disassemble trampoline
@@ -58,7 +58,7 @@ void VBAnalyzer::decompileObject(const VBPublicObjectDescriptor &pubobjdescr)
     if(!HAS_OPTIONAL_INFO(pubobjdescr, objinfo) || !objinfo->lpControls)
         return;
 
-    String pubobjname = r_ldr->addrpointer<const char>(pubobjdescr.lpszObjectName);
+    std::string pubobjname = r_ldr->addrpointer<const char>(pubobjdescr.lpszObjectName);
     VBControlInfo* ctrlinfo = r_ldr->addrpointer<VBControlInfo>(objinfo->lpControls);
 
     for(size_t i = 0; i < objinfo->dwControlCount; i++)
@@ -68,7 +68,7 @@ void VBAnalyzer::decompileObject(const VBPublicObjectDescriptor &pubobjdescr)
         if(!component) continue;
 
         VBEventInfo* eventinfo = r_ldr->addrpointer<VBEventInfo>(ctrl.lpEventInfo);
-        String componentname = r_ldr->addrpointer<const char>(ctrl.lpszName);
+        std::string componentname = r_ldr->addrpointer<const char>(ctrl.lpszName);
         u32* events = &eventinfo->lpEvents[0];
 
         for(size_t j = 0; j < component->events.size(); j++)
@@ -99,3 +99,4 @@ bool VBAnalyzer::decompile(address_t thunrtdata)
 
     return true;
 }
+*/

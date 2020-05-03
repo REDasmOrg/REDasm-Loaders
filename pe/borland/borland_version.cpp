@@ -5,30 +5,18 @@ BorlandVersion::BorlandVersion(PackageInfoHeader *packageinfo, const PEResources
 bool BorlandVersion::isDelphi() const { return IS_PASCAL(m_packageinfo) || IS_PRE_V4(m_packageinfo); }
 bool BorlandVersion::isCpp() const { return IS_CPP(m_packageinfo); }
 
-String BorlandVersion::getSignature() const
+std::string BorlandVersion::getSignature() const
 {
-    if(IS_PRE_V4(m_packageinfo))
-        return "delphi3";
-
-    if(this->contains("System.SysUtils"))
-        return "delphiXE2_6";
-
-    if(this->contains("ExcUtils"))
-        return "delphiXE";
-
-    if(this->contains("StrUtils"))
-        return "delphi9_10";
-
-    if(this->contains("ImageHlp"))
-        return "delphi6";
-
-    if(this->contains("SysInit"))
-        return "delphi7";
-
-    return String();
+    if(IS_PRE_V4(m_packageinfo))          return "delphi3";
+    if(this->contains("System.SysUtils")) return "delphiXE2_6";
+    if(this->contains("ExcUtils"))        return "delphiXE";
+    if(this->contains("StrUtils"))        return "delphi9_10";
+    if(this->contains("ImageHlp"))        return "delphi6";
+    if(this->contains("SysInit"))         return "delphi7";
+    return std::string();
 }
 
-bool BorlandVersion::contains(const String &s) const
+bool BorlandVersion::contains(const std::string& s) const
 {
     const char* fs = s.c_str();
     char* p = reinterpret_cast<char*>(m_packageinfo);

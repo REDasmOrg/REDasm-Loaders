@@ -5,6 +5,7 @@
 // http://matthew-brett.github.io/pydagogue/python_msvc.html
 
 #include <unordered_set>
+#include <string>
 #include "pe_header.h"
 #include "pe_resources.h"
 #include "dotnet/dotnet_header.h"
@@ -25,7 +26,7 @@ class PEClassifier
 {
     public:
         PEClassifier();
-        const std::unordered_set<String> &signatures() const;
+        const std::unordered_set<std::string> &signatures() const;
         bool isClassified() const;
         PEClassification checkDotNet() const;
         PEClassification checkVisualBasic() const;
@@ -41,18 +42,18 @@ class PEClassifier
         void setBits(size_t bits);
         void classifyVisualStudio();
         void classifyDotNet(ImageCorHeader* corheader);
-        void classifyImport(const String &library);
+        void classifyImport(const std::string &library);
         void classifyDelphi(const ImageDosHeader *dosheader, const ImageNtHeaders *ntheaders, const PEResources& peresources);
         void classify(const ImageNtHeaders* ntheaders);
         void display();
 
     private:
         void checkLinkerVersion(u8 major, u8 minor);
-        void addSignature(const String &s);
+        void addSignature(const std::string &s);
 
     private:
         PEClassification m_classification;
         size_t m_bits;
-        String m_borlandsignature;
-        std::unordered_set<String> m_signatures;
+        std::string m_borlandsignature;
+        std::unordered_set<std::string> m_signatures;
 };
