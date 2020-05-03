@@ -1,9 +1,6 @@
 #pragma once
 
-#include <redasm/redasm.h>
-#include <redasm/plugins/loader/loader.h>
-
-using namespace REDasm;
+#include <rdapi/rdapi.h>
 
 #define PSXEXE_SIGNATURE_SIZE 8
 #define PSXEXE_SIGNATURE      "PS-X EXE"
@@ -24,11 +21,10 @@ struct PsxExeHeader
     u32 SavedSP, SavedFP, SavedGP, SavedRA, SavedS0;
 };
 
-class PsxExeLoader: public REDasm::Loader
+class PsxExeLoader
 {
     public:
-        PsxExeLoader();
-        AssemblerRequest assembler() const override;
-        bool test(const REDasm::LoadRequest& request) const override;
-        void load() override;
+        PsxExeLoader() = default;
+        static RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
+        static void load(RDLoaderPlugin*, RDLoader* loader);
 };

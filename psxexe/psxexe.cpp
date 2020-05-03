@@ -1,31 +1,37 @@
 #include "psxexe.h"
+#include <cstring>
 
-PsxExeLoader::PsxExeLoader(): Loader() { }
-AssemblerRequest PsxExeLoader::assembler() const { return ASSEMBLER_REQUEST("mips", "mips32le"); }
+RD_PLUGIN(RDLoaderPlugin, psxexe, "PS-X Executable", nullptr, nullptr,
+          LoaderFlags_None, PsxExeLoader::test, PsxExeLoader::load, nullptr, nullptr)
 
-bool PsxExeLoader::test(const LoadRequest &request) const
+RDAssemblerPlugin* PsxExeLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
-    const auto* header = request.pointer<PsxExeHeader>();
-    return !strncmp(header->id, PSXEXE_SIGNATURE, PSXEXE_SIGNATURE_SIZE);
+    const auto* header = reinterpret_cast<const PsxExeHeader*>(RDBuffer_Data(request->buffer));
+    if(std::strncmp(header->id, PSXEXE_SIGNATURE, PSXEXE_SIGNATURE_SIZE)) return nullptr;
+    return RDAssembler_Find("mips32_le");
 }
 
-void PsxExeLoader::load()
+void PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
 {
-    this->signature("psyq");
+    // this->signature("psyq");
+    RDDocument* doc = RDLoader_GetDocument(loader);
 
-    auto* header = this->pointer<PsxExeHeader>();
+    const auto* header = reinterpret_cast<const PsxExeHeader*>(RDLoader_GetData(loader));
 
     if(header->t_addr > PSX_USER_RAM_START)
-        ldrdoc->segment("RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), Segment::T_Bss);
+        RDDocument_AddSegment(doc, "RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), SegmentType_Bss);
 
-    ldrdoc->segment("TEXT", PSXEXE_TEXT_OFFSET, header->t_addr, header->t_size, Segment::T_Code | Segment::T_Data);
+    RDDocument_AddSegment(doc, "TEXT", PSXEXE_TEXT_OFFSET, header->t_addr, header->t_size, SegmentType_CodeData);
 
     if((header->t_addr + header->t_size) < PSX_USER_RAM_END)
-        ldrdoc->segment("RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), Segment::T_Bss);
+        RDDocument_AddSegment(doc, "RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), SegmentType_Bss);
 
-    ldrdoc->entry(header->pc0);
+    RDDocument_SetEntry(doc, header->pc0);
 }
 
-REDASM_LOADER("PS-X Executable", "Dax", "MIT", 1)
-REDASM_LOAD { psxexe.plugin = new PsxExeLoader(); return true; }
-REDASM_UNLOAD { psxexe.plugin->release(); }
+void entry()
+{
+    RDLoader_Register(&psxexe);
+}
+
+RD_DECLARE_PLUGIN(entry)
