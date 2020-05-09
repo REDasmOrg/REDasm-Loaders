@@ -1,11 +1,10 @@
 #include "pe.h"
-#include "pe_analyzer.h"
 #include "pe_constants.h"
 #include "pe_header.h"
 #include "pe_debug.h"
 #include "dotnet/dotnet.h"
 #include "borland/borland_version.h"
-#include <rdapi/support.h>
+#include "vb/vb_analyzer.h"
 #include <climits>
 
 const ImageNtHeaders* PELoader::getNtHeaders(RDLoader* loader, const ImageDosHeader** dosheader)
@@ -207,16 +206,16 @@ void PELoaderT<b>::loadSections()
     for(size_t i = 0; i < m_ntheaders->FileHeader.NumberOfSections; i++)
     {
         const ImageSectionHeader& section = m_sectiontable[i];
-        type_t type = SegmentType_None;
+        type_t type = SegmentFlags_None;
 
         if((section.Characteristics & IMAGE_SCN_CNT_CODE) || (section.Characteristics & IMAGE_SCN_MEM_EXECUTE))
-            type |= SegmentType_Code;
+            type |= SegmentFlags_Code;
 
         if((section.Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA) || (section.Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA))
-            type |= SegmentType_Data;
+            type |= SegmentFlags_Data;
 
         u64 vsize = section.Misc.VirtualSize;
-        if(!section.SizeOfRawData) type |= SegmentType_Bss;
+        if(!section.SizeOfRawData) type |= SegmentFlags_Bss;
 
         u64 diff = vsize % m_sectionalignment;
         if(diff) vsize += m_sectionalignment - diff;
@@ -229,7 +228,7 @@ void PELoaderT<b>::loadSections()
         address_t va = m_imagebase + section.VirtualAddress;
 
         if(RD_InRangeSize(m_entrypoint, va, vsize)) // Entry point always points to code segment
-            type |= SegmentType_Code;
+            type |= SegmentFlags_Code;
 
         RDDocument_AddSegmentSize(m_document, name.c_str(), section.PointerToRawData, va, section.SizeOfRawData, vsize, type);
     }
@@ -264,7 +263,7 @@ void PELoaderT<b>::loadExports()
         RDSegment segment;
         if(!RDDocument_GetSegmentAddress(m_document, funcep, &segment)) continue;
 
-        bool isfunction = segment.type & SegmentType_Code;
+        bool isfunction = HAS_FLAG(&segment, SegmentFlags_Code);
 
         for(pe_integer_t j = 0; j < exporttable->NumberOfNames; j++)
         {
@@ -466,8 +465,18 @@ void PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
 
 void PELoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
 {
-    PEAnalyzer a(reinterpret_cast<PELoader*>(plugin->header.puserdata), disassembler);
-    a.analyze();
+    PELoader* loader = reinterpret_cast<PELoader*>(plugin->header.puserdata);
+
+    if(loader->classifier()->isVisualBasic())
+    {
+        VBAnalyzer a(loader, disassembler);
+        a.analyze();
+    }
+    else
+    {
+        PEAnalyzer a(loader, disassembler);
+        a.analyze();
+    }
 }
 
 void entry()

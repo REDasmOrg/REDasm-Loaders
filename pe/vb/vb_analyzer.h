@@ -3,16 +3,15 @@
 #include "../pe_analyzer.h"
 #include "vb_header.h"
 
-/*
 class VBAnalyzer : public PEAnalyzer
 {
     public:
-        VBAnalyzer(const PEClassifier* classifier);
+        VBAnalyzer(PELoader* loader, RDDisassembler* disassembler);
         void analyze() override;
 
     private:
         void disassembleTrampoline(address_t eventva, const std::string &name);
-        void decompileObject(const VBPublicObjectDescriptor& pubobjdescr);
+        void decompileObject(RDLoader* loader, const VBPublicObjectDescriptor& pubobjdescr);
         bool decompile(address_t thunrtdata);
 
     private:
@@ -22,4 +21,3 @@ class VBAnalyzer : public PEAnalyzer
         VBObjectTreeInfo* m_vbobjtreeinfo{nullptr};
         VBPublicObjectDescriptor* m_vbpubobjdescr{nullptr};
 };
-*/

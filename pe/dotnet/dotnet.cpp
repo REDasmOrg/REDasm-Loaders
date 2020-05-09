@@ -1,6 +1,5 @@
 #include "dotnet.h"
 #include <rdapi/rdapi.h>
-#include <rdapi/support.h>
 #include <cstring>
 #include <climits>
 #include <iostream>

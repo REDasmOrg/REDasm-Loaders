@@ -1,6 +1,5 @@
 #include "dotnet_reader.h"
 #include "dotnet.h"
-#include <rdapi/support.h>
 
 #define IS_STREAM_VALID(s) (s && s->Offset)
 

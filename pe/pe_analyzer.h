@@ -13,17 +13,21 @@ class PEAnalyzer
 
     public:
         PEAnalyzer(PELoader* loader, RDDisassembler* disassembler);
-        void analyze();
+        virtual void analyze();
 
-    //private:
-        //const Symbol* getImport(const std::string &library, const std::string &api);
-        //SortedSet getAPIReferences(const std::string &library, const std::string &api);
-        //void findWndProc(address_t address, size_t argidx);
+    private:
+        bool getImport(const std::string &library, const std::string &api, RDSymbol* symbol);
+        size_t getAPIReferences(const std::string &library, const std::string &api, const address_t** references);
+        void findWndProc(address_t address, size_t argidx);
         void findCRTWinMain();
-        //void findAllWndProc();
+        void findAllWndProc();
+        void findAllExitAPI();
+
+    protected:
+        RDDisassembler* m_disassembler;
+        PELoader* m_loader;
 
     private:
         std::forward_list<APIInfo> m_wndprocapi;
-        RDDisassembler* m_disassembler;
-        PELoader* m_loader;
+        std::forward_list<std::string> m_exitapi;
 };

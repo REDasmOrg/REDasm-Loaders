@@ -1,6 +1,5 @@
 #include "vb_components.h"
 #include <rdapi/rdapi.h>
-#include <rdapi/support.h>
 #include <algorithm>
 
 #define EVENTS(...) __VA_ARGS__
