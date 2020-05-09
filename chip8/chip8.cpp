@@ -10,8 +10,8 @@ static void emulate(const RDAssemblerPlugin*, RDDisassembler* disassembler, cons
 
 static bool render(const RDAssemblerPlugin*, RDRenderItemParams* rip)
 {
-    if(rip->type != RendererItemType_Operand) return false;
-    if(rip->operand->type != OperandType_Register) return false;
+    if(!IS_TYPE(rip, RendererItemType_Operand)) return false;
+    if(!IS_TYPE(rip->operand, OperandType_Register)) return false;
 
     if(rip->operand->u_data == CHIP8_REG_I)
         RDRendererItem_Push(rip->rendereritem, "i", "register_fg", nullptr);
@@ -41,7 +41,7 @@ RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 static void load(RDLoaderPlugin*, RDLoader* loader)
 {
     RDDocument* doc = RDLoader_GetDocument(loader);
-    RDDocument_AddSegment(doc, "MEMORY", 0, 0x200, 0x1000, SegmentType_CodeData);
+    RDDocument_AddSegment(doc, "MEMORY", 0, 0x200, 0x1000, SegmentFlags_CodeData);
     RDDocument_SetEntry(doc, 0x200);
 }
 

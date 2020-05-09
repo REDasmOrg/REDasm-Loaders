@@ -28,23 +28,23 @@ void Chip8Assembler::emulate(RDDisassembler* disassembler, const RDInstruction* 
 {
     std::optional<address_t> target;
 
-    if(instruction->type == InstructionType_Jump)
+    if(IS_TYPE(instruction, InstructionType_Jump))
     {
-        if(RDInstruction_MnemonicIs(instruction, "ske"))  target = RDInstruction_EndAddress(instruction) + instruction->size;
-        if(RDInstruction_MnemonicIs(instruction, "skne")) target = RDInstruction_EndAddress(instruction) + instruction->size;
-        if(RDInstruction_MnemonicIs(instruction, "skp"))  target = RDInstruction_EndAddress(instruction) + instruction->size;
-        if(RDInstruction_MnemonicIs(instruction, "sknp")) target = RDInstruction_EndAddress(instruction) + instruction->size;
+        if(RDInstruction_MnemonicIs(instruction, "ske"))  target = RDInstruction_NextAddress(instruction) + instruction->size;
+        if(RDInstruction_MnemonicIs(instruction, "skne")) target = RDInstruction_NextAddress(instruction) + instruction->size;
+        if(RDInstruction_MnemonicIs(instruction, "skp"))  target = RDInstruction_NextAddress(instruction) + instruction->size;
+        if(RDInstruction_MnemonicIs(instruction, "sknp")) target = RDInstruction_NextAddress(instruction) + instruction->size;
 
         if(target) RDDisassembler_EnqueueAddress(disassembler, instruction, *target);
         else RDDisassembler_EnqueueAddress(disassembler, instruction, instruction->operands[0].u_value);
 
-        if(!(instruction->flags & InstructionFlags_Conditional)) return;
+        if(!HAS_FLAG(instruction, InstructionFlags_Conditional)) return;
     }
-    else if(instruction->type == InstructionType_Call)
+    else if(IS_TYPE(instruction, InstructionType_Call))
         RDDisassembler_EnqueueAddress(disassembler, instruction, instruction->operands[0].u_value);
 
 
-    if(instruction->type != InstructionType_Stop)
+    if(!HAS_FLAG(instruction, InstructionFlags_Stop))
         RDDisassembler_EnqueueNext(disassembler, instruction);
 }
 
@@ -63,7 +63,7 @@ bool Chip8Assembler::decode(RDBufferView* view, RDInstruction *instruction)
 void Chip8Assembler::categorize(RDInstruction *instruction)
 {
     if(RDInstruction_MnemonicIs(instruction, "rts"))
-        instruction->type = InstructionType_Stop;
+        instruction->flags = InstructionFlags_Stop;
     else if(RDInstruction_MnemonicIs(instruction, "jmp"))
         instruction->type = InstructionType_Jump;
     else if((RDInstruction_MnemonicIs(instruction, "ske") || RDInstruction_MnemonicIs(instruction, "skne") || RDInstruction_MnemonicIs(instruction, "skp") || RDInstruction_MnemonicIs(instruction, "sknp")))
