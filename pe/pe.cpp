@@ -434,10 +434,10 @@ RD_PLUGIN(RDLoaderPlugin, pe, "Portable Executable", nullptr, &PELoader::free,
 
 void PELoader::free(RDPluginHeader* plugin)
 {
-    if(!plugin->userdata) return;
+    if(!plugin->p_data) return;
 
-    delete reinterpret_cast<PELoader*>(plugin->puserdata);
-    plugin->puserdata = nullptr;
+    delete reinterpret_cast<PELoader*>(plugin->p_data);
+    plugin->p_data = nullptr;
 }
 
 RDAssemblerPlugin* PELoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
@@ -459,13 +459,13 @@ void PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
     if(PELoader::getBits(ntheaders) == 32) peloader = new PELoaderT<32>(plugin, loader);
     else peloader = new PELoaderT<64>(plugin, loader);
 
-    plugin->header.puserdata = peloader;
+    plugin->p_data = peloader;
     peloader->parse();
 }
 
 void PELoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
 {
-    PELoader* loader = reinterpret_cast<PELoader*>(plugin->header.puserdata);
+    PELoader* loader = reinterpret_cast<PELoader*>(plugin->p_data);
 
     if(loader->classifier()->isVisualBasic())
     {
