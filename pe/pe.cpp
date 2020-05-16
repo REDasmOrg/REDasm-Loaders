@@ -86,7 +86,6 @@ template<size_t b> void PELoaderT<b>::checkResources()
     ImageResourceDirectory* resourcedir = this->rvaPointer<ImageResourceDirectory>(resourcedatadir.VirtualAddress);
     if(!resourcedir) return;
 
-    PEResources peresources(resourcedir);
     m_classifier.classifyDelphi(m_dosheader, m_ntheaders, resourcedir);
 }
 
@@ -356,8 +355,12 @@ template<size_t b> void PELoaderT<b>::loadSymbolTable()
 
     rd_log("Loading symbol table @ " + rd_tohex(m_ntheaders->FileHeader.PointerToSymbolTable));
 
-    //r_pm->execute("coff", { m_peloader->pointer<u8>(m_peloader->ntHeaders()->FileHeader.PointerToSymbolTable),
-                            //m_peloader->ntHeaders()->FileHeader.NumberOfSymbols });
+    RDArguments a;
+    RDArguments_Init(&a);
+    RDArguments_PushPointer(&a, RDLoader_GetDocument(m_loader));
+    RDArguments_PushPointer(&a, RD_Pointer(m_loader, m_ntheaders->FileHeader.PointerToSymbolTable));
+    RDArguments_PushUInt(&a, m_ntheaders->FileHeader.NumberOfSymbols);
+    RDCommand_Execute("COFF", &a);
 }
 
 template<size_t b>
