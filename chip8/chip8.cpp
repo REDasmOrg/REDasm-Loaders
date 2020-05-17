@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <sstream>
 
+RD_PLUGIN(RDAssemblerPlugin, chip8asm, "CHIP-8 Assembler");
+RD_PLUGIN(RDLoaderPlugin, chip8ldr, "CHIP-8");
+
 static Chip8Assembler chip8assembler;
 
 static bool decode(const RDAssemblerPlugin*, RDBufferView* view, RDInstruction* instruction) { return chip8assembler.decode(view, instruction); }
@@ -29,8 +32,6 @@ static bool render(const RDAssemblerPlugin*, RDRenderItemParams* rip)
     return true;
 }
 
-RD_PLUGIN(RDAssemblerPlugin, chip8asm, "CHIP-8", nullptr, nullptr, 16, decode, emulate, render);
-
 RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
     std::string ext = std::filesystem::path(request->filepath).extension();
@@ -45,11 +46,16 @@ static void load(RDLoaderPlugin*, RDLoader* loader)
     RDDocument_SetEntry(doc, 0x200);
 }
 
-RD_PLUGIN(RDLoaderPlugin, chip8ldr, "CHIP-8", nullptr, nullptr, LoaderFlags_None, test, load, nullptr, nullptr)
-
-void entry()
+void redasm_entry()
 {
+    chip8asm.bits = 16;
+    chip8asm.decode = &decode;
+    chip8asm.emulate = &emulate;
+    chip8asm.render = &render;
+
+    chip8ldr.test = &test;
+    chip8ldr.load = &load;
+
     RDAssembler_Register(&chip8asm);
     RDLoader_Register(&chip8ldr);
 }
-RD_DECLARE_PLUGIN(entry)
