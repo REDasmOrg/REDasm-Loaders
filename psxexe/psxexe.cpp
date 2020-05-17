@@ -1,9 +1,6 @@
 #include "psxexe.h"
 #include <cstring>
 
-RD_PLUGIN(RDLoaderPlugin, psxexe, "PS-X Executable", nullptr, nullptr,
-          LoaderFlags_None, PsxExeLoader::test, PsxExeLoader::load, nullptr, nullptr)
-
 RDAssemblerPlugin* PsxExeLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
     const auto* header = reinterpret_cast<const PsxExeHeader*>(RDBuffer_Data(request->buffer));
@@ -29,9 +26,11 @@ void PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
     RDDocument_SetEntry(doc, header->pc0);
 }
 
-void entry()
+RD_PLUGIN(RDLoaderPlugin, psxexe, "PS-X Executable");
+
+void redasm_entry()
 {
+    psxexe.test = &PsxExeLoader::test;
+    psxexe.load = &PsxExeLoader::load;
     RDLoader_Register(&psxexe);
 }
-
-RD_DECLARE_PLUGIN(entry)
