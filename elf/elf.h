@@ -1,24 +1,63 @@
 #pragma once
 
-#include <redasm/plugins/loader/loader.h>
-#include "elf_format.h"
+#include <rdapi/rdapi.h>
+#include <type_traits>
+#include "elf_header.h"
 
-using namespace REDasm;
-
-class ElfLoader: public Loader
+class ElfLoader
 {
     public:
-        ElfLoader();
-        size_t bits() const;
-        endianness_t endianness() const;
-        AssemblerRequest assembler() const override;
-        bool test(const LoadRequest &request) const override;
-        void init(const LoadRequest &request) override;
-        void load() override;
+        virtual ~ElfLoader() = default;
+        virtual size_t endianness() const = 0;
+        virtual RDAssemblerPlugin* assembler() const = 0;
 
     protected:
-        Analyzer* createAnalyzer() const override;
+        virtual void loadSegments(RDDocument* doc) = 0;
+        virtual void parseSegments(RDLoader* loader, RDDocument* doc) = 0;
+        virtual void checkProgramHeader(RDDocument* doc) = 0;
+        virtual void checkArray(RDLoader* loader, RDDocument* doc) = 0;
+        virtual void checkEntryPoint(RDDocument* doc) = 0;
+
+    public:
+        static ElfLoader* parse(RDBuffer* buffer);
+        static RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
+        static void analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
+        static void load(RDLoaderPlugin* plugin, RDLoader* loader);
+};
+
+template<size_t bits> class ElfLoaderT: public ElfLoader
+{
+    protected:
+
+    public:
+        typedef Elf_Ehdr<bits> EHDR;
+        typedef Elf_Shdr<bits> SHDR;
+        typedef Elf_Rel<bits> REL;
+        typedef Elf_Rela<bits> RELA;
+        typedef typename std::conditional<bits == 64, Elf64_Phdr, Elf32_Phdr>::type PHDR;
+        typedef typename std::conditional<bits == 64, Elf64_Sym, Elf32_Sym>::type SYM;
+        typedef typename elf_unsigned_t<bits>::type ADDR;
+
+    public:
+        ElfLoaderT(RDBuffer* buffer);
+        size_t endianness() const override;
+        RDAssemblerPlugin* assembler() const override;
+
+    protected:
+        void loadSegments(RDDocument* doc) override;
+        void parseSegments(RDLoader* loader, RDDocument* doc) override;
+        void checkProgramHeader(RDDocument* doc) override;
+        void checkArray(RDLoader* loader, RDDocument* doc) override;
+        void checkEntryPoint(RDDocument* doc) override;
 
     private:
-        std::unique_ptr<ElfFormat> m_elfformat;
+        void loadSymbols(const SHDR& shdr, RDLoader* loader, RDDocument* doc);
+        u64 relocationSymbol(const REL* rel) const;
+        bool relocate(RDLoader* loader, u64 symidx, u64* value) const;
+
+    private:
+        RDBuffer* m_buffer;
+        EHDR* m_ehdr;
+        SHDR* m_shdr;
+        PHDR* m_phdr;
 };

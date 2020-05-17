@@ -1,26 +1,28 @@
 #pragma once
 
 #include <unordered_map>
-#include <redasm/redasm.h>
-#include <redasm/plugins/loader/analyzer.h>
+#include <rdapi/rdapi.h>
 
-using namespace REDasm;
+class ElfLoader;
 
-class ElfAnalyzer: public Analyzer
+class ElfAnalyzer
 {
     public:
-        ElfAnalyzer();
-        void analyze() override;
+        ElfAnalyzer(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
+        void analyze();
 
     private:
-        void findMain_x86(const Symbol* symlibcmain);
-        void findMainMode_x86_64(size_t index);
-        void findMainMode_x86_32(size_t index);
+        void findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol* symlibcmain);
+        void findMainMode_x86_64(size_t blockidx);
+        void findMainMode_x86_32(size_t blockidx);
 
    private:
         void disassembleLibStartMain();
-        const Symbol* getLibStartMain();
+        bool getLibStartMain(RDSymbol* symbol);
 
    protected:
-        std::unordered_map<String, address_t> m_libcmain;
+        std::unordered_map<std::string, address_t> m_libcmain;
+        RDDisassembler* m_disassembler;
+        RDLoaderPlugin* m_plugin;
+        ElfLoader* m_loader;
 };

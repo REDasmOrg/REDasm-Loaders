@@ -1,119 +1,130 @@
 #include "elf_analyzer.h"
-#include <redasm/plugins/assembler/assembler.h>
-#include <redasm/support/utils.h>
-#include <capstone/capstone.h>
+#include "elf.h"
+#include <cstring>
 
 #define LIBC_START_MAIN        "__libc_start_main"
 #define LIBC_START_MAIN_ARGC   7
 
-ElfAnalyzer::ElfAnalyzer(): Analyzer() { }
+ElfAnalyzer::ElfAnalyzer(RDLoaderPlugin* plugin, RDDisassembler* disassembler): m_disassembler(disassembler), m_plugin(plugin)
+{
+    m_loader = reinterpret_cast<ElfLoader*>(plugin->p_data);
+}
 
 void ElfAnalyzer::analyze()
 {
-    Analyzer::analyze();
-    const Symbol* symlibcmain = this->getLibStartMain();
+    RDSymbol symlibcmain;
 
-    if(symlibcmain)
+    if(this->getLibStartMain(&symlibcmain))
     {
-        if(r_asm->id().startsWith("x86")) this->findMain_x86(symlibcmain);
-        else r_ctx->log("Unhandled architecture " + r_asm->description().quoted());
+        RDAssemblerPlugin* assembler = RDDisassembler_GetAssembler(m_disassembler);
+
+        if(!std::string(assembler->id).find("x86")) this->findMain_x86(assembler, &symlibcmain);
+        else rd_log("Unhandled architecture '" + std::string(assembler->name) + "'");
     }
 
-    const Symbol* symbol = r_doc->symbol("main");
-    if(symbol) r_doc->setEntry(symbol->address);
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDSymbol symbol;
+
+    if(RDDocument_GetSymbolByName(doc, "main", &symbol))
+        RDDocument_SetEntry(doc, symbol.address);
 }
 
-void ElfAnalyzer::findMain_x86(const Symbol *symlibcmain)
+void ElfAnalyzer::findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol *symlibcmain)
 {
-    SortedSet refs = r_disasm->getReferences(symlibcmain->address);
+    const address_t* refs = nullptr;
+    size_t c = RDDisassembler_GetReferences(m_disassembler, symlibcmain->address, &refs);
 
-    if(refs.size() > 1)
-        r_ctx->problem(String(LIBC_START_MAIN).quoted() + " contains " + String::number(refs.size()) + " reference(s)");
+    if(!c) return;
+    if(c > 1) rd_problem("'" + std::string(LIBC_START_MAIN) + "' contains " + std::to_string(c) + "references");
 
-    size_t index = r_doc->itemInstructionIndex(refs.first().toU64());
-    if(index == REDasm::npos) return;
+    const RDBlockContainer* blocks = RDDisassembler_GetBlocks(m_disassembler);
 
-    if(r_asm->request().modeIs("x86_64")) this->findMainMode_x86_64(index);
-    else if(r_asm->request().modeIs("x86_32")) this->findMainMode_x86_32(index);
+    RDBlock block;
+    if(!RDBlockContainer_Find(blocks, refs[0], &block)) return;
+
+    size_t index = RDBlockContainer_Index(blocks, &block);
+    if(index == RD_NPOS) return;
+
+    if(!std::strcmp(assembler->id, "x86_64")) this->findMainMode_x86_64(index);
+    else if(!std::strcmp(assembler->id, "x86_32")) this->findMainMode_x86_32(index);
     this->disassembleLibStartMain();
 }
 
-void ElfAnalyzer::findMainMode_x86_32(size_t index)
+void ElfAnalyzer::findMainMode_x86_32(size_t blockidx)
 {
-    for(size_t i = 0; (index < r_doc->itemsCount()) && (i < LIBC_START_MAIN_ARGC); index--)
+    const RDBlockContainer* blocks = RDDisassembler_GetBlocks(m_disassembler);
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDBlock block;
+
+    for(size_t i = 0; RDBlockContainer_Get(blocks, blockidx, &block) && (i < LIBC_START_MAIN_ARGC); blockidx--)
     {
-        ListingItem item = r_doc->itemAt(index);
-        if(!item.isValid()) break;
+        if(!IS_TYPE(&block, BlockType_Code)) break;
 
-        if(item.is(ListingItem::InstructionItem))
+        InstructionLock instruction(doc, block.address);
+        if(!instruction || !IS_TYPE(*instruction, InstructionType_Push)) continue;
+
+        const RDOperand* op = &instruction->operands[0];
+
+        if(IS_TYPE(op, OperandType_Immediate))
         {
-            CachedInstruction instruction = r_doc->instruction(item.address);
-
-            if(!instruction->typeIs(Instruction::T_Push)) continue;
-
-            const Operand* op = instruction->op(0);
-
-            if(op->isNumeric())
+            if(i == 0) m_libcmain["main"] = op->u_value;
+            else if(i == 3) m_libcmain["init"] = op->u_value;
+            else if(i == 4)
             {
-                if(i == 0) m_libcmain["main"] = op->u_value;
-                else if(i == 3) m_libcmain["init"] = op->u_value;
-                else if(i == 4)
-                {
-                    m_libcmain["fini"] = op->u_value;
-                    break;
-                }
+                m_libcmain["fini"] = op->u_value;
+                break;
             }
-
-            i++;
         }
+
+        i++;
     }
 }
 
-void ElfAnalyzer::findMainMode_x86_64(size_t index)
+void ElfAnalyzer::findMainMode_x86_64(size_t blockidx)
 {
-    for(; index < r_doc->itemsCount(); index--)
+    const RDBlockContainer* blocks = RDDisassembler_GetBlocks(m_disassembler);
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDBlock block;
+
+    for(; blockidx && RDBlockContainer_Get(blocks, blockidx, &block); blockidx--)
     {
-        ListingItem item = r_doc->itemAt(index);
+        if(!IS_TYPE(&block, BlockType_Code)) break;
 
-        if(item.is(ListingItem::InstructionItem))
+        InstructionLock instruction(doc, block.address);
+        if(!instruction || !RDInstruction_MnemonicIs(*instruction, "mov")) continue;
+
+        const RDOperand* op1 = &instruction->operands[0];
+        const RDOperand* op2 = &instruction->operands[1];
+
+        if(!IS_TYPE(op1, OperandType_Register) || !IS_TYPE(op2, OperandType_Immediate)) continue;
+        const char* regname = RDDisassembler_RegisterName(m_disassembler, op1->reg);
+
+        if(!std::strcmp(regname, "rdi")) m_libcmain["main"] = op2->u_value;
+        else if(!std::strcmp(regname, "rcx")) m_libcmain["init"] = op2->u_value;
+        else if(!std::strcmp(regname, "r8"))
         {
-            CachedInstruction instruction = r_doc->instruction(item.address);
-
-            if(instruction->typeIs(Instruction::T_Load))
-            {
-                const Operand* op1 = instruction->op(0);
-                const Operand* op2 = instruction->op(1);
-
-                if(!REDasm::typeIs(op1, Operand::T_Register) || !op2->isNumeric())
-                    continue;
-
-                if(op1->reg.r == X86_REG_RDI) m_libcmain["main"] = op2->u_value;
-                else if(op1->reg.r == X86_REG_RCX) m_libcmain["init"] = op2->u_value;
-                else if(op1->reg.r == X86_REG_R8)
-                {
-                    m_libcmain["fini"] = op2->u_value;
-                    break;
-                }
-            }
+            m_libcmain["fini"] = op2->u_value;
+            break;
         }
     }
 }
 
 void ElfAnalyzer::disassembleLibStartMain()
 {
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+
     for(auto& it : m_libcmain)
     {
-        r_doc->function(it.second, it.first);
-        r_disasm->disassemble(it.second);
+        RDDocument_AddFunction(doc, it.second, it.first.c_str());
+        RDDisassembler_Enqueue(m_disassembler, it.second);
     }
 
     m_libcmain.clear();
 }
 
-const Symbol* ElfAnalyzer::getLibStartMain()
+bool ElfAnalyzer::getLibStartMain(RDSymbol* symbol)
 {
-    const Symbol* symlibcmain = r_doc->symbol(Utils::trampoline(LIBC_START_MAIN));
-    if(!symlibcmain) symlibcmain = r_doc->symbol(LIBC_START_MAIN);
-
-    return symlibcmain;
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    if(RDDocument_GetSymbolByName(doc, RD_Trampoline(LIBC_START_MAIN), symbol)) return true;
+    return RDDocument_GetSymbolByName(doc, LIBC_START_MAIN, symbol);
 }
