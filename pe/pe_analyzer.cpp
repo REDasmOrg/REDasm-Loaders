@@ -5,7 +5,7 @@
 #include <climits>
 
 #define IMPORT_NAME(library, name)       PEUtils::importName(library, name)
-#define IMPORT_TRAMPOLINE(library, name) ("_" + IMPORT_NAME(library, name))
+#define IMPORT_TRAMPOLINE(library, name) RD_Trampoline(IMPORT_NAME(library, name).c_str())
 #define ADD_WNDPROC_API(argidx, name)    m_wndprocapi.emplace_front(argidx, name)
 
 PEAnalyzer::PEAnalyzer(PELoader* loader, RDDisassembler* disassembler): m_disassembler(disassembler), m_loader(loader)
@@ -58,7 +58,7 @@ bool PEAnalyzer::getImport(const std::string &library, const std::string &api, R
 {
     RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
 
-    if(RDDocument_GetSymbolByName(doc, IMPORT_TRAMPOLINE(library, api).c_str(), symbol)) return true;
+    if(RDDocument_GetSymbolByName(doc, IMPORT_TRAMPOLINE(library, api), symbol)) return true;
     if(RDDocument_GetSymbolByName(doc, IMPORT_NAME(library, api).c_str(), symbol)) return true;
 
     return false;

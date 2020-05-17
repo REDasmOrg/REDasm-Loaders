@@ -432,9 +432,6 @@ RDAssemblerPlugin* PELoader::assembler(const ImageNtHeaders* ntheaders)
     return nullptr;
 }
 
-RD_PLUGIN(RDLoaderPlugin, pe, "Portable Executable", nullptr, &PELoader::free,
-          LoaderFlags_None, &PELoader::test, &PELoader::load, nullptr, &PELoader::analyze)
-
 void PELoader::free(RDPluginHeader* plugin)
 {
     if(!plugin->p_data) return;
@@ -482,9 +479,14 @@ void PELoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
     }
 }
 
-void entry()
+RD_PLUGIN(RDLoaderPlugin, pe, "Portable Executable");
+
+void redasm_entry()
 {
+    pe.free = &PELoader::free;
+    pe.test = &PELoader::test;
+    pe.load = &PELoader::load;
+    pe.analyze = &PELoader::analyze;
+
     RDLoader_Register(&pe);
 }
-
-RD_DECLARE_PLUGIN(entry)
