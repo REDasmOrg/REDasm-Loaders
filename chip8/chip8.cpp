@@ -3,9 +3,6 @@
 #include <filesystem>
 #include <sstream>
 
-RD_PLUGIN(RDAssemblerPlugin, chip8asm, "CHIP-8 Assembler");
-RD_PLUGIN(RDLoaderPlugin, chip8ldr, "CHIP-8");
-
 static Chip8Assembler chip8assembler;
 
 static bool decode(const RDAssemblerPlugin*, RDBufferView* view, RDInstruction* instruction) { return chip8assembler.decode(view, instruction); }
@@ -35,7 +32,7 @@ static bool render(const RDAssemblerPlugin*, RDRenderItemParams* rip)
 RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
     std::string ext = std::filesystem::path(request->filepath).extension();
-    if((ext == ".chip8") || (ext == ".ch8") || (ext == ".rom")) return &chip8asm;
+    if((ext == ".chip8") || (ext == ".ch8") || (ext == ".rom")) return RDAssembler_Find("chip8asm");
     return nullptr;
 }
 
@@ -48,11 +45,13 @@ static void load(RDLoaderPlugin*, RDLoader* loader)
 
 void redasm_entry()
 {
+    RD_PLUGIN_CREATE(RDAssemblerPlugin, chip8asm, "CHIP-8 Assembler");
     chip8asm.bits = 16;
     chip8asm.decode = &decode;
     chip8asm.emulate = &emulate;
     chip8asm.render = &render;
 
+    RD_PLUGIN_CREATE(RDLoaderPlugin, chip8ldr, "CHIP-8");
     chip8ldr.test = &test;
     chip8ldr.load = &load;
 

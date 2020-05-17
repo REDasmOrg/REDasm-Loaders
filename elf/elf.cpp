@@ -310,10 +310,9 @@ static void free(RDPluginHeader* plugin)
     plugin->p_data = nullptr;
 }
 
-RD_PLUGIN(RDLoaderPlugin, elf, "ELF Executable");
-
 void redasm_entry()
 {
+    RD_PLUGIN_CREATE(RDLoaderPlugin, elf, "ELF Executable");
     elf.free = &free;
     elf.test = &ElfLoader::test;
     elf.load = &ElfLoader::load;

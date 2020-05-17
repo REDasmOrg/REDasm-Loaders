@@ -479,10 +479,10 @@ void PELoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
     }
 }
 
-RD_PLUGIN(RDLoaderPlugin, pe, "Portable Executable");
 
 void redasm_entry()
 {
+    RD_PLUGIN_CREATE(RDLoaderPlugin, pe, "Portable Executable");
     pe.free = &PELoader::free;
     pe.test = &PELoader::test;
     pe.load = &PELoader::load;

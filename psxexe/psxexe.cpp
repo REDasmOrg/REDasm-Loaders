@@ -26,11 +26,11 @@ void PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
     RDDocument_SetEntry(doc, header->pc0);
 }
 
-RD_PLUGIN(RDLoaderPlugin, psxexe, "PS-X Executable");
-
 void redasm_entry()
 {
+    RD_PLUGIN_CREATE(RDLoaderPlugin, psxexe, "PS-X Executable");
     psxexe.test = &PsxExeLoader::test;
     psxexe.load = &PsxExeLoader::load;
+
     RDLoader_Register(&psxexe);
 }
