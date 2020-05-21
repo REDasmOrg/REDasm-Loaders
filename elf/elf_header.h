@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rdapi/types.h>
+#include <rdapi/utils.h>
 #include "elf_common.h"
 
 #define ELF_ARG(...)    __VA_ARGS__
@@ -14,6 +15,23 @@ template<> struct elf_unsigned_t<64> { typedef u64 type; };
 template<size_t bits> struct elf_signed_t { };
 template<> struct elf_signed_t<32> { typedef s32 type; };
 template<> struct elf_signed_t<64> { typedef s64 type; };
+
+template<typename T> T e_valT(T t, size_t e)
+{
+    if constexpr(sizeof(T) == 2) {
+        if(e == Endianness_Big) return RD_FromBigEndian16(t);
+        return RD_FromLittleEndian16(t);
+    }
+    else if constexpr(sizeof(T) == 4) {
+        if(e == Endianness_Big) return RD_FromBigEndian32(t);
+        return RD_FromLittleEndian32(t);
+    }
+    else if constexpr(sizeof(T) == 8) {
+        if(e == Endianness_Big) return RD_FromBigEndian64(t);
+        return RD_FromLittleEndian64(t);
+    }
+    else return t;
+}
 
 struct Elf_EhdrBase
 {

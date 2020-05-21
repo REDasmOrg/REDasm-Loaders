@@ -97,7 +97,7 @@ void ElfAnalyzer::findMainMode_x86_64(size_t blockidx)
         const RDOperand* op2 = &instruction->operands[1];
 
         if(!IS_TYPE(op1, OperandType_Register) || !IS_TYPE(op2, OperandType_Immediate)) continue;
-        const char* regname = RDDisassembler_RegisterName(m_disassembler, op1->reg);
+        const char* regname = RDDisassembler_RegisterName(m_disassembler, *instruction, op1->reg);
 
         if(!std::strcmp(regname, "rdi")) m_libcmain["main"] = op2->u_value;
         else if(!std::strcmp(regname, "rcx")) m_libcmain["init"] = op2->u_value;

@@ -9,7 +9,7 @@ class ElfLoader
     public:
         virtual ~ElfLoader() = default;
         virtual size_t endianness() const = 0;
-        virtual RDAssemblerPlugin* assembler() const = 0;
+        virtual const char* assembler() const = 0;
 
     protected:
         virtual void loadSegments(RDDocument* doc) = 0;
@@ -20,7 +20,7 @@ class ElfLoader
 
     public:
         static ElfLoader* parse(RDBuffer* buffer);
-        static RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
+        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
         static void analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
         static void load(RDLoaderPlugin* plugin, RDLoader* loader);
 };
@@ -41,7 +41,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
     public:
         ElfLoaderT(RDBuffer* buffer);
         size_t endianness() const override;
-        RDAssemblerPlugin* assembler() const override;
+        const char* assembler() const override;
 
     protected:
         void loadSegments(RDDocument* doc) override;
