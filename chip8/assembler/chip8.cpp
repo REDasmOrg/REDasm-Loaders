@@ -50,7 +50,7 @@ void Chip8Assembler::emulate(RDDisassembler* disassembler, const RDInstruction* 
 
 bool Chip8Assembler::decode(RDBufferView* view, RDInstruction *instruction)
 {
-    u16 opcode = RD_Swap16BE(*reinterpret_cast<u16*>(RDBufferView_Data(view)));
+    u16 opcode = RD_ToLittleEndian16(*reinterpret_cast<u16*>(RDBufferView_Data(view)));
     instruction->id = opcode;
     instruction->size = sizeof(u16);
 
