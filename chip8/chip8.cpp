@@ -29,10 +29,10 @@ static bool render(const RDAssemblerPlugin*, RDRenderItemParams* rip)
     return true;
 }
 
-RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
     std::string ext = std::filesystem::path(request->filepath).extension();
-    if((ext == ".chip8") || (ext == ".ch8") || (ext == ".rom")) return RDAssembler_Find("chip8asm");
+    if((ext == ".chip8") || (ext == ".ch8") || (ext == ".rom")) return "chip8asm";
     return nullptr;
 }
 

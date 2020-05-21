@@ -409,7 +409,7 @@ void PELoaderT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor,
     }
 }
 
-RDAssemblerPlugin* PELoader::assembler(const ImageNtHeaders* ntheaders)
+const char* PELoader::assembler(const ImageNtHeaders* ntheaders)
 {
     // if(m_classifier.isDotNet())
     // {
@@ -419,12 +419,12 @@ RDAssemblerPlugin* PELoader::assembler(const ImageNtHeaders* ntheaders)
 
     switch(ntheaders->FileHeader.Machine)
     {
-        case IMAGE_FILE_MACHINE_I386: return RDAssembler_Find("x86_32");
-        case IMAGE_FILE_MACHINE_AMD64: return RDAssembler_Find("x86_64");
+        case IMAGE_FILE_MACHINE_I386: return "x86_32";
+        case IMAGE_FILE_MACHINE_AMD64: return "x86_64";
 
         case IMAGE_FILE_MACHINE_ARM:
-            if(ntheaders->OptionalHeaderMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) return RDAssembler_Find("arm64");
-            return RDAssembler_Find("arm");
+            if(ntheaders->OptionalHeaderMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) return "arm64";
+            return "arm";
 
         default: break;
     }
@@ -440,7 +440,7 @@ void PELoader::free(RDPluginHeader* plugin)
     plugin->p_data = nullptr;
 }
 
-RDAssemblerPlugin* PELoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* PELoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
     const ImageNtHeaders* ntheaders = PELoader::getNtHeaders(request->buffer, nullptr);
     if(!ntheaders) return nullptr;

@@ -129,7 +129,7 @@ void PEAnalyzer::findWndProc(address_t address, size_t argidx)
                 RDSegment segment;
                 if(!RDDocument_GetSegmentAddress(doc, op.u_value, &segment) || !HAS_FLAG(&segment, SegmentFlags_Code)) continue;
 
-                RDDocument_AddFunction(doc, op.address, (std::string("DlgProc_") + RD_ToHex(op.address)).c_str());
+                RDDocument_AddFunction(doc, op.address, (std::string("DlgProc_") + RD_ToHexAuto(op.address)).c_str());
                 RDDisassembler_Enqueue(m_disassembler, op.u_value);
             }
         }

@@ -18,10 +18,10 @@ class PELoader
 
     public:
         static void free(RDPluginHeader* plugin);
-        static RDAssemblerPlugin* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
+        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
         static void load(RDLoaderPlugin* plugin, RDLoader* loader);
         static void analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
-        static RDAssemblerPlugin* assembler(const ImageNtHeaders* ntheaders);
+        static const char* assembler(const ImageNtHeaders* ntheaders);
 
     public:
         static const ImageNtHeaders* getNtHeaders(RDLoader* loader, const ImageDosHeader** dosheader = nullptr);
