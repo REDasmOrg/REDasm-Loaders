@@ -54,9 +54,9 @@ RDLocation PEUtils::rvaToOffset(const ImageNtHeaders *ntheaders, u64 rva)
                 break;
 
             offset_t offset = section.PointerToRawData + (rva - section.VirtualAddress);
-            return { offset, offset < (section.PointerToRawData + section.SizeOfRawData) };
+            return { {offset}, offset < (section.PointerToRawData + section.SizeOfRawData) };
         }
     }
 
-    return {0, false};
+    return {{0}, false};
 }

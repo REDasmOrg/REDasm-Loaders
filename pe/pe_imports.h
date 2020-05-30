@@ -26,7 +26,7 @@ template<int b> bool PEImports::importName(const std::string &dllname, ordinal_t
     std::transform(modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
     PEImports::checkX64<b>(modulename);
 
-    if(!RDDatabase_Select(m_ordinalsdb.get(), modulename.c_str())) return false;
+    if(!m_ordinalsdb || !RDDatabase_Select(m_ordinalsdb.get(), modulename.c_str())) return false;
 
     RDDatabaseItem item;
     if(!RDDatabase_Find(m_ordinalsdb.get(), std::to_string(ordinal).c_str(), &item)) return false;
