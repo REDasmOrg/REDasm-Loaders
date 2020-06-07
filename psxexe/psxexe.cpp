@@ -8,7 +8,7 @@ const char* PsxExeLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* req
     return "mips32le";
 }
 
-void PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
+bool PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
 {
     // this->signature("psyq");
     RDDocument* doc = RDLoader_GetDocument(loader);
@@ -24,6 +24,7 @@ void PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
         RDDocument_AddSegment(doc, "RAM1", 0, header->t_addr + header->t_size, PSX_USER_RAM_END - (header->t_addr + header->t_size), SegmentFlags_Bss);
 
     RDDocument_SetEntry(doc, header->pc0);
+    return true;
 }
 
 void redasm_entry()

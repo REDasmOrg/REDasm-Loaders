@@ -451,7 +451,7 @@ const char* PELoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request
     return PELoader::assembler(ntheaders);
 }
 
-void PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
+bool PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
 {
     const ImageNtHeaders* ntheaders = PELoader::getNtHeaders(RDLoader_GetBuffer(loader), nullptr);
     PELoader* peloader = nullptr;
@@ -461,6 +461,7 @@ void PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
 
     plugin->p_data = peloader;
     peloader->parse();
+    return true;
 }
 
 void PELoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)

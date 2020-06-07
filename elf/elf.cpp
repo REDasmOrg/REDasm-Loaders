@@ -44,7 +44,7 @@ void ElfLoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
     a.analyze();
 }
 
-void ElfLoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
+bool ElfLoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
 {
     RDDocument* doc = RDLoader_GetDocument(loader);
     ElfLoader* l = ElfLoader::parse(RDLoader_GetBuffer(loader));
@@ -56,6 +56,7 @@ void ElfLoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
     l->checkEntryPoint(doc);
 
     plugin->p_data = l;
+    return true;
 }
 
 template<size_t bits>

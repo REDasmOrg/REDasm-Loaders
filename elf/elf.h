@@ -22,7 +22,7 @@ class ElfLoader
         static ElfLoader* parse(RDBuffer* buffer);
         static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
         static void analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
-        static void load(RDLoaderPlugin* plugin, RDLoader* loader);
+        static bool load(RDLoaderPlugin* plugin, RDLoader* loader);
 };
 
 template<size_t bits> class ElfLoaderT: public ElfLoader

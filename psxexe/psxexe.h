@@ -26,5 +26,5 @@ class PsxExeLoader
     public:
         PsxExeLoader() = default;
         static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
-        static void load(RDLoaderPlugin*, RDLoader* loader);
+        static bool load(RDLoaderPlugin*, RDLoader* loader);
 };

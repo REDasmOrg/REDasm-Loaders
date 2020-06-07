@@ -36,11 +36,12 @@ const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
     return nullptr;
 }
 
-static void load(RDLoaderPlugin*, RDLoader* loader)
+static bool load(RDLoaderPlugin*, RDLoader* loader)
 {
     RDDocument* doc = RDLoader_GetDocument(loader);
     RDDocument_AddSegment(doc, "MEMORY", 0, 0x200, 0x1000, SegmentFlags_CodeData);
     RDDocument_SetEntry(doc, 0x200);
+    return true;
 }
 
 void redasm_entry()
