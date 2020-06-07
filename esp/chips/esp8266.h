@@ -6,15 +6,9 @@
 class ESP8266: public ESPCommon
 {
     public:
-        ESP8266(ESPLoader* loader);
-        void load(offset_t offset = 0) override;
-
-    private:
+        bool load(RDLoader* loader, offset_t offset = 0) override;
         static void initImports();
 
-    public:
-        static bool test(const LoadRequest& request);
-
     private:
-        static std::unordered_map<address_t, String> m_imports;
+        static std::unordered_map<address_t, const char*> m_imports;
 };

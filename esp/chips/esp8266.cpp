@@ -1,27 +1,24 @@
 #include "esp8266.h"
-#include "../esp.h"
 
 #define ESP8266_BROM_ADDRESS 0x40000000
 #define ESP8266_BROM_SIZE    (0x10000 - 1)
 
-std::unordered_map<address_t, String> ESP8266::m_imports;
+std::unordered_map<address_t, const char*> ESP8266::m_imports;
 
-ESP8266::ESP8266(ESPLoader *loader): ESPCommon(loader) { this->initImports(); }
-
-void ESP8266::load(offset_t offset)
+bool ESP8266::load(RDLoader* loader, offset_t offset)
 {
-    ldrdoc_r(m_loader)->segment(".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, Segment::T_Bss);
+    RDDocument* document = RDLoader_GetDocument(loader);
+    RDDocument_AddSegment(document, ".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentFlags_Bss);
 
-    for(auto it = m_imports.begin(); it != m_imports.end(); it++)
-        ldrdoc_r(m_loader)->imported(it->first, sizeof(u32), it->second);
+    for(const auto& [address, name] : m_imports)
+        RDDocument_AddImported(document, address, sizeof(u32), name);
 
-    ESPCommon::load(offset);
+    return ESPCommon::load(loader, offset);
 }
 
 void ESP8266::initImports()
 {
-    if(!m_imports.empty())
-        return;
+    if(!m_imports.empty()) return;
 
     m_imports[0x400047f0] = "Cache_Read_Disable";
     m_imports[0x40004678] = "Cache_Read_Enable";
@@ -367,9 +364,4 @@ void ESP8266::initImports()
     m_imports[0x3fffccf0] = "Te0";
     m_imports[0x3fffde10] = "UartDev";
     m_imports[0x3fffc714] = "flashchip";
-}
-
-bool ESP8266::test(const LoadRequest &request)
-{
-    return ESPCommon::test(request);
 }

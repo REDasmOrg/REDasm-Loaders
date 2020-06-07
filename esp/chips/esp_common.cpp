@@ -1,31 +1,27 @@
 #include "esp_common.h"
-#include "../esp.h"
-#include <redasm/support/utils.h>
 
 #define IS_VALID_MAGIC(magic) ((magic == ESP_IMAGE1_MAGIC) || (magic == ESP_IMAGE2_MAGIC))
 
-ESPCommon::ESPCommon(ESPLoader *loader): m_loader(loader) { }
-
-void ESPCommon::load(offset_t offset)
+bool ESPCommon::load(RDLoader* loader, offset_t offset)
 {
-    const u8* magic = m_loader->pointer<u8>(offset);
+    u8* magic = RD_Pointer(loader, offset);
 
     switch(*magic)
     {
-        case ESP_IMAGE1_MAGIC: this->load(reinterpret_cast<const ESP8266RomHeader1*>(magic)); break;
-        case ESP_IMAGE2_MAGIC: this->load(reinterpret_cast<const ESP8266RomHeader2*>(magic)); break;
-        default:               r_ctx->log("Unknown magic: " + String::hex(*magic)); break;
+        case ESP_IMAGE1_MAGIC: return this->load(loader, reinterpret_cast<ESP8266RomHeader1*>(magic));
+        case ESP_IMAGE2_MAGIC: return this->load(loader, reinterpret_cast<ESP8266RomHeader2*>(magic));
+        default: rd_log("Unknown magic: " + rd_tohex(*magic)); break;
     }
+
+    return false;
 }
 
-bool ESPCommon::test(const LoadRequest &request)
+const char* ESPCommon::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
 {
-    const ESP8266RomHeader1* h = request.pointer<ESP8266RomHeader1>();
+    const auto* h = reinterpret_cast<const ESP8266RomHeader1*>(RDBuffer_Data(request->buffer));
 
-    if(h->magic != ESP_IMAGE1_MAGIC)
-        return false;
-    if(h->segments > 16)
-        return false;
+    if(h->magic != ESP_IMAGE1_MAGIC) return nullptr;
+    if(h->segments > 16) return nullptr;
 
     u8 freq = h->flashsizefreq & 0xF;
 
@@ -37,7 +33,7 @@ bool ESPCommon::test(const LoadRequest &request)
         case FLASH_FREQ_80MHZ:
             break;
 
-        default: return false;
+        default: return nullptr;
     }
 
     u8 size = (h->flashsizefreq & 0xF0) > 4;
@@ -51,67 +47,65 @@ bool ESPCommon::test(const LoadRequest &request)
         case FLASH_SIZE_4M:
             break;
 
-        default: return false;
+        default: return nullptr;
     }
 
-    return true;
+    return "xtensale";
 }
 
-void ESPCommon::load(const ESP8266RomHeader1 *header, offset_location offset)
+bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, offset_t offset)
 {
-    const ESPSegment* segment = Utils::relpointer<ESPSegment>(header, sizeof(ESP8266RomHeader1));
+    RDDocument* document = RDLoader_GetDocument(loader);
+    auto* segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(header, sizeof(ESP8266RomHeader1)));
 
     for(size_t i = 0 ; segment && (i < header->segments); i++)
     {
-        String segname;
-        type_t segtype;
+        std::string segname;
+        flag_t segflags;
 
         if(segment->address == 0x40100000)
         {
             segname = ".user_rom";
-            segtype = Segment::T_Code;
+            segflags = SegmentFlags_Code;
         }
         else if(segment->address == 0x3FFE8000)
         {
             segname = ".user_rom_data";
-            segtype = Segment::T_Data;
+            segflags = SegmentFlags_Data;
         }
         else if(segment->address <= 0x3FFFFFFF)
         {
-            segname = ".data_seg_" + String::number(i);
-            segtype = Segment::T_Data;
+            segname = ".data_seg_" + std::to_string(i);
+            segflags = SegmentFlags_Data;
         }
         else if(segment->address > 0x40100000)
         {
-            segname = ".code_seg_" + String::number(i);
-            segtype = Segment::T_Code;
+            segname = ".code_seg_" + std::to_string(i);
+            segflags = SegmentFlags_Code;
         }
         else
         {
-            segname = ".unknown_seg_" + String::number(i);
-            segtype = Segment::T_Data;
+            segname = ".unknown_seg_" + std::to_string(i);
+            segflags = SegmentFlags_Data;
         }
 
-        if(offset.valid)
-        {
-            ldrdoc_r(m_loader)->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
-            offset.value += segment->size;
-        }
-        else
-            ldrdoc_r(m_loader)->segment(segname, m_loader->fileoffset(segment) + sizeof(ESPSegment), segment->address, segment->size, segtype);
+        RDDocument_AddSegment(document, segname.c_str(), RD_FileOffset(loader, segment).offset + sizeof(ESPSegment), segment->address, segment->size, segflags);
+        if(offset != RD_NPOS) offset += segment->size;
 
-        segment = Utils::relpointer<ESPSegment>(segment, sizeof(ESPSegment) + segment->size);
+        segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(segment, sizeof(ESPSegment) + segment->size));
     }
 
-    ldrdoc_r(m_loader)->entry(header->entrypoint);
+    RDDocument_SetEntry(document, header->entrypoint);
+    return true;
 }
 
-void ESPCommon::load(const ESP8266RomHeader2 *header)
+bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader2 *header)
 {
-    const ESP8266RomHeader1* header1 = Utils::relpointer<ESP8266RomHeader1>(header, sizeof(ESP8266RomHeader2) + header->size);
+    auto* header1 = reinterpret_cast<ESP8266RomHeader1*>(RD_RelPointer(&header, sizeof(ESP8266RomHeader2) + header->size));
+    if(!header1 || (header1->magic != ESP_IMAGE1_MAGIC)) return false;
 
-    if(!header1 || (header1->magic != ESP_IMAGE1_MAGIC))
-        return;
+    auto loc = RD_FileOffset(loader, header);
+    if(!loc.valid) return false;
 
-    this->load(header1, REDasm::make_location(m_loader->fileoffset(header) + sizeof(ESP8266RomHeader2)));
+    return this->load(loader, header1, loc.offset + sizeof(ESP8266RomHeader2));
 }

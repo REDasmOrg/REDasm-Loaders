@@ -1,26 +1,24 @@
 #pragma once
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 #include "../esp_header.h"
 #include "../esp_constants.h"
 
-using namespace REDasm;
-
-class ESPLoader;
+enum ESPImageType {
+    ESPImage_Unknown,
+    ESPImage_8266,
+};
 
 class ESPCommon
 {
     public:
-        ESPCommon(ESPLoader* loader);
-        virtual void load(offset_t offset = 0);
+        ESPCommon() = default;
+        virtual bool load(RDLoader* loader, offset_t offset = RD_NPOS);
 
     public:
-        static bool test(const LoadRequest& request);
+        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
 
     protected:
-        void load(const ESP8266RomHeader1* header, offset_location offset = REDasm::invalid_location<offset_t>());
-        void load(const ESP8266RomHeader2* header);
-
-    protected:
-        ESPLoader* m_loader;
+        bool load(RDLoader* loader, ESP8266RomHeader1* header, offset_t offset = 0);
+        bool load(RDLoader* loader, ESP8266RomHeader2* header);
 };
