@@ -101,7 +101,7 @@ bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, offset_t offse
 
 bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader2 *header)
 {
-    auto* header1 = reinterpret_cast<ESP8266RomHeader1*>(RD_RelPointer(&header, sizeof(ESP8266RomHeader2) + header->size));
+    auto* header1 = reinterpret_cast<ESP8266RomHeader1*>(RD_RelPointer(header, sizeof(ESP8266RomHeader2) + header->size));
     if(!header1 || (header1->magic != ESP_IMAGE1_MAGIC)) return false;
 
     auto loc = RD_FileOffset(loader, header);
