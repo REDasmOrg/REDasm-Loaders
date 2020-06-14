@@ -21,7 +21,7 @@ class ElfAnalyzer
         bool getLibStartMain(RDSymbol* symbol);
 
    protected:
-        std::unordered_map<std::string, address_t> m_libcmain;
+        std::unordered_map<std::string, rd_address> m_libcmain;
         RDDisassembler* m_disassembler;
         RDLoaderPlugin* m_plugin;
         ElfLoader* m_loader;

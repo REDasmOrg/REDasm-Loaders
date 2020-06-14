@@ -9,7 +9,7 @@
 
 #define IS_VALID_MAGIC(magic) ((magic == ESP_IMAGE1_MAGIC) || (magic == ESP_IMAGE2_MAGIC))
 
-typedef std::pair<offset_t, const char*> ImageItem;
+typedef std::pair<rd_offset, const char*> ImageItem;
 
 template<typename ESPModel> bool load(RDLoaderPlugin*, RDLoader* loader)
 {

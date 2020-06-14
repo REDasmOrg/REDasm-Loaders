@@ -84,8 +84,13 @@ const char* ElfLoaderT<bits>::assembler() const
             else return "xtensale";
 
         case EM_ARM:
-            if(this->m_ehdr->e_ident[EI_CLASS] == ELFCLASS64) return "arm64";
-            return "armthumb";
+            if constexpr(bits == 64) {
+                if(this->endianness() == Endianness_Big) return "arm64be";
+                return "arm64le";
+            }
+
+            if(this->endianness() == Endianness_Big) return "armbe";
+            else return "armle";
 
         case EM_MIPS:
             if(E_VAL(this->m_ehdr->e_flags) & EF_MIPS_ABI_EABI64) {
@@ -119,7 +124,7 @@ bool ElfLoaderT<bits>::relocate(RDLoader* loader, u64 symidx, u64* value) const
         if((E_VAL(shdr.sh_type) != SHT_REL) && (E_VAL(shdr.sh_type) != SHT_RELA))
             continue;
 
-        offset_t offset = E_VAL(shdr.sh_offset), endoffset = offset + E_VAL(shdr.sh_size);
+        rd_offset offset = E_VAL(shdr.sh_offset), endoffset = offset + E_VAL(shdr.sh_size);
 
         while(offset < endoffset)
         {
@@ -160,7 +165,7 @@ void ElfLoaderT<bits>::loadSegments(RDDocument* doc)
             default: continue;
         }
 
-        flag_t flags = SegmentFlags_Data;
+        rd_flag flags = SegmentFlags_Data;
 
         if(E_VAL(shdr.sh_type) == SHT_PROGBITS)
         {
@@ -231,7 +236,7 @@ void ElfLoaderT<bits>::checkEntryPoint(RDDocument* doc)
 template<size_t bits>
 void ElfLoaderT<bits>::loadSymbols(const SHDR& shdr, RDLoader* loader, RDDocument* doc)
 {
-    offset_t offset = E_VAL(shdr.sh_offset), endoffset = offset + E_VAL(shdr.sh_size);
+    rd_offset offset = E_VAL(shdr.sh_offset), endoffset = offset + E_VAL(shdr.sh_size);
     const SHDR& shstr = shdr.sh_link ? this->m_shdr[E_VAL(shdr.sh_link)] : ELF_STRING_TABLE;
 
     for(u64 idx = 0; offset < endoffset; idx++)

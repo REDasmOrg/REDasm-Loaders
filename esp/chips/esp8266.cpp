@@ -3,9 +3,9 @@
 #define ESP8266_BROM_ADDRESS 0x40000000
 #define ESP8266_BROM_SIZE    (0x10000 - 1)
 
-std::unordered_map<address_t, const char*> ESP8266::m_imports;
+std::unordered_map<rd_address, const char*> ESP8266::m_imports;
 
-bool ESP8266::load(RDLoader* loader, offset_t offset)
+bool ESP8266::load(RDLoader* loader, rd_offset offset)
 {
     RDDocument* document = RDLoader_GetDocument(loader);
     RDDocument_AddSegment(document, ".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentFlags_Bss);

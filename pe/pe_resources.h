@@ -18,7 +18,7 @@ class PEResources
                     VERSION_INFO = 16, HTML_PAGES = 23, CONFIGURATION_FILES = 24 };
 
         typedef std::pair<ImageResourceDirectory*, ImageResourceDirectoryEntry*> ResourceItem;
-        typedef std::function<RDLocation(address_t)> RvaToOffsetCallback;
+        typedef std::function<RDLocation(rd_address)> RvaToOffsetCallback;
 
     public:
         PEResources(ImageResourceDirectory* resourcedirectory);

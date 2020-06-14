@@ -26,7 +26,7 @@ Chip8Assembler::Chip8Assembler()
 
 void Chip8Assembler::emulate(RDDisassembler* disassembler, const RDInstruction* instruction)
 {
-    std::optional<address_t> target;
+    std::optional<rd_address> target;
 
     if(IS_TYPE(instruction, InstructionType_Jump))
     {

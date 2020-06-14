@@ -17,8 +17,8 @@ class PEAnalyzer
 
     private:
         bool getImport(const std::string &library, const std::string &api, RDSymbol* symbol);
-        size_t getAPIReferences(const std::string &library, const std::string &api, const address_t** references);
-        void findWndProc(address_t address, size_t argidx);
+        size_t getAPIReferences(const std::string &library, const std::string &api, const rd_address** references);
+        void findWndProc(rd_address address, size_t argidx);
         void findCRTWinMain();
         void findAllWndProc();
         void findAllExitAPI();

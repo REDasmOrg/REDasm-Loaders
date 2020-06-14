@@ -18,7 +18,7 @@ void VBAnalyzer::analyze()
     if(!instruction || !IS_TYPE(*instruction, InstructionType_Push) || (instruction->operandscount != 1)) return;
     if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
 
-    address_t thunrtdata = instruction->operands[0].address;
+    rd_address thunrtdata = instruction->operands[0].address;
     if(!RDDocument_GetSegmentAddress(doc, thunrtdata, nullptr)) return;
 
     instruction.lock(RDInstruction_NextAddress(*instruction));
@@ -29,7 +29,7 @@ void VBAnalyzer::analyze()
     PEAnalyzer::analyze();
 }
 
-void VBAnalyzer::disassembleTrampoline(address_t eventva, const std::string& name)
+void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& name)
 {
     if(!eventva) return;
 
@@ -79,7 +79,7 @@ void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescripto
     }
 }
 
-bool VBAnalyzer::decompile(address_t thunrtdata)
+bool VBAnalyzer::decompile(rd_address thunrtdata)
 {
     RDLoader* loader = RDDisassembler_GetLoader(m_disassembler);
 

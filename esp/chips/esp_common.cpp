@@ -2,7 +2,7 @@
 
 #define IS_VALID_MAGIC(magic) ((magic == ESP_IMAGE1_MAGIC) || (magic == ESP_IMAGE2_MAGIC))
 
-bool ESPCommon::load(RDLoader* loader, offset_t offset)
+bool ESPCommon::load(RDLoader* loader, rd_offset offset)
 {
     u8* magic = RD_Pointer(loader, offset);
 
@@ -53,7 +53,7 @@ const char* ESPCommon::test(const RDLoaderPlugin*, const RDLoaderRequest* reques
     return "xtensale";
 }
 
-bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, offset_t offset)
+bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, rd_offset offset)
 {
     RDDocument* document = RDLoader_GetDocument(loader);
     auto* segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(header, sizeof(ESP8266RomHeader1)));
@@ -61,7 +61,7 @@ bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, offset_t offse
     for(size_t i = 0 ; segment && (i < header->segments); i++)
     {
         std::string segname;
-        flag_t segflags;
+        rd_flag segflags;
 
         if(segment->address == 0x40100000)
         {

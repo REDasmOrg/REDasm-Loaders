@@ -53,7 +53,7 @@ RDLocation PEUtils::rvaToOffset(const ImageNtHeaders *ntheaders, u64 rva)
             if(!section.SizeOfRawData) // Check if section not BSS
                 break;
 
-            offset_t offset = section.PointerToRawData + (rva - section.VirtualAddress);
+            rd_offset offset = section.PointerToRawData + (rva - section.VirtualAddress);
             return { {offset}, offset < (section.PointerToRawData + section.SizeOfRawData) };
         }
     }

@@ -10,9 +10,9 @@ class VBAnalyzer : public PEAnalyzer
         void analyze() override;
 
     private:
-        void disassembleTrampoline(address_t eventva, const std::string &name);
+        void disassembleTrampoline(rd_address eventva, const std::string &name);
         void decompileObject(RDLoader* loader, const VBPublicObjectDescriptor& pubobjdescr);
-        bool decompile(address_t thunrtdata);
+        bool decompile(rd_address thunrtdata);
 
     private:
         VBHeader* m_vbheader{nullptr};

@@ -17,9 +17,7 @@ void ElfAnalyzer::analyze()
     if(this->getLibStartMain(&symlibcmain))
     {
         RDAssemblerPlugin* assembler = RDDisassembler_GetAssembler(m_disassembler);
-
         if(!std::string(assembler->id).find("x86")) this->findMain_x86(assembler, &symlibcmain);
-        else rd_log("Unhandled architecture '" + std::string(assembler->name) + "'");
     }
 
     RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
@@ -31,7 +29,7 @@ void ElfAnalyzer::analyze()
 
 void ElfAnalyzer::findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol *symlibcmain)
 {
-    const address_t* refs = nullptr;
+    const rd_address* refs = nullptr;
     size_t c = RDDisassembler_GetReferences(m_disassembler, symlibcmain->address, &refs);
 
     if(!c) return;

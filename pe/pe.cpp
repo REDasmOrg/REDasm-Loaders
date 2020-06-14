@@ -50,8 +50,8 @@ PELoaderT<b>::PELoaderT(RDLoaderPlugin* plugin, RDLoader* loader): m_plugin(plug
 }
 
 template<size_t b> const DotNetReader *PELoaderT<b>::dotNetReader() const { return m_dotnetreader.get(); }
-template<size_t b> address_t PELoaderT<b>::rvaToVa(address_t rva) const { return rva + m_imagebase; }
-template<size_t b> address_t PELoaderT<b>::vaToRva(address_t va) const { return va - m_imagebase; }
+template<size_t b> rd_address PELoaderT<b>::rvaToVa(rd_address rva) const { return rva + m_imagebase; }
+template<size_t b> rd_address PELoaderT<b>::vaToRva(rd_address va) const { return va - m_imagebase; }
 template<size_t b> const PEClassifier *PELoaderT<b>::classifier() const { return &m_classifier; }
 
 template<size_t b>
@@ -205,7 +205,7 @@ void PELoaderT<b>::loadSections()
     for(size_t i = 0; i < m_ntheaders->FileHeader.NumberOfSections; i++)
     {
         const ImageSectionHeader& section = m_sectiontable[i];
-        type_t type = SegmentFlags_None;
+        rd_type type = SegmentFlags_None;
 
         if((section.Characteristics & IMAGE_SCN_CNT_CODE) || (section.Characteristics & IMAGE_SCN_MEM_EXECUTE))
             type |= SegmentFlags_Code;
@@ -224,7 +224,7 @@ void PELoaderT<b>::loadSections()
         if(name.empty()) // Rename unnamed sections
             name = "sect" + std::string(RD_ToString(i));
 
-        address_t va = m_imagebase + section.VirtualAddress;
+        rd_address va = m_imagebase + section.VirtualAddress;
 
         if(RD_InRangeSize(m_entrypoint, va, vsize)) // Entry point always points to code segment
             type |= SegmentFlags_Code;
@@ -313,7 +313,7 @@ void PELoaderT<b>::loadExceptions()
 
     for(pe_integer_t i = 0; csize < exceptiondir.Size; i++, csize += sizeof(ImageRuntimeFunctionEntry))
     {
-        address_t va = m_imagebase + runtimeentry[i].BeginAddress;
+        rd_address va = m_imagebase + runtimeentry[i].BeginAddress;
         if(!RDDocument_GetSegmentAddress(m_document, va, nullptr) || (runtimeentry[i].UnwindInfoAddress & 1)) continue;
 
         UnwindInfo* unwindinfo = this->rvaPointer<UnwindInfo>(runtimeentry[i].UnwindInfoAddress & ~1u);
@@ -388,7 +388,7 @@ void PELoaderT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor,
     for(size_t i = 0; thunk[i]; i++)
     {
         std::string importname;
-        address_t address = m_imagebase + (importdescriptor.FirstThunk + (i * sizeof(ImageThunkData))); // Instructions refers to FT
+        rd_address address = m_imagebase + (importdescriptor.FirstThunk + (i * sizeof(ImageThunkData))); // Instructions refers to FT
 
         if(!(thunk[i] & ordinalflag))
         {
@@ -423,8 +423,8 @@ const char* PELoader::assembler(const ImageNtHeaders* ntheaders)
         case IMAGE_FILE_MACHINE_AMD64: return "x86_64";
 
         case IMAGE_FILE_MACHINE_ARM:
-            if(ntheaders->OptionalHeaderMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) return "arm64";
-            return "arm";
+            if(ntheaders->OptionalHeaderMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) return "arm64le";
+            return "armle";
 
         default: break;
     }

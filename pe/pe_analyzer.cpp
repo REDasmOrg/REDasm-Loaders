@@ -64,7 +64,7 @@ bool PEAnalyzer::getImport(const std::string &library, const std::string &api, R
     return false;
 }
 
-size_t PEAnalyzer::getAPIReferences(const std::string &library, const std::string &api, const address_t** references)
+size_t PEAnalyzer::getAPIReferences(const std::string &library, const std::string &api, const rd_address** references)
 {
     RDSymbol symbol;
 
@@ -76,7 +76,7 @@ void PEAnalyzer::findAllWndProc()
 {
     for(auto it = m_wndprocapi.begin(); it != m_wndprocapi.end(); it++)
     {
-        const address_t* references = nullptr;
+        const rd_address* references = nullptr;
         size_t c = this->getAPIReferences("user32.dll", it->second, &references);
 
         for(size_t i = 0; i < c; i++) this->findWndProc(references[i], it->first);
@@ -89,7 +89,7 @@ void PEAnalyzer::findAllExitAPI()
 
     for(auto it = m_exitapi.begin(); it != m_exitapi.end(); it++)
     {
-        const address_t* references = nullptr;
+        const rd_address* references = nullptr;
         size_t c = this->getAPIReferences("kernel32.dll", *it, &references);
 
         for(size_t i = 0; i < c; i++)
@@ -100,7 +100,7 @@ void PEAnalyzer::findAllExitAPI()
     }
 }
 
-void PEAnalyzer::findWndProc(address_t address, size_t argidx)
+void PEAnalyzer::findWndProc(rd_address address, size_t argidx)
 {
     const RDBlockContainer* c = RDDisassembler_GetBlocks(m_disassembler);
 
@@ -152,12 +152,12 @@ void PEAnalyzer::findCRTWinMain()
     if(!target.valid) return;
 
     bool found = false;
-    const address_t* references = nullptr;
+    const rd_address* references = nullptr;
     size_t c = RDDisassembler_GetReferences(m_disassembler, symbol.address, &references);
 
     for(size_t i = 0; i < c; i++)
     {
-        address_t ref = references[i];
+        rd_address ref = references[i];
         RDLocation loc = RDDocument_FunctionStart(doc, ref);
         if(!loc.valid || ((target.address != loc.address))) continue;
 

@@ -45,8 +45,8 @@ template<size_t b> class PELoaderT: public PELoader
 
     public:
         const DotNetReader *dotNetReader() const;
-        address_t rvaToVa(address_t rva) const;
-        address_t vaToRva(address_t rva) const;
+        rd_address rvaToVa(rd_address rva) const;
+        rd_address vaToRva(rd_address rva) const;
 
     private:
         ImageCorHeader *checkDotNet();
