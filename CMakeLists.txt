@@ -4,7 +4,7 @@ project(REDasm_Loaders)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-#add_subdirectory(gbadvance)
+add_subdirectory(gba)
 add_subdirectory(psxexe)
 #add_subdirectory(binary)
 add_subdirectory(chip8)

@@ -1,15 +1,12 @@
 #pragma once
 
-#include <redasm/plugins/loader/loader.h>
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 
 #define GBA_ROM_HEADER_SIZE    192
 #define GBA_NINTENDO_LOGO_SIZE 156
 #define GBA_GAME_TITLE_SIZE    12
 #define GBA_GAME_CODE_SIZE     4
 #define GBA_MAKER_CODE_SIZE    2
-
-using namespace REDasm;
 
 struct GbaRomHeader // From: http://problemkaputt.de/gbatek.htm#gbacartridgeheader
 {
@@ -32,18 +29,14 @@ struct GbaRomHeader // From: http://problemkaputt.de/gbatek.htm#gbacartridgehead
     u32 joybus_entry_point;
 };
 
-class GbaLoader: public Loader
+class GbaLoader
 {
     public:
-        GbaLoader();
-        AssemblerRequest assembler() const override;
-        bool test(const LoadRequest &request) const override;
-        void load() override;
+        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
+        static bool load(RDLoaderPlugin*, RDLoader* loader);
 
     public:
         static bool isUppercaseAscii(const char* s, size_t c);
-        static u8 calculateChecksum(const BufferView& view);
-
-    private:
-        u32 getEP() const;
+        static u8 calculateChecksum(RDBuffer* buffer);
+        static u32 getEP(RDBuffer* buffer);
 };
