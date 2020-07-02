@@ -27,11 +27,3 @@ bool PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
     return true;
 }
 
-void redasm_entry()
-{
-    RD_PLUGIN_CREATE(RDLoaderPlugin, psxexe, "PS-X Executable");
-    psxexe.test = &PsxExeLoader::test;
-    psxexe.load = &PsxExeLoader::load;
-
-    RDLoader_Register(&psxexe);
-}

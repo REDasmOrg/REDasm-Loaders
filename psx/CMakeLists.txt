@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(PsxExe)
+project(Psx)
 
 find_package(REDasm REQUIRED)
 
