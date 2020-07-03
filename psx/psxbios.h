@@ -3,8 +3,6 @@
 #include <rdapi/rdapi.h>
 #include <array>
 
-#define PSX_BIOS_SIGNATURE_SIZE 0x10
-
 class PsxBiosLoader
 {
     public:
@@ -13,5 +11,5 @@ class PsxBiosLoader
         static bool load(RDLoaderPlugin*, RDLoader* loader);
 
     private:
-        static const std::array<u8, PSX_BIOS_SIGNATURE_SIZE> BIOS_SIGNATURE;
+        static const u32 BIOS_SIGNATURE_CRC32;
 };
