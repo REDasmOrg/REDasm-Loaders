@@ -267,7 +267,7 @@ void ElfLoaderT<bits>::loadSymbols(const SHDR& shdr, RDLoader* loader, RDDocumen
             if(isexport)
             {
                 if(info == STT_FUNC) RDDocument_AddExportedFunction(doc, symvalue, symname);
-                else RDDocument_AddExported(doc, symvalue, symname);
+                else RDDocument_AddExported(doc, symvalue, sym->st_size, symname);
             }
             else if(info == STT_FUNC)
                 RDDocument_AddFunction(doc, symvalue, symname);

@@ -270,7 +270,7 @@ void PELoaderT<b>::loadExports()
             namedfunction = true;
 
             if(isfunction) RDDocument_AddExportedFunction(m_document, funcep, this->rvaPointer<const char>(names[j]));
-            else RDDocument_AddExported(m_document, funcep, this->rvaPointer<const char>(names[j]));
+            else RDDocument_AddExported(m_document, funcep, b / CHAR_BIT, this->rvaPointer<const char>(names[j]));
             break;
         }
 
@@ -280,7 +280,7 @@ void PELoaderT<b>::loadExports()
         ss << "Ordinal__" << RD_ToHexBits(exporttable->Base + i, 16, false);
 
         if(isfunction) RDDocument_AddExportedFunction(m_document, funcep, ss.str().c_str());
-        else RDDocument_AddExported(m_document, funcep, ss.str().c_str());
+        else RDDocument_AddExported(m_document, funcep, b / CHAR_BIT, ss.str().c_str());
     }
 }
 
