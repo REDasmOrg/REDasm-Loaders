@@ -12,9 +12,9 @@ class ElfAnalyzer
         void analyze();
 
     private:
-        void findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol* symlibcmain);
-        void findMainMode_x86_64(size_t blockidx);
-        void findMainMode_x86_32(size_t blockidx);
+        void findMain_x86(RDAssemblerPlugin* assembler, RDDocument* doc, const RDSymbol* symlibcmain);
+        void findMainMode_x86_64(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx);
+        void findMainMode_x86_32(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx);
 
    private:
         void disassembleLibStartMain();

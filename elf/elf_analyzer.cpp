@@ -13,21 +13,21 @@ ElfAnalyzer::ElfAnalyzer(RDLoaderPlugin* plugin, RDDisassembler* disassembler): 
 void ElfAnalyzer::analyze()
 {
     RDSymbol symlibcmain;
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
 
     if(this->getLibStartMain(&symlibcmain))
     {
         RDAssemblerPlugin* assembler = RDDisassembler_GetAssembler(m_disassembler);
-        if(!std::string(assembler->id).find("x86")) this->findMain_x86(assembler, &symlibcmain);
+        if(!std::string(assembler->id).find("x86")) this->findMain_x86(assembler, doc, &symlibcmain);
     }
 
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
     RDSymbol symbol;
 
     if(RDDocument_GetSymbolByName(doc, "main", &symbol))
         RDDocument_SetEntry(doc, symbol.address);
 }
 
-void ElfAnalyzer::findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol *symlibcmain)
+void ElfAnalyzer::findMain_x86(RDAssemblerPlugin* assembler, RDDocument* doc, const RDSymbol *symlibcmain)
 {
     const rd_address* refs = nullptr;
     size_t c = RDDisassembler_GetReferences(m_disassembler, symlibcmain->address, &refs);
@@ -35,7 +35,7 @@ void ElfAnalyzer::findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol *sym
     if(!c) return;
     if(c > 1) rd_problem("'" + std::string(LIBC_START_MAIN) + "' contains " + std::to_string(c) + "references");
 
-    const RDBlockContainer* blocks = RDDisassembler_GetBlocks(m_disassembler);
+    const RDBlockContainer* blocks = RDDocument_GetBlocks(doc, symlibcmain->address);
 
     RDBlock block;
     if(!RDBlockContainer_Find(blocks, refs[0], &block)) return;
@@ -43,15 +43,13 @@ void ElfAnalyzer::findMain_x86(RDAssemblerPlugin* assembler, const RDSymbol *sym
     size_t index = RDBlockContainer_Index(blocks, &block);
     if(index == RD_NPOS) return;
 
-    if(!std::strcmp(assembler->id, "x86_64")) this->findMainMode_x86_64(index);
-    else if(!std::strcmp(assembler->id, "x86_32")) this->findMainMode_x86_32(index);
+    if(!std::strcmp(assembler->id, "x86_64")) this->findMainMode_x86_64(doc, blocks, index);
+    else if(!std::strcmp(assembler->id, "x86_32")) this->findMainMode_x86_32(doc, blocks, index);
     this->disassembleLibStartMain();
 }
 
-void ElfAnalyzer::findMainMode_x86_32(size_t blockidx)
+void ElfAnalyzer::findMainMode_x86_32(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx)
 {
-    const RDBlockContainer* blocks = RDDisassembler_GetBlocks(m_disassembler);
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
     RDBlock block;
 
     for(size_t i = 0; RDBlockContainer_Get(blocks, blockidx, &block) && (i < LIBC_START_MAIN_ARGC); blockidx--)
@@ -78,10 +76,8 @@ void ElfAnalyzer::findMainMode_x86_32(size_t blockidx)
     }
 }
 
-void ElfAnalyzer::findMainMode_x86_64(size_t blockidx)
+void ElfAnalyzer::findMainMode_x86_64(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx)
 {
-    const RDBlockContainer* blocks = RDDisassembler_GetBlocks(m_disassembler);
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
     RDBlock block;
 
     for(; blockidx && RDBlockContainer_Get(blocks, blockidx, &block); blockidx--)

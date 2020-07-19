@@ -102,18 +102,19 @@ void PEAnalyzer::findAllExitAPI()
 
 void PEAnalyzer::findWndProc(rd_address address, size_t argidx)
 {
-    const RDBlockContainer* c = RDDisassembler_GetBlocks(m_disassembler);
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    const RDBlockContainer* blocks = RDDocument_GetBlocks(doc, address);
+    if(!blocks) return;
 
     RDBlock block;
-    if(!RDBlockContainer_Find(c, address, &block)) return;
+    if(!RDBlockContainer_Find(blocks, address, &block)) return;
 
-    size_t index = RDBlockContainer_Index(c, &block);
+    size_t index = RDBlockContainer_Index(blocks, &block);
     if(!index || (index == RD_NPOS)) return;
 
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
     size_t arg = 0;
 
-    while(RDBlockContainer_Get(c, --index, &block) && IS_TYPE(&block, BlockType_Code))
+    while(RDBlockContainer_Get(blocks, --index, &block) && IS_TYPE(&block, BlockType_Code))
     {
         InstructionLock instruction(doc, block.address);
         if(!instruction) break;
