@@ -5,6 +5,8 @@
 #include "dotnet/dotnet.h"
 #include "borland/borland_version.h"
 #include "vb/vb_analyzer.h"
+#include "analyzers/wndprocanalyzer.h"
+#include <cstring>
 #include <climits>
 
 const ImageNtHeaders* PELoader::getNtHeaders(RDLoader* loader, const ImageDosHeader** dosheader)
@@ -464,30 +466,36 @@ bool PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
     return true;
 }
 
-void PELoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
-{
-    PELoader* loader = reinterpret_cast<PELoader*>(plugin->p_data);
-
-    if(loader->classifier()->isVisualBasic())
-    {
-        VBAnalyzer a(loader, disassembler);
-        a.analyze();
-    }
-    else
-    {
-        PEAnalyzer a(loader, disassembler);
-        a.analyze();
-    }
-}
-
-
 void redasm_entry()
 {
     RD_PLUGIN_CREATE(RDLoaderPlugin, pe, "Portable Executable");
     pe.free = &PELoader::free;
     pe.test = &PELoader::test;
     pe.load = &PELoader::load;
-    pe.analyze = &PELoader::analyze;
-
     RDLoader_Register(&pe);
+
+    RD_PLUGIN_CREATE(RDAnalyzerPlugin, pewndproc, "Analyze Window Procedures");
+    pewndproc.description = "Find and Disassemble Window Procedure";
+    pewndproc.flags = AnalyzerFlags_Selected;
+    pewndproc.priority = 1000;
+
+    pewndproc.isenabled = [](const RDAnalyzerPlugin*, const RDLoaderPlugin* ploader, const RDAssemblerPlugin*) -> bool {
+        if(std::strcmp(ploader->id, pe.id)) return false;
+        auto* peloader = reinterpret_cast<PELoader*>(ploader->p_data);
+        if(!peloader) return false;
+
+        auto* c = peloader->classifier();
+        if(!c->isClassified() || c->isDotNet() || c->isVisualBasic()) return false;
+        return true;
+    };
+
+    pewndproc.execute = [](const struct RDAnalyzerPlugin*, RDDisassembler* disassembler) {
+        RDUserData ud;
+        RDDisassembler_GetLoaderUserData(disassembler, &ud);
+
+        WndProcAnalyzer wpa(disassembler, reinterpret_cast<PELoader*>(ud.p_data));
+        wpa.analyze();
+    };
+
+    RDAnalyzer_Register(&pewndproc);
 }

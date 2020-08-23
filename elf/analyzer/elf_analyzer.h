@@ -8,21 +8,22 @@ class ElfLoader;
 class ElfAnalyzer
 {
     public:
-        ElfAnalyzer(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
-        void analyze();
+        ElfAnalyzer(ElfLoader* loader, RDDisassembler* disassembler);
+        virtual void analyze();
 
     private:
-        void findMain_x86(RDAssemblerPlugin* assembler, RDDocument* doc, const RDSymbol* symlibcmain);
+        void findMain_x86(const std::string& id, RDDocument* doc, const RDSymbol* symlibcmain);
         void findMainMode_x86_64(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx);
         void findMainMode_x86_32(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx);
 
-   private:
+    private:
         void disassembleLibStartMain();
         bool getLibStartMain(RDSymbol* symbol);
 
-   protected:
+    private:
         std::unordered_map<std::string, rd_address> m_libcmain;
+
+    protected:
         RDDisassembler* m_disassembler;
-        RDLoaderPlugin* m_plugin;
         ElfLoader* m_loader;
 };

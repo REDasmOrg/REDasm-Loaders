@@ -6,48 +6,48 @@
 #define HAS_OPTIONAL_INFO(objdescr, objinfo) (objdescr.lpObjectInfo + sizeof(VBObjectInfo) != objinfo->base.lpConstants)
 #define VB_METHODNAME(pubobj, control, method) (pubobj + "_" + control + "_" + method)
 
-VBAnalyzer::VBAnalyzer(PELoader* loader, RDDisassembler* disassembler): PEAnalyzer(loader, disassembler) { }
+VBAnalyzer::VBAnalyzer(PELoader* peloader, RDDisassembler* disassembler): m_peloader(peloader), m_disassembler(disassembler) { }
 
 void VBAnalyzer::analyze()
 {
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
-    RDLocation loc = RDDocument_EntryPoint(doc);
-    if(!loc.valid) return;
+    // RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    // RDLocation loc = RDDocument_EntryPoint(doc);
+    // if(!loc.valid) return;
 
-    InstructionLock instruction(doc, loc.address);
-    if(!instruction || !IS_TYPE(*instruction, InstructionType_Push) || (instruction->operandscount != 1)) return;
-    if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
+    // InstructionLock instruction(doc, loc.address);
+    // if(!instruction || !IS_TYPE(*instruction, InstructionType_Push) || (instruction->operandscount != 1)) return;
+    // if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
 
-    rd_address thunrtdata = instruction->operands[0].address;
-    if(!RDDocument_GetSegmentAddress(doc, thunrtdata, nullptr)) return;
+    // rd_address thunrtdata = instruction->operands[0].address;
+    // if(!RDDocument_GetSegmentAddress(doc, thunrtdata, nullptr)) return;
 
-    instruction.lock(RDInstruction_NextAddress(*instruction));
-    if(!instruction || !IS_TYPE(*instruction, InstructionType_Call)) return;
+    // instruction.lock(RDInstruction_NextAddress(*instruction));
+    // if(!instruction || !IS_TYPE(*instruction, InstructionType_Call)) return;
 
-    instruction->flags = InstructionFlags_Stop;
-    if(!this->decompile(thunrtdata)) return;
-    PEAnalyzer::analyze();
+    // instruction->flags = InstructionFlags_Stop;
+    // if(!this->decompile(thunrtdata)) return;
+    // PEAnalyzer::analyze();
 }
 
 void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& name)
 {
-    if(!eventva) return;
+    // if(!eventva) return;
 
-    InstructionLock instruction(m_disassembler, eventva); // Disassemble trampoline
-    if(!instruction) return;
+    // InstructionLock instruction(m_disassembler, eventva); // Disassemble trampoline
+    // if(!instruction) return;
 
-    if(RDInstruction_MnemonicIs(*instruction, "sub"))
-    {
-        this->disassembleTrampoline(RDInstruction_NextAddress(*instruction), name); // Jump follows...
-        return;
-    }
+    // if(RDInstruction_MnemonicIs(*instruction, "sub"))
+    // {
+    //     this->disassembleTrampoline(RDInstruction_NextAddress(*instruction), name); // Jump follows...
+    //     return;
+    // }
 
-    if(!IS_TYPE(*instruction, InstructionType_Jump)) return;
-    if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
+    // if(!IS_TYPE(*instruction, InstructionType_Jump)) return;
+    // if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
 
     rd_statusaddress("Decoding" + name, eventva);
-    RDDisassembler_EnqueueAddress(m_disassembler, *instruction, instruction->operands[0].address);
-    RDDocument_AddFunction(RDDisassembler_GetDocument(m_disassembler), instruction->operands[0].address, name.c_str());
+    //RDDisassembler_EnqueueAddress(m_disassembler, instruction->operands[0].address, *instruction);
+    //RDDocument_AddFunction(RDDisassembler_GetDocument(m_disassembler), instruction->operands[0].address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)

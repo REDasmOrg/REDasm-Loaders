@@ -20,7 +20,6 @@ class PELoader
         static void free(RDPluginHeader* plugin);
         static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
         static bool load(RDLoaderPlugin* plugin, RDLoader* loader);
-        static void analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
         static const char* assembler(const ImageNtHeaders* ntheaders);
 
     public:

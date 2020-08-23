@@ -1,13 +1,14 @@
 #pragma once
 
-#include "../pe_analyzer.h"
 #include "vb_header.h"
 
-class VBAnalyzer : public PEAnalyzer
+class PELoader;
+
+class VBAnalyzer
 {
     public:
-        VBAnalyzer(PELoader* loader, RDDisassembler* disassembler);
-        void analyze() override;
+        VBAnalyzer(PELoader* peloader, RDDisassembler* disassembler);
+        void analyze();
 
     private:
         void disassembleTrampoline(rd_address eventva, const std::string &name);
@@ -15,6 +16,8 @@ class VBAnalyzer : public PEAnalyzer
         bool decompile(rd_address thunrtdata);
 
     private:
+        PELoader* m_peloader;
+        RDDisassembler* m_disassembler;
         VBHeader* m_vbheader{nullptr};
         VBProjectInfo* m_vbprojinfo{nullptr};
         VBObjectTable* m_vbobjtable{nullptr};
