@@ -1,4 +1,4 @@
-#include "wndprocanalyzer.h"
+#include "wndproc_analyzer.h"
 #include "../pe_utils.h"
 #include "../pe.h"
 #include <deque>

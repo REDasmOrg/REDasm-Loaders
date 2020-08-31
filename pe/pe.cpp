@@ -4,8 +4,8 @@
 #include "pe_debug.h"
 #include "dotnet/dotnet.h"
 #include "borland/borland_version.h"
-#include "vb/vb_analyzer.h"
-#include "analyzers/wndprocanalyzer.h"
+#include "analyzers/vb_analyzer.h"
+#include "analyzers/wndproc_analyzer.h"
 #include <cstring>
 #include <climits>
 
@@ -498,4 +498,28 @@ void redasm_entry()
     };
 
     RDAnalyzer_Register(&pewndproc);
+
+    RD_PLUGIN_CREATE(RDAnalyzerPlugin, pevbdecompile, "Decompile VB5/6");
+    pevbdecompile.description = "Find and and Decompile Visual Basic events";
+    pevbdecompile.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
+    pevbdecompile.priority = 1000;
+
+    pevbdecompile.isenabled = [](const RDAnalyzerPlugin*, const RDLoaderPlugin* ploader, const RDAssemblerPlugin*) -> bool {
+        if(std::strcmp(ploader->id, pe.id)) return false;
+        auto* peloader = reinterpret_cast<PELoader*>(ploader->p_data);
+        if(!peloader) return false;
+
+        auto* c = peloader->classifier();
+        return c->isVisualBasic();
+    };
+
+    pevbdecompile.execute = [](const struct RDAnalyzerPlugin*, RDDisassembler* disassembler) {
+        RDUserData ud;
+        RDDisassembler_GetLoaderUserData(disassembler, &ud);
+
+        VBAnalyzer wba(disassembler, reinterpret_cast<PELoader*>(ud.p_data));
+        wba.analyze();
+    };
+
+    RDAnalyzer_Register(&pevbdecompile);
 }

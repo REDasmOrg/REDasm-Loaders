@@ -1,20 +1,16 @@
 #pragma once
 
 #include <filesystem>
-#include <algorithm>
-#include <cctype>
 #include <rdapi/rdapi.h>
 
+namespace fs = std::filesystem;
 typedef u16 ordinal_t;
 
 class PEImports
 {
     public:
-        PEImports();
+        PEImports() = default;
         template<int b> bool importName(const std::string& dllname, ordinal_t ordinal, std::string& name);
-
-    private:
-        template<int b> static void checkX64(std::string& modulename);
 
     private:
         rd_ptr<RDDatabase> m_ordinalsdb;
@@ -22,20 +18,15 @@ class PEImports
 
 template<int b> bool PEImports::importName(const std::string &dllname, ordinal_t ordinal, std::string &name)
 {
-    std::string modulename = std::filesystem::path(dllname).stem();
+    if(!m_ordinalsdb) m_ordinalsdb.reset(RDDatabase_Open(("loaders/pe/ordinals" + std::to_string(b)).c_str()));
+    if(!m_ordinalsdb) return false;
+
+    std::string modulename = fs::path(dllname).stem() / std::to_string(ordinal);
     std::transform(modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
-    PEImports::checkX64<b>(modulename);
 
-    if(!m_ordinalsdb || !RDDatabase_Select(m_ordinalsdb.get(), modulename.c_str())) return false;
+    RDDatabaseValue value;
 
-    RDDatabaseItem item;
-    if(!RDDatabase_Find(m_ordinalsdb.get(), std::to_string(ordinal).c_str(), &item)) return false;
-    name = item.s_value;
+    if(!RDDatabase_Query(m_ordinalsdb.get(), modulename.c_str(), &value)) return false;
+    name = value.s;
     return true;
-}
-
-template<int b> void PEImports::checkX64(std::string &modulename)
-{
-    if((b != 64) || !modulename.find("mfc")) return;
-    modulename += "!x64";
 }

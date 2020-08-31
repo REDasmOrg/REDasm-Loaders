@@ -1,13 +1,13 @@
 #pragma once
 
-#include "vb_header.h"
+#include "../vb/vb_header.h"
 
 class PELoader;
 
 class VBAnalyzer
 {
     public:
-        VBAnalyzer(PELoader* peloader, RDDisassembler* disassembler);
+        VBAnalyzer(RDDisassembler* disassembler, PELoader* peloader);
         void analyze();
 
     private:

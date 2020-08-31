@@ -1,53 +1,64 @@
 #include "vb_analyzer.h"
-#include "vb_components.h"
+#include "../vb/vb_components.h"
 #include "../pe.h"
 #include <cstring>
 
 #define HAS_OPTIONAL_INFO(objdescr, objinfo) (objdescr.lpObjectInfo + sizeof(VBObjectInfo) != objinfo->base.lpConstants)
 #define VB_METHODNAME(pubobj, control, method) (pubobj + "_" + control + "_" + method)
 
-VBAnalyzer::VBAnalyzer(PELoader* peloader, RDDisassembler* disassembler): m_peloader(peloader), m_disassembler(disassembler) { }
+VBAnalyzer::VBAnalyzer(RDDisassembler* disassembler, PELoader* peloader): m_peloader(peloader), m_disassembler(disassembler) { }
 
 void VBAnalyzer::analyze()
 {
-    // RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
-    // RDLocation loc = RDDocument_EntryPoint(doc);
-    // if(!loc.valid) return;
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    auto entry = RDDocument_GetEntryPoint(doc);
+    if(!entry.valid) return;
 
-    // InstructionLock instruction(doc, loc.address);
-    // if(!instruction || !IS_TYPE(*instruction, InstructionType_Push) || (instruction->operandscount != 1)) return;
-    // if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
+    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, entry.address));
+    if(!il) return;
 
-    // rd_address thunrtdata = instruction->operands[0].address;
-    // if(!RDDocument_GetSegmentAddress(doc, thunrtdata, nullptr)) return;
+    auto pushexpr = RDILFunction_GetExpression(il.get(), 0);
+    auto callexpr = RDILFunction_GetExpression(il.get(), 1);
+    if(!pushexpr || !callexpr) return;
+    if(RDILExpression_Type(pushexpr) != RDIL_Push) return;
+    if(RDILExpression_Type(callexpr) != RDIL_Call) return;
 
-    // instruction.lock(RDInstruction_NextAddress(*instruction));
-    // if(!instruction || !IS_TYPE(*instruction, InstructionType_Call)) return;
+    auto* argexpr = RDILExpression_GetE(pushexpr);
+    if(RDILExpression_Type(argexpr) != RDIL_Cnst) return;
 
-    // instruction->flags = InstructionFlags_Stop;
-    // if(!this->decompile(thunrtdata)) return;
-    // PEAnalyzer::analyze();
+    RDILValue v;
+    if(!RDILExpression_GetValue(argexpr, &v)) return;
+    if(!RDDocument_GetSegmentAddress(doc, v.address, nullptr)) return;
+    if(!this->decompile(v.address)) return;
 }
 
 void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& name)
 {
-    // if(!eventva) return;
+    if(!eventva) return;
 
-    // InstructionLock instruction(m_disassembler, eventva); // Disassemble trampoline
-    // if(!instruction) return;
+    RD_DisassembleAt(m_disassembler, eventva);
 
-    // if(RDInstruction_MnemonicIs(*instruction, "sub"))
-    // {
-    //     this->disassembleTrampoline(RDInstruction_NextAddress(*instruction), name); // Jump follows...
-    //     return;
-    // }
+    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, eventva));
+    if(!il) return;
 
-    // if(!IS_TYPE(*instruction, InstructionType_Jump)) return;
-    // if(!IS_TYPE(&instruction->operands[0], OperandType_Immediate)) return;
+    auto* subexpr = RDILFunction_GetFirstExpression(il.get());
+    auto* gotoexpr = RDILFunction_GetLastExpression(il.get());
 
-    rd_statusaddress("Decoding" + name, eventva);
-    //RDDisassembler_EnqueueAddress(m_disassembler, instruction->operands[0].address, *instruction);
-    //RDDocument_AddFunction(RDDisassembler_GetDocument(m_disassembler), instruction->operands[0].address, name.c_str());
+    if(!subexpr || (RDILExpression_Type(subexpr) != RDIL_Sub)) return;
+    if(!gotoexpr || (RDILExpression_Type(gotoexpr) != RDIL_Goto)) return;
+
+    auto* eventexpr = RDILExpression_GetE(gotoexpr);
+    if(!eventexpr || (RDILExpression_Type(eventexpr) != RDIL_Addr)) return;
+
+    RDILValue val;
+    if(!RDILExpression_GetValue(eventexpr, &val)) return;
+
+    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    if(!RDDocument_GetSegmentAddress(doc, val.address, nullptr)) return;
+
+    rd_statusaddress("Decoding" + name, val.address);
+    RDDisassembler_Enqueue(m_disassembler, val.address);
+    RDDocument_AddFunction(doc, val.address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)
