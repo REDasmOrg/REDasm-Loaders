@@ -41,10 +41,10 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, eventva));
     if(!il) return;
 
-    auto* subexpr = RDILFunction_GetFirstExpression(il.get());
+    auto* copyexpr = RDILFunction_GetFirstExpression(il.get());
     auto* gotoexpr = RDILFunction_GetLastExpression(il.get());
 
-    if(!subexpr || (RDILExpression_Type(subexpr) != RDIL_Sub)) return;
+    if(!copyexpr || (RDILExpression_Type(copyexpr) != RDIL_Copy)) return;
     if(!gotoexpr || (RDILExpression_Type(gotoexpr) != RDIL_Goto)) return;
 
     auto* eventexpr = RDILExpression_GetE(gotoexpr);
@@ -59,6 +59,7 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     rd_statusaddress("Decoding" + name, val.address);
     RDDisassembler_Enqueue(m_disassembler, val.address);
     RDDocument_AddFunction(doc, val.address, name.c_str());
+    RDDocument_AddFunction(doc, eventva, RD_Thunk(name.c_str()));
 }
 
 void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)
