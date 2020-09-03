@@ -1,7 +1,6 @@
 #pragma once
 
-#include <rdapi/types.h>
-#include <rdapi/utils.h>
+#include <rdapi/rdapi.h>
 #include "elf_common.h"
 
 /*
