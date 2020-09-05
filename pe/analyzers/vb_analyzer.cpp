@@ -35,7 +35,7 @@ void VBAnalyzer::analyze()
 void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& name)
 {
     if(!eventva) return;
-    RD_DisassembleAt(m_disassembler, eventva);
+    if(!RDDisassembler_CreateFunction(m_disassembler, eventva, RD_Thunk(name.c_str()))) return;
 
     rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, eventva));
     if(!il) return;
@@ -54,9 +54,7 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     if(!RDDocument_GetSegmentAddress(doc, val.address, nullptr)) return;
 
     rd_statusaddress("Decoding" + name, val.address);
-    RDDisassembler_Enqueue(m_disassembler, val.address);
-    RDDocument_AddFunction(doc, val.address, name.c_str());
-    RDDocument_AddFunction(doc, eventva, RD_Thunk(name.c_str()));
+    RDDisassembler_ScheduleFunction(m_disassembler, val.address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)
