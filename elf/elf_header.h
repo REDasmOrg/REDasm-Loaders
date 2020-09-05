@@ -37,7 +37,7 @@ auto elf_r_sym(typename elf_unsigned_t<bits>::type info) {
 
 template<size_t bits>
 auto elf_r_type(typename elf_unsigned_t<bits>::type info) {
-    if constexpr(bits == 64) return info & 0xFFFFFFFFL;
+    if constexpr(bits == 64) return static_cast<u32>(info);
     else return static_cast<u8>(info);
 }
 

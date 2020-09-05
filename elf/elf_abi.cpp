@@ -25,9 +25,10 @@ void ElfABIT<bits>::parse()
 }
 
 template<size_t bits>
-void ElfABIT<bits>::processRelocations(const typename ElfType::REL* rel, typename ElfType::UVAL size, const typename ElfType::SHDR* shdr)
+template<typename RelType>
+void ElfABIT<bits>::processRelocations(const RelType* rel, typename ElfType::UVAL size, const typename ElfType::SHDR* shdr)
 {
-    for(size_t sz = 0; sz < size; sz += sizeof(typename ElfType::REL), rel++)
+    for(size_t sz = 0; sz < size; sz += sizeof(RelType), rel++)
     {
         auto symidx = elf_r_sym<bits>(E_VAL(rel->r_info));
         auto type = elf_r_type<bits>(E_VAL(rel->r_info));
@@ -35,13 +36,6 @@ void ElfABIT<bits>::processRelocations(const typename ElfType::REL* rel, typenam
         switch(type)
         {
             case R_386_GLOB_DAT:
-            {
-                auto name = m_elf->symbolName(shdr->sh_link, symidx);
-                if(!name) continue;
-                RDDocument_AddImported(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
-                break;
-            }
-
             case R_386_JMP_SLOT:
             {
                 auto name = m_elf->symbolName(shdr->sh_link, symidx);
@@ -49,7 +43,7 @@ void ElfABIT<bits>::processRelocations(const typename ElfType::REL* rel, typenam
                 const auto* shdr = m_elf->findSegment(rel->r_offset);
                 if(!shdr) continue;
 
-                RDDocument_AddData(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
+                RDDocument_AddImported(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
                 m_plt[rel->r_offset - shdr->sh_addr] = *name;
                 break;
             }
@@ -60,23 +54,30 @@ void ElfABIT<bits>::processRelocations(const typename ElfType::REL* rel, typenam
 }
 
 template<size_t bits>
+template<typename RelType>
 void ElfABIT<bits>::processRelocations(typename ElfType::SVAL dtag, typename ElfType::SVAL dtagsz)
 {
     auto sz = m_elf->dynamic(dtagsz);
     if(!sz) return;
 
     const typename ElfType::SHDR* shdr = nullptr;
-    const auto* tag = m_elf->template elfdynptr<typename ElfType::REL>(dtag, &shdr);
-    if(!tag) return;
-
-    this->processRelocations(tag, *sz, shdr);
+    const RelType* tag = m_elf->template elfdynptr<RelType>(dtag, &shdr);
+    if(tag) this->processRelocations(tag, *sz, shdr);
 }
 
 template<size_t bits>
 void ElfABIT<bits>::parse_x86()
 {
-    this->processRelocations(DT_JMPREL, DT_PLTRELSZ);
-    this->processRelocations(DT_REL, DT_RELSZ);
+    auto reltype = m_elf->dynamic(DT_PLTREL);
+
+    if(reltype)
+    {
+        if(*reltype == DT_RELA) this->processRelocations<typename ElfType::RELA>(DT_JMPREL, DT_PLTRELSZ);
+        else this->processRelocations<typename ElfType::REL>(DT_JMPREL, DT_PLTRELSZ);
+    }
+
+    this->processRelocations<typename ElfType::RELA>(DT_RELA, DT_RELASZ);
+    this->processRelocations<typename ElfType::REL>(DT_REL, DT_RELSZ);
 }
 
 template class ElfABIT<32>;

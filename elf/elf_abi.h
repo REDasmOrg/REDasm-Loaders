@@ -27,8 +27,8 @@ class ElfABIT: public ElfABI
         void parse() override;
 
     private:
-        void processRelocations(const typename ElfType::REL* rel, typename ElfType::UVAL size, const typename ElfType::SHDR* shdr);
-        void processRelocations(typename ElfType::SVAL dtag, typename ElfType::SVAL dtagsz);
+        template<typename RelType> void processRelocations(const RelType* rel, typename ElfType::UVAL size, const typename ElfType::SHDR* shdr);
+        template<typename RelType> void processRelocations(typename ElfType::SVAL dtag, typename ElfType::SVAL dtagsz);
         void parse_x86();
 
     private:
