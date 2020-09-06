@@ -479,9 +479,13 @@ void redasm_entry()
     pewndproc.flags = AnalyzerFlags_Selected;
     pewndproc.priority = 1000;
 
-    pewndproc.isenabled = [](const RDAnalyzerPlugin*, const RDLoaderPlugin* ploader, const RDAssemblerPlugin*) -> bool {
-        if(std::strcmp(ploader->id, pe.id)) return false;
-        auto* peloader = reinterpret_cast<PELoader*>(ploader->p_data);
+    pewndproc.isenabled = [](const RDAnalyzerPlugin*, const RDLoader* loader, const RDAssembler*) -> bool {
+        if(std::strcmp(RDLoader_GetId(loader), pe.id)) return false;
+
+        RDUserData userdata;
+        if(!RDLoader_GetUserData(loader, &userdata)) return false;
+
+        auto* peloader = reinterpret_cast<PELoader*>(userdata.p_data);
         if(!peloader) return false;
 
         auto* c = peloader->classifier();
@@ -504,9 +508,13 @@ void redasm_entry()
     pevbdecompile.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
     pevbdecompile.priority = 1000;
 
-    pevbdecompile.isenabled = [](const RDAnalyzerPlugin*, const RDLoaderPlugin* ploader, const RDAssemblerPlugin*) -> bool {
-        if(std::strcmp(ploader->id, pe.id)) return false;
-        auto* peloader = reinterpret_cast<PELoader*>(ploader->p_data);
+    pevbdecompile.isenabled = [](const RDAnalyzerPlugin*, const RDLoader* loader, const RDAssembler*) -> bool {
+        if(std::strcmp(RDLoader_GetId(loader), pe.id)) return false;
+
+        RDUserData userdata;
+        if(!RDLoader_GetUserData(loader, &userdata)) return false;
+
+        auto* peloader = reinterpret_cast<PELoader*>(userdata.p_data);
         if(!peloader) return false;
 
         auto* c = peloader->classifier();
