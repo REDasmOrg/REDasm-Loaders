@@ -4,7 +4,6 @@
 #include <climits>
 #include <memory>
 
-#define E_VAL(f) e_valT((f), this->endianness())
 #define ELF_STRING_TABLE this->m_shdr[E_VAL(this->m_ehdr->e_shstrndx)]
 #define ELF_STRING(shdr, offset) reinterpret_cast<const char*>(RD_RelPointer(this->m_ehdr, E_VAL((shdr)->sh_offset) + offset))
 
@@ -185,12 +184,40 @@ void ElfLoaderT<bits>::doLoad(RDLoader* loader)
 
     RDDocument* doc = RDLoader_GetDocument(loader);
     this->readProgramHeader(doc);
+    this->readSectionHeader(doc);
 
     m_abi.reset(new ElfABIT<bits>(this));
     m_abi->parse();
 
     if(RDDocument_GetSegmentAddress(doc, E_VAL(this->m_ehdr->e_entry), nullptr))
         RDDocument_SetEntry(doc, E_VAL(this->m_ehdr->e_entry));
+}
+
+template<size_t bits>
+void ElfLoaderT<bits>::readSectionHeader(RDDocument* doc)
+{
+    for(u64 i = 0; i < E_VAL(this->m_ehdr->e_shnum); i++)
+    {
+        const SHDR& shdr = this->m_shdr[i];
+
+        switch(E_VAL(shdr.sh_type))
+        {
+            case SHT_SYMTAB:
+            {
+                auto it = m_dynamic.find(DT_SYMENT);
+
+                if(it != m_dynamic.end()) {
+                    auto val = E_VAL(shdr.sh_offset);
+                    rd_log("Reading symbol table @ " + rd_tohex(val));
+                    this->readSymbols(doc, &shdr, val, it->second);
+                }
+
+                break;
+            }
+
+            default: break;
+        }
+    }
 }
 
 template<size_t bits>
@@ -261,6 +288,28 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
                 break;
             }
 
+            case DT_VERNEED:
+            {
+                auto it = m_dynamic.find(DT_VERNEEDNUM);
+                if(it != m_dynamic.end()) this->readVersions(value, it->second);
+                break;
+            }
+
+            case DT_SYMTAB:
+            {
+                auto it = m_dynamic.find(DT_SYMENT);
+
+                if(it != m_dynamic.end()) {
+                    auto* shdr = this->findSegment(value);
+                    if(shdr) {
+                        rd_log("Reading dynamic symbol table @ " + rd_tohex(value));
+                        this->readSymbols(doc, shdr, E_VAL(shdr->sh_offset) + (value - E_VAL(shdr->sh_addr)), it->second);
+                    }
+                }
+
+                break;
+            }
+
             case DT_PLTGOT:
                 //RDDocument_AddData(doc, value, bits / CHAR_BIT, "_GLOBAL_OFFSET_TABLE_");
                 break;
@@ -272,13 +321,6 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
             case DT_FINI:
                 RDDocument_AddFunction(doc, value, RDSymbol_NameHint(value, "fini", SymbolType_Function, SymbolType_None));
                 break;
-
-            case DT_VERNEED:
-            {
-                auto it = m_dynamic.find(DT_VERNEEDNUM);
-                if(it != m_dynamic.end()) this->readVersions(value, it->second);
-                break;
-            }
 
             default:
                 break;
@@ -356,24 +398,73 @@ template<size_t bits>
 void ElfLoaderT<bits>::readVersions(ElfLoaderT::UVAL address, ElfLoaderT::UVAL count)
 {
     const SHDR* shdr = this->findSegment(address);
-    if(!shdr || (shdr->sh_link >= this->m_ehdr->e_shnum)) return;
+    if(!shdr || (E_VAL(shdr->sh_link) >= E_VAL(this->m_ehdr->e_shnum))) return;
 
-    auto* verneed = reinterpret_cast<Elf_Verneed*>(RDLoader_GetData(m_loader) + ((address - shdr->sh_addr) + shdr->sh_offset));
-    const SHDR* segstrings = &m_shdr[shdr->sh_link];
+    auto* verneed = reinterpret_cast<Elf_Verneed*>(RDLoader_GetData(m_loader) + ((address - E_VAL(shdr->sh_addr)) + E_VAL(shdr->sh_offset)));
+    const SHDR* segstrings = &m_shdr[E_VAL(shdr->sh_link)];
 
     for(UVAL i = 0; i < count; i++)
     {
-        auto* veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(verneed, verneed->vn_aux));
+        auto* veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(verneed, E_VAL(verneed->vn_aux)));
 
         for(UVAL j = 0; j < verneed->vn_cnt; j++)
         {
-            if(!(veraux->vna_other & (1 << 15)))
-                m_versions[veraux->vna_other] = ELF_STRING(segstrings, veraux->vna_name);
+            if(!(E_VAL(veraux->vna_other) & (1 << 15)))
+                m_versions[E_VAL(veraux->vna_other)] = ELF_STRING(segstrings, E_VAL(veraux->vna_name));
 
-            veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(veraux, veraux->vna_next));
+            veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(veraux, E_VAL(veraux->vna_next)));
         }
 
-        verneed = reinterpret_cast<Elf_Verneed*>(RD_RelPointer(verneed, verneed->vn_next));
+        verneed = reinterpret_cast<Elf_Verneed*>(RD_RelPointer(verneed, E_VAL(verneed->vn_next)));
+    }
+}
+
+template<size_t bits>
+void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr, ElfLoaderT::UVAL offset, UVAL entrysize)
+{
+    if(!shdr || (E_VAL(shdr->sh_link) >= E_VAL(this->m_ehdr->e_shnum))) return;
+
+    rd_offset baseoffset = offset - E_VAL(shdr->sh_offset);
+    ElfLoaderT::UVAL count = (E_VAL(shdr->sh_size) - baseoffset) / entrysize;
+    if(!count) return;
+
+    auto* sym = elfptr<ElfLoaderT::SYM>(shdr, baseoffset);
+    if(!sym) return;
+
+    const SHDR* shstr = &m_shdr[E_VAL(shdr->sh_link)];
+
+    for(ElfLoaderT::UVAL i = 0; i < count; i++, sym = reinterpret_cast<ElfLoaderT::SYM*>(RD_RelPointer(const_cast<ElfLoaderT::SYM*>(sym), entrysize)))
+    {
+        if(!sym->st_name || !sym->st_value) continue;
+
+        const char* symname = ELF_STRING(shstr, E_VAL(sym->st_name));
+        if(!symname) continue;
+
+        auto symvalue = E_VAL(sym->st_value);
+        auto symtype = ELF_ST_TYPE(E_VAL(sym->st_info));
+        auto bind = ELF_ST_BIND(E_VAL(sym->st_info));
+
+        switch(symtype)
+        {
+            case STT_FUNC:
+            {
+                if(bind == STB_GLOBAL) RDDocument_AddExportedFunction(doc, symvalue, symname);
+                else RDDocument_AddFunction(doc, symvalue, symname);
+                break;
+            }
+
+            case STT_OBJECT:
+            {
+                auto sz = E_VAL(sym->st_size);
+                if(!sz) sz = bits / CHAR_BIT;
+
+                if(bind == STB_GLOBAL) RDDocument_AddExported(doc, symvalue, sz, symname);
+                else RDDocument_AddData(doc, symvalue, sz, symname);
+                break;
+            }
+
+            default: break;
+        }
     }
 }
 
@@ -397,60 +488,6 @@ const typename ElfLoaderT<bits>::SHDR* ElfLoaderT<bits>::findSegment(const ElfLo
     std::vector<const SHDR*> segments;
     if(!this->findSegments(phdr, segments)) return nullptr;
     return segments.front();
-}
-
-template<size_t bits>
-void ElfLoaderT<bits>::loadSymbols(const SHDR& shdr, RDLoader* loader, RDDocument* doc)
-{
-    // rd_offset offset = E_VAL(shdr.sh_offset), endoffset = offset + E_VAL(shdr.sh_size);
-    // const SHDR& shstr = shdr.sh_link ? this->m_shdr[E_VAL(shdr.sh_link)] : ELF_STRING_TABLE;
-
-    // for(u64 idx = 0; offset < endoffset; idx++)
-    // {
-    //     bool isrelocated = false;
-    //     SYM* sym = reinterpret_cast<SYM*>(RD_Pointer(loader, offset));
-    //     u8 info = ELF_ST_TYPE(E_VAL(sym->st_info));
-    //     u64 symvalue = E_VAL(sym->st_value);
-
-    //     if(!sym->st_name)
-    //     {
-    //         offset += sizeof(SYM);
-    //         continue;
-    //     }
-
-    //     if(!symvalue) isrelocated = this->relocate(loader, idx, &symvalue);
-    //     const char* symname = ELF_STRING(&shstr, E_VAL(sym->st_name));
-    //     rd_log(std::to_string(E_VAL(shdr.sh_type)) + " " + symname);
-
-    //     if(!isrelocated)
-    //     {
-    //         bool isexport = false;
-    //         u8 bind = ELF_ST_BIND(E_VAL(sym->st_info));
-    //         u8 visibility = ELF_ST_VISIBILITY(E_VAL(sym->st_other));
-
-    //         if(visibility == STV_DEFAULT) isexport = (bind == STB_GLOBAL) || (bind == STB_WEAK);
-    //         else if(bind == STB_GLOBAL) isexport = true;
-
-    //         if(isexport)
-    //         {
-    //             if(info == STT_FUNC) RDDocument_AddExportedFunction(doc, symvalue, symname);
-    //             else RDDocument_AddExported(doc, symvalue, sym->st_size, symname);
-    //         }
-    //         else if(info == STT_FUNC)
-    //             RDDocument_AddFunction(doc, symvalue, symname);
-    //         else if(info == STT_OBJECT)
-    //         {
-    //             RDSegment segment;
-
-    //             if(RDDocument_GetSegmentAddress(doc, symvalue, &segment) && !HAS_FLAG(&segment, SegmentFlags_Code))
-    //                 RDDocument_AddData(doc, symvalue, E_VAL(sym->st_size), symname);
-    //         }
-    //     }
-    //     else
-    //         RDDocument_AddImported(doc, symvalue, bits / CHAR_BIT, symname);
-
-    //     offset += sizeof(SYM);
-    // }
 }
 
 template class ElfLoaderT<32>;
