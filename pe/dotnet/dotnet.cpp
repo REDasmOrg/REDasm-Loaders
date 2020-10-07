@@ -31,7 +31,7 @@ ImageStreamHeader *PeDotNet::getStream(ImageCor20MetaData *cormetadata, const st
                                                              ((sizeof(u32) * 2) + PeDotNet::aligned(len, 4)));
     }
 
-    rd_problem("Cannot find Stream Id '" + id + "'");
+    //FIXME: rdcontext_addproblem("Cannot find Stream Id '" + id + "'");
     return nullptr;
 }
 
@@ -65,7 +65,7 @@ bool PeDotNet::getTables(ImageCor20TablesHeader *cortablesheader, CorTables &tab
 
         if(it == m_dispatcher.end())
         {
-            rd_problem("Cannot find table '" + std::to_string(rit->first) + "'");
+            //FIXME: rdcontext_addproblem("Cannot find table '" + std::to_string(rit->first) + "'");
             return false;
         }
 

@@ -117,7 +117,7 @@ void PEClassifier::classifyDelphi(const ImageDosHeader* dosheader, const ImageNt
 
     if(!packageinfo)
     {
-        rd_problem("Cannot parse 'PACKAGEINFO' header");
+        //FIXME: rdcontext_addproblem("Cannot parse 'PACKAGEINFO' header");
         return;
     }
 

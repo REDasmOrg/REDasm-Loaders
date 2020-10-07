@@ -21,7 +21,7 @@ const VBComponents::Component *VBComponents::get(GUID *guid)
     if(it != m_components.end())
         return &(it->second);
 
-    rd_problem("Cannot find component " + guidstring);
+    //FIXME: rdcontext_addproblem("Cannot find component " + guidstring);
     return nullptr;
 }
 

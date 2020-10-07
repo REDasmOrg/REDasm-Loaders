@@ -17,9 +17,8 @@ class PELoader
         virtual void parse() = 0;
 
     public:
-        static void free(RDPluginHeader* plugin);
-        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
-        static bool load(RDLoaderPlugin* plugin, RDLoader* loader);
+        static const char* test(const RDLoaderRequest* request);
+        static bool load(RDContext* ctx, RDLoader* loader);
         static const char* assembler(const ImageNtHeaders* ntheaders);
 
     public:
@@ -38,7 +37,7 @@ template<size_t b> class PELoaderT: public PELoader
         typedef typename std::conditional<b == 64, ImageLoadConfigDirectory64, ImageLoadConfigDirectory32>::type ImageLoadConfigDirectory;
 
     public:
-        PELoaderT(RDLoaderPlugin* plugin, RDLoader* loader);
+        PELoaderT(RDContext* ctx, RDLoader* loader);
         const PEClassifier* classifier() const override;
         void parse() override;
 
@@ -70,7 +69,7 @@ template<size_t b> class PELoaderT: public PELoader
         }
 
     private:
-        RDLoaderPlugin* m_plugin;
+        RDContext* m_context;
         RDLoader* m_loader;
         RDDocument* m_document;
         PEClassifier m_classifier;

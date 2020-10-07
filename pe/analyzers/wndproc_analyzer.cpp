@@ -7,7 +7,7 @@
 #define IMPORT_THUNK(library, name)   RD_Thunk(IMPORT_NAME(library, name).c_str())
 #define ADD_WNDPROC_API(argidx, name) m_wndprocapi.emplace_front(argidx, name)
 
-WndProcAnalyzer::WndProcAnalyzer(RDDisassembler* disassembler, PELoader* peloader): m_disassembler(disassembler), m_peloader(peloader)
+WndProcAnalyzer::WndProcAnalyzer(RDContext* ctx, PELoader* peloader): m_context(ctx), m_peloader(peloader)
 {
     ADD_WNDPROC_API(3, "DialogBoxA");
     ADD_WNDPROC_API(3, "DialogBoxW");
@@ -37,7 +37,7 @@ void WndProcAnalyzer::analyze()
 
 bool WndProcAnalyzer::getImport(const std::string& library, const std::string& api, RDSymbol* symbol)
 {
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDDocument* doc = RDContext_GetDocument(m_context);
 
     if(RDDocument_GetSymbolByName(doc, IMPORT_THUNK(library, api), symbol)) return true;
     if(RDDocument_GetSymbolByName(doc, IMPORT_NAME(library, api).c_str(), symbol)) return true;
@@ -50,20 +50,21 @@ size_t WndProcAnalyzer::getAPIReferences(const std::string& library, const std::
     RDSymbol symbol;
     if(!this->getImport(library, api, &symbol)) return 0;
 
-    const RDNet* net = RDDisassembler_GetNet(m_disassembler);
+    const RDNet* net = RDContext_GetNet(m_context);
     return RDNet_GetReferences(net, symbol.address, references);
 }
 
 void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
 {
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDDocument* doc = RDContext_GetDocument(m_context);
 
     auto loc = RDDocument_GetFunctionStart(doc, refaddress);
     if(!loc.valid) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, loc.address));
+    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_context, loc.address));
     if(!il) return;
 
+    auto* disassembler = RDContext_GetDisassembler(m_context);
     size_t c = RDILFunction_Size(il.get());
     std::deque<const RDILExpression*> args;
 
@@ -91,7 +92,7 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
                         if(RDDocument_GetSegmentAddress(doc, v.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
                         {
                             RDDocument_AddFunction(doc, v.address, (std::string("DlgProc_") + RD_ToHexAuto(v.address)).c_str());
-                            RDDisassembler_Enqueue(m_disassembler, v.address);
+                            RDDisassembler_Enqueue(disassembler, v.address);
                         }
                     }
                 }

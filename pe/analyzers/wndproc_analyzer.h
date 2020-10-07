@@ -11,7 +11,7 @@ class WndProcAnalyzer
         typedef std::pair<size_t, std::string> APIInfo;
 
     public:
-        WndProcAnalyzer(RDDisassembler* disassembler, PELoader* peloader);
+        WndProcAnalyzer(RDContext* ctx, PELoader* peloader);
         void analyze();
 
     private:
@@ -20,7 +20,7 @@ class WndProcAnalyzer
         void findWndProc(rd_address refaddress, size_t argidx);
 
     private:
-        RDDisassembler* m_disassembler;
+        RDContext* m_context;
         PELoader* m_peloader;
 
     private:

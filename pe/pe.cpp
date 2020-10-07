@@ -9,6 +9,8 @@
 #include <cstring>
 #include <climits>
 
+#define PELOADER_USERDATA "peloader_userdata"
+
 const ImageNtHeaders* PELoader::getNtHeaders(RDLoader* loader, const ImageDosHeader** dosheader)
 {
     return PELoader::getNtHeaders(RDLoader_GetBuffer(loader), dosheader);
@@ -41,7 +43,7 @@ size_t PELoader::getBits(const ImageNtHeaders* ntheaders)
 }
 
 template<size_t b>
-PELoaderT<b>::PELoaderT(RDLoaderPlugin* plugin, RDLoader* loader): m_plugin(plugin), m_loader(loader)
+PELoaderT<b>::PELoaderT(RDContext* ctx, RDLoader* loader): m_context(ctx), m_loader(loader)
 {
     m_document = RDLoader_GetDocument(loader);
     m_classifier.setBits(b);
@@ -357,12 +359,12 @@ template<size_t b> void PELoaderT<b>::loadSymbolTable()
 
     rd_log("Loading symbol table @ " + rd_tohex(m_ntheaders->FileHeader.PointerToSymbolTable));
 
-    RDArguments a;
-    RDArguments_Init(&a);
-    RDArguments_PushPointer(&a, RDLoader_GetDocument(m_loader));
-    RDArguments_PushPointer(&a, RD_Pointer(m_loader, m_ntheaders->FileHeader.PointerToSymbolTable));
-    RDArguments_PushUInt(&a, m_ntheaders->FileHeader.NumberOfSymbols);
-    RDCommand_Execute("COFF", &a);
+    //FIXME: RDArguments a;
+    //FIXME: RDArguments_Init(&a);
+    //FIXME: RDArguments_PushPointer(&a, RDLoader_GetDocument(m_loader));
+    //FIXME: RDArguments_PushPointer(&a, RD_Pointer(m_loader, m_ntheaders->FileHeader.PointerToSymbolTable));
+    //FIXME: RDArguments_PushUInt(&a, m_ntheaders->FileHeader.NumberOfSymbols);
+    //FIXME: RDCommand_Execute("COFF", &a);
 }
 
 template<size_t b>
@@ -434,15 +436,7 @@ const char* PELoader::assembler(const ImageNtHeaders* ntheaders)
     return nullptr;
 }
 
-void PELoader::free(RDPluginHeader* plugin)
-{
-    if(!plugin->p_data) return;
-
-    delete reinterpret_cast<PELoader*>(plugin->p_data);
-    plugin->p_data = nullptr;
-}
-
-const char* PELoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* PELoader::test(const RDLoaderRequest* request)
 {
     const ImageNtHeaders* ntheaders = PELoader::getNtHeaders(request->buffer, nullptr);
     if(!ntheaders) return nullptr;
@@ -453,39 +447,33 @@ const char* PELoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request
     return PELoader::assembler(ntheaders);
 }
 
-bool PELoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
+bool PELoader::load(RDContext* ctx, RDLoader* loader)
 {
     const ImageNtHeaders* ntheaders = PELoader::getNtHeaders(RDLoader_GetBuffer(loader), nullptr);
     PELoader* peloader = nullptr;
 
-    if(PELoader::getBits(ntheaders) == 32) peloader = new PELoaderT<32>(plugin, loader);
-    else peloader = new PELoaderT<64>(plugin, loader);
+    if(PELoader::getBits(ntheaders) == 32) peloader = new PELoaderT<32>(ctx, loader);
+    else peloader = new PELoaderT<64>(ctx, loader);
 
-    plugin->p_data = peloader;
+    RDContext_SetUserData(ctx, PELOADER_USERDATA, reinterpret_cast<uintptr_t>(peloader));
     peloader->parse();
     return true;
 }
 
-void redasm_entry()
+void rdplugin_init(RDContext*, RDPluginModule* m)
 {
-    RD_PLUGIN_CREATE(RDLoaderPlugin, pe, "Portable Executable");
-    pe.free = &PELoader::free;
+    RD_PLUGIN_ENTRY(RDEntryLoader, pe, "Portable Executable");
     pe.test = &PELoader::test;
     pe.load = &PELoader::load;
-    RDLoader_Register(&pe);
+    RDLoader_Register(m, &pe);
 
-    RD_PLUGIN_CREATE(RDAnalyzerPlugin, pewndproc, "Analyze Window Procedures");
+    RD_PLUGIN_ENTRY(RDEntryAnalyzer, pewndproc, "Analyze Window Procedures");
     pewndproc.description = "Find and Disassemble Window Procedure";
     pewndproc.flags = AnalyzerFlags_Selected;
     pewndproc.priority = 1000;
 
-    pewndproc.isenabled = [](const RDAnalyzerPlugin*, const RDLoader* loader, const RDAssembler*) -> bool {
-        if(std::strcmp(RDLoader_GetId(loader), pe.id)) return false;
-
-        RDUserData userdata;
-        if(!RDLoader_GetUserData(loader, &userdata)) return false;
-
-        auto* peloader = reinterpret_cast<PELoader*>(userdata.p_data);
+    pewndproc.isenabled = [](const RDContext* ctx) -> bool {
+        auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));
         if(!peloader) return false;
 
         auto* c = peloader->classifier();
@@ -493,41 +481,42 @@ void redasm_entry()
         return true;
     };
 
-    pewndproc.execute = [](const struct RDAnalyzerPlugin*, RDDisassembler* disassembler) {
-        RDUserData ud;
-        RDDisassembler_GetLoaderUserData(disassembler, &ud);
+    pewndproc.execute = [](RDContext* ctx) {
+        auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));
+        if(!peloader) return;
 
-        WndProcAnalyzer wpa(disassembler, reinterpret_cast<PELoader*>(ud.p_data));
+        WndProcAnalyzer wpa(ctx, peloader);
         wpa.analyze();
     };
 
-    RDAnalyzer_Register(&pewndproc);
+    RDAnalyzer_Register(m, &pewndproc);
 
-    RD_PLUGIN_CREATE(RDAnalyzerPlugin, pevbdecompile, "Decompile VB5/6");
+    RD_PLUGIN_ENTRY(RDEntryAnalyzer, pevbdecompile, "Decompile VB5/6");
     pevbdecompile.description = "Find and and Decompile Visual Basic events";
     pevbdecompile.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
     pevbdecompile.priority = 1000;
 
-    pevbdecompile.isenabled = [](const RDAnalyzerPlugin*, const RDLoader* loader, const RDAssembler*) -> bool {
-        if(std::strcmp(RDLoader_GetId(loader), pe.id)) return false;
-
-        RDUserData userdata;
-        if(!RDLoader_GetUserData(loader, &userdata)) return false;
-
-        auto* peloader = reinterpret_cast<PELoader*>(userdata.p_data);
+    pevbdecompile.isenabled = [](const RDContext* ctx) -> bool {
+        auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));
         if(!peloader) return false;
 
         auto* c = peloader->classifier();
         return c->isVisualBasic();
     };
 
-    pevbdecompile.execute = [](const struct RDAnalyzerPlugin*, RDDisassembler* disassembler) {
-        RDUserData ud;
-        RDDisassembler_GetLoaderUserData(disassembler, &ud);
+    pevbdecompile.execute = [](RDContext* ctx) {
+        auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));
+        if(!peloader) return;
 
-        VBAnalyzer wba(disassembler, reinterpret_cast<PELoader*>(ud.p_data));
+        VBAnalyzer wba(ctx, peloader);
         wba.analyze();
     };
 
-    RDAnalyzer_Register(&pevbdecompile);
+    RDAnalyzer_Register(m, &pevbdecompile);
+}
+
+void rdplugin_free(RDContext* ctx)
+{
+    auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));
+    if(peloader) delete peloader;
 }

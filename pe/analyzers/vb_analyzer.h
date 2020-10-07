@@ -7,7 +7,7 @@ class PELoader;
 class VBAnalyzer
 {
     public:
-        VBAnalyzer(RDDisassembler* disassembler, PELoader* peloader);
+        VBAnalyzer(RDContext* ctx, PELoader* peloader);
         void analyze();
 
     private:
@@ -17,7 +17,7 @@ class VBAnalyzer
 
     private:
         PELoader* m_peloader;
-        RDDisassembler* m_disassembler;
+        RDContext* m_context;
         VBHeader* m_vbheader{nullptr};
         VBProjectInfo* m_vbprojinfo{nullptr};
         VBObjectTable* m_vbobjtable{nullptr};

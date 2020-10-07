@@ -6,15 +6,15 @@
 #define HAS_OPTIONAL_INFO(objdescr, objinfo) (objdescr.lpObjectInfo + sizeof(VBObjectInfo) != objinfo->base.lpConstants)
 #define VB_METHODNAME(pubobj, control, method) (pubobj + "_" + control + "_" + method)
 
-VBAnalyzer::VBAnalyzer(RDDisassembler* disassembler, PELoader* peloader): m_peloader(peloader), m_disassembler(disassembler) { }
+VBAnalyzer::VBAnalyzer(RDContext* ctx, PELoader* peloader): m_peloader(peloader), m_context(ctx) { }
 
 void VBAnalyzer::analyze()
 {
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDDocument* doc = RDContext_GetDocument(m_context);
     auto entry = RDDocument_GetEntryPoint(doc);
     if(!entry.valid) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, entry.address));
+    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_context, entry.address));
     if(!il) return;
 
     auto pushexpr = RDILFunction_GetExpression(il.get(), 0);
@@ -35,9 +35,11 @@ void VBAnalyzer::analyze()
 void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& name)
 {
     if(!eventva) return;
-    if(!RDDisassembler_CreateFunction(m_disassembler, eventva, RD_Thunk(name.c_str()))) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_disassembler, eventva));
+    auto* disassembler = RDContext_GetDisassembler(m_context);
+    if(!RDDisassembler_CreateFunction(disassembler, eventva, RD_Thunk(name.c_str()))) return;
+
+    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_context, eventva));
     if(!il) return;
 
     auto* copyexpr = RDILFunction_GetFirstExpression(il.get());
@@ -50,11 +52,11 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     RDILValue val;
     if(!RDILExpression_GetValue(eventexpr, &val)) return;
 
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDDocument* doc = RDContext_GetDocument(m_context);
     if(!RDDocument_GetSegmentAddress(doc, val.address, nullptr)) return;
 
     rd_statusaddress("Decoding" + name, val.address);
-    RDDisassembler_ScheduleFunction(m_disassembler, val.address, name.c_str());
+    RDDisassembler_ScheduleFunction(disassembler, val.address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)
@@ -88,7 +90,7 @@ void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescripto
 
 bool VBAnalyzer::decompile(rd_address thunrtdata)
 {
-    RDLoader* loader = RDDisassembler_GetLoader(m_disassembler);
+    RDLoader* loader = RDContext_GetLoader(m_context);
 
     m_vbheader = reinterpret_cast<VBHeader*>(RD_AddrPointer(loader, thunrtdata));
     if(!m_vbheader) return false;
