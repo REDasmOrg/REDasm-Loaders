@@ -6,8 +6,8 @@ class CHIP8: public CHIP8Decoder
 {
     public:
         CHIP8() = delete;
-        static void renderInstruction(const RDAssemblerPlugin*, const RDRenderItemParams* rip);
-        static void emulate(const RDAssemblerPlugin*, RDEmulateResult* result);
+        static void renderInstruction(RDContext*, const RDRenderItemParams* rip);
+        static void emulate(RDContext* ctx, RDEmulateResult* result);
 
     private:
         static void renderOperand(const RDRenderItemParams* rip, const CHIP8Operand* op);

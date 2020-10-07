@@ -4,12 +4,12 @@
 #define LIBC_START_MAIN        "__libc_start_main"
 #define LIBC_START_MAIN_ARGC   7
 
-ElfAnalyzer::ElfAnalyzer(ElfLoader* loader, RDDisassembler* disassembler): m_disassembler(disassembler), m_loader(loader) { }
+ElfAnalyzer::ElfAnalyzer(ElfLoader* loader, RDContext* ctx): m_context(ctx), m_loader(loader) { }
 
 void ElfAnalyzer::analyze()
 {
     // RDSymbol symlibcmain;
-    // RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    // RDDocument* doc = RDContext_GetDocument(m_disassembler);
 
     // if(this->getLibStartMain(&symlibcmain))
     // {
@@ -101,7 +101,7 @@ void ElfAnalyzer::findMainMode_x86_64(RDDocument* doc, const RDBlockContainer* b
 
 void ElfAnalyzer::disassembleLibStartMain()
 {
-    // RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    // RDDocument* doc = RDContext_GetDocument(m_disassembler);
 
     // for(auto& it : m_libcmain)
     // {
@@ -114,7 +114,7 @@ void ElfAnalyzer::disassembleLibStartMain()
 
 bool ElfAnalyzer::getLibStartMain(RDSymbol* symbol)
 {
-    RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    RDDocument* doc = RDContext_GetDocument(m_context);
     if(RDDocument_GetSymbolByName(doc, RD_Thunk(LIBC_START_MAIN), symbol)) return true;
     return RDDocument_GetSymbolByName(doc, LIBC_START_MAIN, symbol);
 }

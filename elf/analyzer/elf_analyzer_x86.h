@@ -5,7 +5,7 @@
 class ElfAnalyzerX86: public ElfAnalyzer
 {
     public:
-        ElfAnalyzerX86(ElfLoader* loader, RDDisassembler* disassembler);
+        ElfAnalyzerX86(ElfLoader* loader, RDContext* ctx);
         void analyze() override;
 
     private:

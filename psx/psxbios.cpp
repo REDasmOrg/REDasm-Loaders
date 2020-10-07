@@ -13,14 +13,14 @@
 
 const u32 PsxBiosLoader::BIOS_SIGNATURE_CRC32 = 0x096541CB;
 
-const char* PsxBiosLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* PsxBiosLoader::test(const RDLoaderRequest* request)
 {
     if(RDBuffer_Size(request->buffer) < PSX_BIOS_SIGNATURE_SIZE) return nullptr;
     if(RDBuffer_CRC32(request->buffer, 0, PSX_BIOS_SIGNATURE_SIZE) != PsxBiosLoader::BIOS_SIGNATURE_CRC32) return nullptr;
     return "mips32le";
 }
 
-bool PsxBiosLoader::load(RDLoaderPlugin*, RDLoader* loader)
+bool PsxBiosLoader::load(RDContext*, RDLoader* loader)
 {
     RDDocument* doc = RDLoader_GetDocument(loader);
     RDBuffer* b = RDLoader_GetBuffer(loader);

@@ -1,15 +1,15 @@
 #include "psxexe.h"
 #include "psxbios.h"
 
-void redasm_entry()
+void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
-    RD_PLUGIN_CREATE(RDLoaderPlugin, psxexe, "PS-X Executable");
+    RD_PLUGIN_ENTRY(RDEntryLoader, psxexe, "PS-X Executable");
     psxexe.test = &PsxExeLoader::test;
     psxexe.load = &PsxExeLoader::load;
-    RDLoader_Register(&psxexe);
+    RDLoader_Register(pm, &psxexe);
 
-    RD_PLUGIN_CREATE(RDLoaderPlugin, psxbios, "Sony Playstation PSX BIOS");
+    RD_PLUGIN_ENTRY(RDEntryLoader, psxbios, "Sony Playstation PSX BIOS");
     psxbios.test = &PsxBiosLoader::test;
     psxbios.load = &PsxBiosLoader::load;
-    RDLoader_Register(&psxbios);
+    RDLoader_Register(pm, &psxbios);
 }

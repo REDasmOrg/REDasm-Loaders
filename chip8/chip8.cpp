@@ -2,7 +2,7 @@
 #include <rdapi/rdapi.h>
 #include <filesystem>
 
-const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* test(const RDLoaderRequest* request)
 {
     std::string ext = std::filesystem::path(request->filepath).extension();
 
@@ -15,7 +15,7 @@ const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request)
     return nullptr;
 }
 
-static bool load(RDLoaderPlugin*, RDLoader* loader)
+static bool load(RDContext*, RDLoader* loader)
 {
     RDBuffer* buffer = RDLoader_GetBuffer(loader);
     RDDocument* doc = RDLoader_GetDocument(loader);
@@ -28,17 +28,17 @@ static bool load(RDLoaderPlugin*, RDLoader* loader)
     return true;
 }
 
-void redasm_entry()
+void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
-    RD_PLUGIN_CREATE(RDAssemblerPlugin, chip8asm, "CHIP-8 Assembler");
+    RD_PLUGIN_ENTRY(RDEntryAssembler, chip8asm, "CHIP-8 Assembler");
     chip8asm.renderinstruction = &CHIP8::renderInstruction;
     chip8asm.emulate = &CHIP8::emulate;
     chip8asm.bits = 16;
 
-    RD_PLUGIN_CREATE(RDLoaderPlugin, chip8ldr, "CHIP-8");
+    RD_PLUGIN_ENTRY(RDEntryLoader, chip8ldr, "CHIP-8");
     chip8ldr.test = &test;
     chip8ldr.load = &load;
 
-    RDAssembler_Register(&chip8asm);
-    RDLoader_Register(&chip8ldr);
+    RDAssembler_Register(pm, &chip8asm);
+    RDLoader_Register(pm, &chip8ldr);
 }

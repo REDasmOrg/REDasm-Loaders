@@ -4,7 +4,8 @@
 #include <climits>
 #include <memory>
 
-#define ELF_STRING_TABLE this->m_shdr[E_VAL(this->m_ehdr->e_shstrndx)]
+#define ELFLOADER_USERDATA       "elfloader_userdata"
+#define ELF_STRING_TABLE         this->m_shdr[E_VAL(this->m_ehdr->e_shstrndx)]
 #define ELF_STRING(shdr, offset) reinterpret_cast<const char*>(RD_RelPointer(this->m_ehdr, E_VAL((shdr)->sh_offset) + offset))
 
 ElfLoader* ElfLoader::parse(RDBuffer* buffer)
@@ -32,37 +33,37 @@ ElfLoader* ElfLoader::parse(RDBuffer* buffer)
     return nullptr;
 }
 
-const char* ElfLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* ElfLoader::test(const RDLoaderRequest* request)
 {
     std::unique_ptr<ElfLoader> loader(ElfLoader::parse(request->buffer));
     return loader ? loader->assembler() : nullptr;
 }
 
-void ElfLoader::analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler)
+void ElfLoader::analyze(RDContext* ctx)
 {
-    auto* loader = reinterpret_cast<ElfLoader*>(plugin->p_data);
+    auto* loader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
     std::unique_ptr<ElfAnalyzer> a;
 
     switch(loader->machine())
     {
         case EM_386:
         case EM_X86_64:
-            a = std::make_unique<ElfAnalyzerX86>(loader, disassembler);
+            a = std::make_unique<ElfAnalyzerX86>(loader, ctx);
             break;
 
         default:
-            a = std::make_unique<ElfAnalyzer>(loader, disassembler);
+            a = std::make_unique<ElfAnalyzer>(loader, ctx);
             break;
     }
 
     a->analyze();
 }
 
-bool ElfLoader::load(RDLoaderPlugin* plugin, RDLoader* loader)
+bool ElfLoader::load(RDContext* ctx, RDLoader* loader)
 {
     ElfLoader* l = ElfLoader::parse(RDLoader_GetBuffer(loader));
+    RDContext_SetUserData(ctx, ELFLOADER_USERDATA, reinterpret_cast<uintptr_t>(l));
     l->doLoad(loader);
-    plugin->p_data = l;
     return true;
 }
 
@@ -493,20 +494,17 @@ const typename ElfLoaderT<bits>::SHDR* ElfLoaderT<bits>::findSegment(const ElfLo
 template class ElfLoaderT<32>;
 template class ElfLoaderT<64>;
 
-static void free(RDPluginHeader* plugin)
+void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
-    if(!plugin->p_data) return;
-
-    delete reinterpret_cast<ElfLoader*>(plugin->p_data);
-    plugin->p_data = nullptr;
-}
-
-void redasm_entry()
-{
-    RD_PLUGIN_CREATE(RDLoaderPlugin, elf, "ELF Executable");
-    elf.free = &free;
+    RD_PLUGIN_ENTRY(RDEntryLoader, elf, "ELF Executable");
     elf.test = &ElfLoader::test;
     elf.load = &ElfLoader::load;
 
-    RDLoader_Register(&elf);
+    RDLoader_Register(pm, &elf);
+}
+
+void rdplugin_free(RDContext* ctx)
+{
+    auto* elfloader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
+    if(elfloader) delete elfloader;
 }

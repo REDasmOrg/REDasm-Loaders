@@ -1,6 +1,6 @@
 #include "chip8.h"
 
-void CHIP8::renderInstruction(const RDAssemblerPlugin*, const RDRenderItemParams* rip)
+void CHIP8::renderInstruction(RDContext*, const RDRenderItemParams* rip)
 {
     //RDRenderer_HexDump(rip, &rip->view, sizeof(u16));
 
@@ -53,7 +53,7 @@ void CHIP8::renderInstruction(const RDAssemblerPlugin*, const RDRenderItemParams
     }
 }
 
-void CHIP8::emulate(const RDAssemblerPlugin*, RDEmulateResult* result)
+void CHIP8::emulate(RDContext* ctx, RDEmulateResult* result)
 {
     CHIP8Instruction instruction;
     if(!CHIP8Decoder::decode(RDEmulateResult_GetView(result), &instruction)) return;

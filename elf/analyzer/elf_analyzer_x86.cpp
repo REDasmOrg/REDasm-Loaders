@@ -3,7 +3,7 @@
 #include "../elf.h"
 #include <cstring>
 
-ElfAnalyzerX86::ElfAnalyzerX86(ElfLoader* loader, RDDisassembler* disassembler): ElfAnalyzer(loader, disassembler) { }
+ElfAnalyzerX86::ElfAnalyzerX86(ElfLoader* loader, RDContext* ctx): ElfAnalyzer(loader, ctx) { }
 
 void ElfAnalyzerX86::analyze()
 {
@@ -11,7 +11,7 @@ void ElfAnalyzerX86::analyze()
     // if(!pltbase) return;
 
     // RDAssembler* assembler = RDDisassembler_GetAssembler(m_disassembler);
-    // RDDocument* doc = RDDisassembler_GetDocument(m_disassembler);
+    // RDDocument* doc = RDContext_GetDocument(m_disassembler);
     // size_t c = RDDocument_FunctionsCount(doc);
     // RDSegment segment{};
 

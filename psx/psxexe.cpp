@@ -1,14 +1,14 @@
 #include "psxexe.h"
 #include <cstring>
 
-const char* PsxExeLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* PsxExeLoader::test(const RDLoaderRequest* request)
 {
     const auto* header = reinterpret_cast<const PsxExeHeader*>(RDBuffer_Data(request->buffer));
     if(std::strncmp(header->id, PSXEXE_SIGNATURE, PSXEXE_SIGNATURE_SIZE)) return nullptr;
     return "mips32le";
 }
 
-bool PsxExeLoader::load(RDLoaderPlugin*, RDLoader* loader)
+bool PsxExeLoader::load(RDContext*, RDLoader* loader)
 {
     // this->signature("psyq");
     RDDocument* doc = RDLoader_GetDocument(loader);

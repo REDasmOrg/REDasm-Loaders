@@ -39,9 +39,9 @@ class ElfLoader
 
     public:
         static ElfLoader* parse(RDBuffer* buffer);
-        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
-        static void analyze(RDLoaderPlugin* plugin, RDDisassembler* disassembler);
-        static bool load(RDLoaderPlugin* plugin, RDLoader* loader);
+        static const char* test(const RDLoaderRequest* request);
+        static void analyze(RDContext* ctx);
+        static bool load(RDContext* ctx, RDLoader* loader);
 };
 
 template<size_t bits> class ElfLoaderT: public ElfLoader

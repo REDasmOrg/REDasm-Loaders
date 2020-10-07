@@ -8,7 +8,7 @@ class ElfLoader;
 class ElfAnalyzer
 {
     public:
-        ElfAnalyzer(ElfLoader* loader, RDDisassembler* disassembler);
+        ElfAnalyzer(ElfLoader* loader, RDContext* ctx);
         virtual void analyze();
 
     private:
@@ -24,6 +24,6 @@ class ElfAnalyzer
         std::unordered_map<std::string, rd_address> m_libcmain;
 
     protected:
-        RDDisassembler* m_disassembler;
+        RDContext* m_context;
         ElfLoader* m_loader;
 };
