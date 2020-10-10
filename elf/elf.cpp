@@ -3,10 +3,10 @@
 #include "analyzer/elf_analyzer_x86.h"
 #include <climits>
 #include <memory>
+#include <iostream>
 
-#define ELFLOADER_USERDATA       "elfloader_userdata"
-#define ELF_STRING_TABLE         this->m_shdr[E_VAL(this->m_ehdr->e_shstrndx)]
-#define ELF_STRING(shdr, offset) reinterpret_cast<const char*>(RD_RelPointer(this->m_ehdr, E_VAL((shdr)->sh_offset) + offset))
+#define ELF_STRING_TABLE         this->m_shdr[ELF_LDR_VAL(this->m_ehdr->e_shstrndx)]
+#define ELF_STRING(shdr, offset) reinterpret_cast<const char*>(RD_RelPointer(this->m_ehdr, ELF_LDR_VAL((shdr)->sh_offset) + offset))
 
 ElfLoader* ElfLoader::parse(RDBuffer* buffer)
 {
@@ -39,26 +39,6 @@ const char* ElfLoader::test(const RDLoaderRequest* request)
     return loader ? loader->assembler() : nullptr;
 }
 
-void ElfLoader::analyze(RDContext* ctx)
-{
-    auto* loader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
-    std::unique_ptr<ElfAnalyzer> a;
-
-    switch(loader->machine())
-    {
-        case EM_386:
-        case EM_X86_64:
-            a = std::make_unique<ElfAnalyzerX86>(loader, ctx);
-            break;
-
-        default:
-            a = std::make_unique<ElfAnalyzer>(loader, ctx);
-            break;
-    }
-
-    a->analyze();
-}
-
 bool ElfLoader::load(RDContext* ctx, RDLoader* loader)
 {
     ElfLoader* l = ElfLoader::parse(RDLoader_GetBuffer(loader));
@@ -68,11 +48,11 @@ bool ElfLoader::load(RDContext* ctx, RDLoader* loader)
 }
 
 template<size_t bits>
-ElfLoaderT<bits>::ElfLoaderT(RDBuffer* buffer): m_buffer(buffer)
+ElfLoaderT<bits>::ElfLoaderT(RDBuffer* buffer): ElfLoader(), m_buffer(buffer)
 {
     this->m_ehdr = reinterpret_cast<EHDR*>(RDBuffer_Data(buffer));
-    this->m_shdr = reinterpret_cast<SHDR*>(RD_RelPointer(this->m_ehdr, E_VAL(this->m_ehdr->e_shoff)));
-    this->m_phdr = reinterpret_cast<PHDR*>(RD_RelPointer(this->m_ehdr, E_VAL(this->m_ehdr->e_phoff)));
+    this->m_shdr = reinterpret_cast<SHDR*>(RD_RelPointer(this->m_ehdr, ELF_LDR_VAL(this->m_ehdr->e_shoff)));
+    this->m_phdr = reinterpret_cast<PHDR*>(RD_RelPointer(this->m_ehdr, ELF_LDR_VAL(this->m_ehdr->e_phoff)));
 }
 
 template<size_t bits>
@@ -81,7 +61,7 @@ size_t ElfLoaderT<bits>::endianness() const { return (this->m_ehdr->e_ident[EI_D
 template<size_t bits>
 const char* ElfLoaderT<bits>::assembler() const
 {
-    switch(E_VAL(this->m_ehdr->e_machine))
+    switch(ELF_LDR_VAL(this->m_ehdr->e_machine))
     {
         case EM_AVR: return "avr8";
         case EM_386: return "x86_32";
@@ -101,7 +81,7 @@ const char* ElfLoaderT<bits>::assembler() const
             else return "armle";
 
         case EM_MIPS:
-            if(E_VAL(this->m_ehdr->e_flags) & EF_MIPS_ABI_EABI64) {
+            if(ELF_LDR_VAL(this->m_ehdr->e_flags) & EF_MIPS_ABI_EABI64) {
                 if(this->endianness() == Endianness_Big) return "mips64be";
                 else return "mips64le";
             }
@@ -133,16 +113,16 @@ const u8* ElfLoaderT<bits>::plt() const
 }
 
 template<size_t bits>
-u16 ElfLoaderT<bits>::machine() const { return E_VAL(this->m_ehdr->e_machine); }
+u16 ElfLoaderT<bits>::machine() const { return ELF_LDR_VAL(this->m_ehdr->e_machine); }
 
 template<size_t bits>
 const typename ElfLoaderT<bits>::SHDR* ElfLoaderT<bits>::findSegment(rd_address address) const
 {
-    for(size_t i = 0; i < E_VAL(this->m_ehdr->e_shnum); i++)
+    for(size_t i = 0; i < ELF_LDR_VAL(this->m_ehdr->e_shnum); i++)
     {
         const SHDR& shdr = this->m_shdr[i];
-        if(address < E_VAL(shdr.sh_addr)) continue;
-        if(address >= (E_VAL(shdr.sh_addr) + E_VAL(shdr.sh_size))) continue;
+        if(address < ELF_LDR_VAL(shdr.sh_addr)) continue;
+        if(address >= (ELF_LDR_VAL(shdr.sh_addr) + ELF_LDR_VAL(shdr.sh_size))) continue;
         return &shdr;
     }
 
@@ -190,25 +170,25 @@ void ElfLoaderT<bits>::doLoad(RDLoader* loader)
     m_abi.reset(new ElfABIT<bits>(this));
     m_abi->parse();
 
-    if(RDDocument_GetSegmentAddress(doc, E_VAL(this->m_ehdr->e_entry), nullptr))
-        RDDocument_SetEntry(doc, E_VAL(this->m_ehdr->e_entry));
+    if(RDDocument_GetSegmentAddress(doc, ELF_LDR_VAL(this->m_ehdr->e_entry), nullptr))
+        RDDocument_SetEntry(doc, ELF_LDR_VAL(this->m_ehdr->e_entry));
 }
 
 template<size_t bits>
 void ElfLoaderT<bits>::readSectionHeader(RDDocument* doc)
 {
-    for(u64 i = 0; i < E_VAL(this->m_ehdr->e_shnum); i++)
+    for(u64 i = 0; i < ELF_LDR_VAL(this->m_ehdr->e_shnum); i++)
     {
         const SHDR& shdr = this->m_shdr[i];
 
-        switch(E_VAL(shdr.sh_type))
+        switch(ELF_LDR_VAL(shdr.sh_type))
         {
             case SHT_SYMTAB:
             {
                 auto it = m_dynamic.find(DT_SYMENT);
 
                 if(it != m_dynamic.end()) {
-                    auto val = E_VAL(shdr.sh_offset);
+                    auto val = ELF_LDR_VAL(shdr.sh_offset);
                     rd_log("Reading symbol table @ " + rd_tohex(val));
                     this->readSymbols(doc, &shdr, val, it->second);
                 }
@@ -224,12 +204,12 @@ void ElfLoaderT<bits>::readSectionHeader(RDDocument* doc)
 template<size_t bits>
 void ElfLoaderT<bits>::readProgramHeader(RDDocument* doc)
 {
-    for(u64 i = 0; i < E_VAL(this->m_ehdr->e_phnum); i++)
+    for(u64 i = 0; i < ELF_LDR_VAL(this->m_ehdr->e_phnum); i++)
     {
         const PHDR& phdr = this->m_phdr[i];
         if(!phdr.p_memsz) continue;
 
-        switch(E_VAL(phdr.p_type))
+        switch(ELF_LDR_VAL(phdr.p_type))
         {
             case PT_LOAD:
                 if(phdr.p_vaddr) this->loadSegments(&phdr, doc);
@@ -249,16 +229,16 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
 {
     if(!m_dynamic.empty())
     {
-        rd_log("Skipping duplicate DYNAMIC entry @ " + rd_tohex(E_VAL(phdr->p_offset)));
+        rd_log("Skipping duplicate DYNAMIC entry @ " + rd_tohex(ELF_LDR_VAL(phdr->p_offset)));
         return;
     }
 
-    const auto* dyn = reinterpret_cast<const DYN*>(RD_Pointer(m_loader, E_VAL(phdr->p_offset)));
+    const auto* dyn = reinterpret_cast<const DYN*>(RD_Pointer(m_loader, ELF_LDR_VAL(phdr->p_offset)));
     if(!dyn) return;
 
-    while(E_VAL(dyn->d_tag) != DT_NULL)
+    while(ELF_LDR_VAL(dyn->d_tag) != DT_NULL)
     {
-        m_dynamic[E_VAL(dyn->d_tag)] = E_VAL(dyn->d_val);
+        m_dynamic[ELF_LDR_VAL(dyn->d_tag)] = ELF_LDR_VAL(dyn->d_val);
         dyn++;
     }
 
@@ -304,7 +284,7 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
                     auto* shdr = this->findSegment(value);
                     if(shdr) {
                         rd_log("Reading dynamic symbol table @ " + rd_tohex(value));
-                        this->readSymbols(doc, shdr, E_VAL(shdr->sh_offset) + (value - E_VAL(shdr->sh_addr)), it->second);
+                        this->readSymbols(doc, shdr, ELF_LDR_VAL(shdr->sh_offset) + (value - ELF_LDR_VAL(shdr->sh_addr)), it->second);
                     }
                 }
 
@@ -341,10 +321,10 @@ void ElfLoaderT<bits>::loadSegments(const PHDR* phdr, RDDocument* doc)
     {
         rd_flag flags = SegmentFlags_None;
 
-        switch(E_VAL(shdr->sh_type))
+        switch(ELF_LDR_VAL(shdr->sh_type))
         {
             case SHT_PROGBITS:
-                if(E_VAL(shdr->sh_flags) & SHF_EXECINSTR) flags = SegmentFlags_Code;
+                if(ELF_LDR_VAL(shdr->sh_flags) & SHF_EXECINSTR) flags = SegmentFlags_Code;
                 else flags = SegmentFlags_Data;
                 break;
 
@@ -361,8 +341,8 @@ void ElfLoaderT<bits>::loadSegments(const PHDR* phdr, RDDocument* doc)
         }
 
         if(flags == SegmentFlags_None) continue;
-        const char* name = ELF_STRING(&shstr, E_VAL(shdr->sh_name));
-        RDDocument_AddSegment(doc, name, E_VAL(shdr->sh_offset), E_VAL(shdr->sh_addr), E_VAL(shdr->sh_size), flags);
+        const char* name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
+        RDDocument_AddSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
     }
 }
 
@@ -379,12 +359,12 @@ void ElfLoaderT<bits>::readArray(RDDocument* doc, UVAL address, UVAL size, SVAL 
         default: return;
     }
 
-    ADDR* arr = reinterpret_cast<ADDR*>(RD_AddrPointer(m_loader, E_VAL(address)));
+    ADDR* arr = reinterpret_cast<ADDR*>(RD_AddrPointer(m_loader, ELF_LDR_VAL(address)));
     if(!arr) return;
 
-    for(ADDR sz = 0; sz < E_VAL(size); sz += (bits / CHAR_BIT), arr++)
+    for(ADDR sz = 0; sz < ELF_LDR_VAL(size); sz += (bits / CHAR_BIT), arr++)
     {
-        ADDR val = E_VAL(*arr);
+        ADDR val = ELF_LDR_VAL(*arr);
         if(!val || (val == ADDR(-1))) continue;
 
         RDLocation loc = RD_AddressOf(m_loader, arr);
@@ -399,51 +379,51 @@ template<size_t bits>
 void ElfLoaderT<bits>::readVersions(ElfLoaderT::UVAL address, ElfLoaderT::UVAL count)
 {
     const SHDR* shdr = this->findSegment(address);
-    if(!shdr || (E_VAL(shdr->sh_link) >= E_VAL(this->m_ehdr->e_shnum))) return;
+    if(!shdr || (ELF_LDR_VAL(shdr->sh_link) >= ELF_LDR_VAL(this->m_ehdr->e_shnum))) return;
 
-    auto* verneed = reinterpret_cast<Elf_Verneed*>(RDLoader_GetData(m_loader) + ((address - E_VAL(shdr->sh_addr)) + E_VAL(shdr->sh_offset)));
-    const SHDR* segstrings = &m_shdr[E_VAL(shdr->sh_link)];
+    auto* verneed = reinterpret_cast<Elf_Verneed*>(RDLoader_GetData(m_loader) + ((address - ELF_LDR_VAL(shdr->sh_addr)) + ELF_LDR_VAL(shdr->sh_offset)));
+    const SHDR* segstrings = &m_shdr[ELF_LDR_VAL(shdr->sh_link)];
 
     for(UVAL i = 0; i < count; i++)
     {
-        auto* veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(verneed, E_VAL(verneed->vn_aux)));
+        auto* veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(verneed, ELF_LDR_VAL(verneed->vn_aux)));
 
         for(UVAL j = 0; j < verneed->vn_cnt; j++)
         {
-            if(!(E_VAL(veraux->vna_other) & (1 << 15)))
-                m_versions[E_VAL(veraux->vna_other)] = ELF_STRING(segstrings, E_VAL(veraux->vna_name));
+            if(!(ELF_LDR_VAL(veraux->vna_other) & (1 << 15)))
+                m_versions[ELF_LDR_VAL(veraux->vna_other)] = ELF_STRING(segstrings, ELF_LDR_VAL(veraux->vna_name));
 
-            veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(veraux, E_VAL(veraux->vna_next)));
+            veraux = reinterpret_cast<Elf_Vernaux*>(RD_RelPointer(veraux, ELF_LDR_VAL(veraux->vna_next)));
         }
 
-        verneed = reinterpret_cast<Elf_Verneed*>(RD_RelPointer(verneed, E_VAL(verneed->vn_next)));
+        verneed = reinterpret_cast<Elf_Verneed*>(RD_RelPointer(verneed, ELF_LDR_VAL(verneed->vn_next)));
     }
 }
 
 template<size_t bits>
 void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr, ElfLoaderT::UVAL offset, UVAL entrysize)
 {
-    if(!shdr || (E_VAL(shdr->sh_link) >= E_VAL(this->m_ehdr->e_shnum))) return;
+    if(!shdr || (ELF_LDR_VAL(shdr->sh_link) >= ELF_LDR_VAL(this->m_ehdr->e_shnum))) return;
 
-    rd_offset baseoffset = offset - E_VAL(shdr->sh_offset);
-    ElfLoaderT::UVAL count = (E_VAL(shdr->sh_size) - baseoffset) / entrysize;
+    rd_offset baseoffset = offset - ELF_LDR_VAL(shdr->sh_offset);
+    ElfLoaderT::UVAL count = (ELF_LDR_VAL(shdr->sh_size) - baseoffset) / entrysize;
     if(!count) return;
 
     auto* sym = elfptr<ElfLoaderT::SYM>(shdr, baseoffset);
     if(!sym) return;
 
-    const SHDR* shstr = &m_shdr[E_VAL(shdr->sh_link)];
+    const SHDR* shstr = &m_shdr[ELF_LDR_VAL(shdr->sh_link)];
 
     for(ElfLoaderT::UVAL i = 0; i < count; i++, sym = reinterpret_cast<ElfLoaderT::SYM*>(RD_RelPointer(const_cast<ElfLoaderT::SYM*>(sym), entrysize)))
     {
         if(!sym->st_name || !sym->st_value) continue;
 
-        const char* symname = ELF_STRING(shstr, E_VAL(sym->st_name));
+        const char* symname = ELF_STRING(shstr, ELF_LDR_VAL(sym->st_name));
         if(!symname) continue;
 
-        auto symvalue = E_VAL(sym->st_value);
-        auto symtype = ELF_ST_TYPE(E_VAL(sym->st_info));
-        auto bind = ELF_ST_BIND(E_VAL(sym->st_info));
+        auto symvalue = ELF_LDR_VAL(sym->st_value);
+        auto symtype = ELF_ST_TYPE(ELF_LDR_VAL(sym->st_info));
+        auto bind = ELF_ST_BIND(ELF_LDR_VAL(sym->st_info));
 
         switch(symtype)
         {
@@ -456,7 +436,7 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
 
             case STT_OBJECT:
             {
-                auto sz = E_VAL(sym->st_size);
+                auto sz = ELF_LDR_VAL(sym->st_size);
                 if(!sz) sz = bits / CHAR_BIT;
 
                 if(bind == STB_GLOBAL) RDDocument_AddExported(doc, symvalue, sz, symname);
@@ -472,11 +452,11 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
 template<size_t bits>
 bool ElfLoaderT<bits>::findSegments(const ElfLoaderT<bits>::PHDR* phdr, std::vector<const SHDR*>& segments) const
 {
-    for(size_t i = 0; i < E_VAL(this->m_ehdr->e_shnum); i++)
+    for(size_t i = 0; i < ELF_LDR_VAL(this->m_ehdr->e_shnum); i++)
     {
         const SHDR& shdr = this->m_shdr[i];
-        if(E_VAL(shdr.sh_addr) < E_VAL(phdr->p_vaddr)) continue;
-        if((E_VAL(shdr.sh_addr) + E_VAL(shdr.sh_size)) > E_VAL(phdr->p_vaddr + phdr->p_memsz)) continue;
+        if(ELF_LDR_VAL(shdr.sh_addr) < ELF_LDR_VAL(phdr->p_vaddr)) continue;
+        if((ELF_LDR_VAL(shdr.sh_addr) + ELF_LDR_VAL(shdr.sh_size)) > ELF_LDR_VAL(phdr->p_vaddr + phdr->p_memsz)) continue;
         segments.push_back(&shdr);
     }
 
@@ -499,8 +479,26 @@ void rdplugin_init(RDContext*, RDPluginModule* pm)
     RD_PLUGIN_ENTRY(RDEntryLoader, elf, "ELF Executable");
     elf.test = &ElfLoader::test;
     elf.load = &ElfLoader::load;
-
     RDLoader_Register(pm, &elf);
+
+    RD_PLUGIN_ENTRY(RDEntryAnalyzer, elfabi_x86, "x86 ABI Analyzer");
+    elfabi_x86.description = "Analyze x86 specific information";
+    elfabi_x86.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
+    elfabi_x86.priority = 1000;
+
+    elfabi_x86.isenabled = [](const RDContext* ctx) -> bool {
+        auto* elfloader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
+        if(!elfloader) return false;
+        if((elfloader->machine() == EM_386) || (elfloader->machine() == EM_X86_64)) return true;
+        return false;
+    };
+
+    elfabi_x86.execute = [](RDContext* ctx) {
+        ElfAnalyzerX86 a(ctx);
+        a.analyze();
+    };
+
+    RDAnalyzer_Register(pm, &elfabi_x86);
 }
 
 void rdplugin_free(RDContext* ctx)

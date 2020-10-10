@@ -1,5 +1,7 @@
 #pragma once
 
+#define ELFLOADER_USERDATA       "elfloader_userdata"
+
 #define ELF_ST_BIND(i)       ((i) >> 4)
 #define ELF_ST_TYPE(i)       ((i) & 0xF)
 #define ELF_ST_INFO(b,t)     (((b) << 4) + ((t) & 0xF))

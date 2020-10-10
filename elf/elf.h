@@ -18,7 +18,7 @@
  *   - https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-94076/index.html
  */
 
-#define E_VAL(f) e_valT((f), this->endianness())
+#define ELF_LDR_VAL(f) e_valT((f), this->endianness())
 
 class ElfABI;
 
@@ -40,7 +40,6 @@ class ElfLoader
     public:
         static ElfLoader* parse(RDBuffer* buffer);
         static const char* test(const RDLoaderRequest* request);
-        static void analyze(RDContext* ctx);
         static bool load(RDContext* ctx, RDLoader* loader);
 };
 
@@ -95,13 +94,13 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
 
         template<typename T> const T* elfptr(rd_address address, const SHDR** resshdr) const {
             const auto* shdr = this->findSegment(address);
-            if(!shdr || (E_VAL(shdr->sh_type) == SHT_NOBITS)) return nullptr;
+            if(!shdr || (ELF_LDR_VAL(shdr->sh_type) == SHT_NOBITS)) return nullptr;
             if(resshdr) *resshdr = shdr;
-            return this->elfptr<T>(shdr, address - E_VAL(shdr->sh_addr));
+            return this->elfptr<T>(shdr, address - ELF_LDR_VAL(shdr->sh_addr));
         }
 
         template<typename T> const T* elfptr(const SHDR* shdr, rd_offset offset) const {
-            return reinterpret_cast<const T*>(reinterpret_cast<u8*>(RDLoader_GetData(m_loader)) + (E_VAL(shdr->sh_offset) + offset));
+            return reinterpret_cast<const T*>(reinterpret_cast<u8*>(RDLoader_GetData(m_loader)) + (ELF_LDR_VAL(shdr->sh_offset) + offset));
         }
 
     private:

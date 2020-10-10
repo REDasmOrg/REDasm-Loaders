@@ -11,6 +11,7 @@ class ElfLoaderT;
 class ElfABI
 {
     public:
+        virtual ~ElfABI() = default;
         virtual std::optional<std::string> plt(size_t idx) const = 0;
         virtual void parse() = 0;
 };

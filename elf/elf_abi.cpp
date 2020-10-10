@@ -2,7 +2,7 @@
 #include "elf.h"
 #include <climits>
 
-#define E_VAL(f) e_valT((f), m_elf->endianness())
+#define ELF_ABI_VAL(f) e_valT((f), m_elf->endianness())
 
 template<size_t bits>
 ElfABIT<bits>::ElfABIT(const ElfType* elf): m_elf(elf) { }
@@ -30,8 +30,8 @@ void ElfABIT<bits>::processRelocations(const RelType* rel, typename ElfType::UVA
 {
     for(size_t sz = 0; sz < size; sz += sizeof(RelType), rel++)
     {
-        auto symidx = elf_r_sym<bits>(E_VAL(rel->r_info));
-        auto type = elf_r_type<bits>(E_VAL(rel->r_info));
+        auto symidx = elf_r_sym<bits>(ELF_ABI_VAL(rel->r_info));
+        auto type = elf_r_type<bits>(ELF_ABI_VAL(rel->r_info));
 
         switch(type)
         {

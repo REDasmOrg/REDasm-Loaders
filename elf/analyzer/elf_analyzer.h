@@ -8,20 +8,12 @@ class ElfLoader;
 class ElfAnalyzer
 {
     public:
-        ElfAnalyzer(ElfLoader* loader, RDContext* ctx);
+        ElfAnalyzer(RDContext* ctx);
+        virtual ~ElfAnalyzer() = default;
         virtual void analyze();
 
-    private:
-        void findMain_x86(const std::string& id, RDDocument* doc, const RDSymbol* symlibcmain);
-        void findMainMode_x86_64(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx);
-        void findMainMode_x86_32(RDDocument* doc, const RDBlockContainer* blocks, size_t blockidx);
-
-    private:
-        void disassembleLibStartMain();
-        bool getLibStartMain(RDSymbol* symbol);
-
-    private:
-        std::unordered_map<std::string, rd_address> m_libcmain;
+    protected:
+        virtual void findMain(rd_address address) = 0;
 
     protected:
         RDContext* m_context;
