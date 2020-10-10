@@ -61,7 +61,7 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
     auto loc = RDDocument_GetFunctionStart(doc, refaddress);
     if(!loc.valid) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_context, loc.address));
+    rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, loc.address));
     if(!il) return;
 
     auto* disassembler = RDContext_GetDisassembler(m_context);

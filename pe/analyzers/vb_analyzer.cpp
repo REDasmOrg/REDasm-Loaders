@@ -14,7 +14,7 @@ void VBAnalyzer::analyze()
     auto entry = RDDocument_GetEntryPoint(doc);
     if(!entry.valid) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_context, entry.address));
+    rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, entry.address));
     if(!il) return;
 
     auto pushexpr = RDILFunction_GetExpression(il.get(), 0);
@@ -39,7 +39,7 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     auto* disassembler = RDContext_GetDisassembler(m_context);
     if(!RDDisassembler_CreateFunction(disassembler, eventva, RD_Thunk(name.c_str()))) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Generate(m_context, eventva));
+    rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, eventva));
     if(!il) return;
 
     auto* copyexpr = RDILFunction_GetFirstExpression(il.get());
