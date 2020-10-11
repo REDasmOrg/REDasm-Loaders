@@ -36,15 +36,23 @@ void ElfABIT<bits>::processRelocations(const RelType* rel, typename ElfType::UVA
         switch(type)
         {
             case R_386_GLOB_DAT:
+            {
+                auto name = m_elf->symbolName(shdr->sh_link, symidx);
+                if(!name) continue;
+
+                RDDocument_AddData(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
+                break;
+            }
+
             case R_386_JMP_SLOT:
             {
                 auto name = m_elf->symbolName(shdr->sh_link, symidx);
                 if(!name) continue;
-                const auto* shdr = m_elf->findSegment(rel->r_offset);
-                if(!shdr) continue;
+                const auto* s = m_elf->findSegment(rel->r_offset);
+                if(!s) continue;
 
                 RDDocument_AddImported(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
-                m_plt[rel->r_offset - shdr->sh_addr] = *name;
+                m_plt[rel->r_offset - s->sh_addr] = *name;
                 break;
             }
 

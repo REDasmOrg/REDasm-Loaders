@@ -292,7 +292,7 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
             }
 
             case DT_PLTGOT:
-                //RDDocument_AddData(doc, value, bits / CHAR_BIT, "_GLOBAL_OFFSET_TABLE_");
+                RDDocument_AddData(doc, value, bits / CHAR_BIT, "_GLOBAL_OFFSET_TABLE_");
                 break;
 
             case DT_INIT:

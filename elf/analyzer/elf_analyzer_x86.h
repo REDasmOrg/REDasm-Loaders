@@ -10,13 +10,12 @@ class ElfAnalyzerX86: public ElfAnalyzer
 
     protected:
         void findMain(rd_address address) override;
+        void parsePlt();
 
     private:
         void findMain32(rd_address address);
         void findMain64(rd_address address);
-
-    private:
-        //void checkPLT_x86_64(RDDocument* doc, RDInstruction* instruction, RDAssembler* assembler, rd_address funcaddress);
-        //void checkPLT_x86(RDDocument* doc, RDInstruction* instruction, RDAssembler* assembler, rd_address funcaddress);
+        void checkPLT32(RDDocument* doc, rd_address funcaddress);
+        void checkPLT64(RDDocument* doc, rd_address funcaddress);
 };
 
