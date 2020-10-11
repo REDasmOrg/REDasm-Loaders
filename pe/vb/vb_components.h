@@ -16,7 +16,7 @@ class VBComponents
 
     public:
         VBComponents() = delete;
-        static const Component* get(GUID* guid);
+        static const Component* get(RDContext* ctx, GUID* guid);
 
     private:
         static void initComponents();

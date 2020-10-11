@@ -73,8 +73,8 @@ class PELoaderT: public PELoader
         RDContext* m_context;
         RDLoader* m_loader;
         RDDocument* m_document;
-        PEClassifier m_classifier;
         PEImports m_imports;
+        std::unique_ptr<PEClassifier> m_classifier;
         std::unique_ptr<DotNetReader> m_dotnetreader;
         const ImageDosHeader* m_dosheader{nullptr};
         const ImageNtHeaders* m_ntheaders{nullptr};

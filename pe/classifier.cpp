@@ -2,7 +2,7 @@
 #include "borland/borland_types.h"
 #include "borland/borland_version.h"
 
-PEClassifier::PEClassifier(): m_classification(PEClassification::Unclassified), m_bits(0) { }
+PEClassifier::PEClassifier(RDContext* ctx): m_context(ctx), m_classification(PEClassification::Unclassified), m_bits(0) { }
 const std::unordered_set<std::string> &PEClassifier::signatures() const { return m_signatures; }
 
 PEClassification PEClassifier::checkVisualBasic() const
@@ -117,7 +117,7 @@ void PEClassifier::classifyDelphi(const ImageDosHeader* dosheader, const ImageNt
 
     if(!packageinfo)
     {
-        //FIXME: rdcontext_addproblem("Cannot parse 'PACKAGEINFO' header");
+        rdcontext_addproblem(m_context, "Cannot parse 'PACKAGEINFO' header");
         return;
     }
 

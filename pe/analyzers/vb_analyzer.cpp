@@ -78,7 +78,7 @@ void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescripto
     for(size_t i = 0; i < objinfo->dwControlCount; i++)
     {
         const VBControlInfo& ctrl = ctrlinfo[i];
-        const VBComponents::Component* component = VBComponents::get(reinterpret_cast<GUID*>(RD_AddrPointer(loader, ctrl.lpGuid)));
+        const VBComponents::Component* component = VBComponents::get(m_context, reinterpret_cast<GUID*>(RD_AddrPointer(loader, ctrl.lpGuid)));
         if(!component) continue;
 
         VBEventInfo* eventinfo = reinterpret_cast<VBEventInfo*>(RD_AddrPointer(loader, ctrl.lpEventInfo));

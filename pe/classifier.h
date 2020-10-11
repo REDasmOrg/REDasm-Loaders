@@ -25,7 +25,7 @@ enum class PEClassification {
 class PEClassifier
 {
     public:
-        PEClassifier();
+        PEClassifier(RDContext* ctx);
         const std::unordered_set<std::string> &signatures() const;
         bool isClassified() const;
         PEClassification checkDotNet() const;
@@ -52,6 +52,7 @@ class PEClassifier
         void addSignature(const std::string &s);
 
     private:
+        RDContext* m_context;
         PEClassification m_classification;
         size_t m_bits;
         std::string m_borlandsignature;

@@ -11,17 +11,15 @@
 
 VBComponents::Components VBComponents::m_components;
 
-const VBComponents::Component *VBComponents::get(GUID *guid)
+const VBComponents::Component *VBComponents::get(RDContext* ctx, GUID *guid)
 {
     VBComponents::initComponents();
 
     std::string guidstring = guidString(guid);
     auto it = m_components.find(guidstring);
+    if(it != m_components.end()) return std::addressof(it->second);
 
-    if(it != m_components.end())
-        return &(it->second);
-
-    //FIXME: rdcontext_addproblem("Cannot find component " + guidstring);
+    rdcontext_addproblem(ctx, "Cannot find component " + guidstring);
     return nullptr;
 }
 

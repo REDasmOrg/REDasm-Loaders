@@ -46,7 +46,9 @@ template<size_t b>
 PELoaderT<b>::PELoaderT(RDContext* ctx, RDLoader* loader): m_context(ctx), m_loader(loader)
 {
     m_document = RDLoader_GetDocument(loader);
-    m_classifier.setBits(b);
+
+    m_classifier = std::make_unique<PEClassifier>(ctx);
+    m_classifier->setBits(b);
 
     m_validimportsections.insert(".text");
     m_validimportsections.insert(".idata");
@@ -56,7 +58,7 @@ PELoaderT<b>::PELoaderT(RDContext* ctx, RDLoader* loader): m_context(ctx), m_loa
 template<size_t b> const DotNetReader *PELoaderT<b>::dotNetReader() const { return m_dotnetreader.get(); }
 template<size_t b> rd_address PELoaderT<b>::rvaToVa(rd_address rva) const { return rva + m_imagebase; }
 template<size_t b> rd_address PELoaderT<b>::vaToRva(rd_address va) const { return va - m_imagebase; }
-template<size_t b> const PEClassifier *PELoaderT<b>::classifier() const { return &m_classifier; }
+template<size_t b> const PEClassifier *PELoaderT<b>::classifier() const { return m_classifier.get(); }
 
 template<size_t b>
 void PELoaderT<b>::parse()
@@ -75,11 +77,11 @@ void PELoaderT<b>::parse()
     this->loadSections();
     ImageCorHeader* corheader = this->checkDotNet();
 
-    if(m_classifier.checkDotNet() == PEClassification::DotNet_1) rd_log(".NET 1.x is not supported");
+    if(m_classifier->checkDotNet() == PEClassification::DotNet_1) rd_log(".NET 1.x is not supported");
     else if(!corheader) this->loadDefault();
     else this->loadDotNet(reinterpret_cast<ImageCor20Header*>(corheader));
 
-    m_classifier.display();
+    m_classifier->display();
 }
 
 template<size_t b> void PELoaderT<b>::checkResources()
@@ -90,7 +92,7 @@ template<size_t b> void PELoaderT<b>::checkResources()
     ImageResourceDirectory* resourcedir = this->rvaPointer<ImageResourceDirectory>(resourcedatadir.VirtualAddress);
     if(!resourcedir) return;
 
-    m_classifier.classifyDelphi(m_dosheader, m_ntheaders, resourcedir);
+    m_classifier->classifyDelphi(m_dosheader, m_ntheaders, resourcedir);
 }
 
 template<size_t b>
@@ -116,7 +118,7 @@ void PELoaderT<b>::checkDebugInfo()
     if(debugdir->Type == IMAGE_DEBUG_TYPE_CODEVIEW)
     {
         rd_log("Debug info type: CodeView");
-        m_classifier.classifyVisualStudio();
+        m_classifier->classifyVisualStudio();
 
         CVHeader* cvhdr = reinterpret_cast<CVHeader*>(RD_Pointer(m_loader, dbgoffset));
         if(!cvhdr) return;
@@ -158,7 +160,7 @@ template<size_t b> ImageCorHeader* PELoaderT<b>::checkDotNet()
     if(!dotnetdir.VirtualAddress) return nullptr;
 
     ImageCorHeader* corheader = this->rvaPointer<ImageCorHeader>(dotnetdir.VirtualAddress);
-    m_classifier.classifyDotNet(corheader);
+    m_classifier->classifyDotNet(corheader);
     return corheader;
 }
 
@@ -197,7 +199,7 @@ template<size_t b> void PELoaderT<b>::loadDefault()
     this->checkResources();
 
     RDDocument_SetEntry(m_document, m_entrypoint);
-    m_classifier.classify(m_ntheaders);
+    m_classifier->classify(m_ntheaders);
 
     //for(const auto& sig : m_classifier.signatures())
         //m_peloader->signature(sig);
@@ -387,7 +389,7 @@ void PELoaderT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor,
 
     std::string descriptorname = this->rvaPointer<const char>(importdescriptor.Name);
     std::transform(descriptorname.begin(), descriptorname.end(), descriptorname.begin(), ::tolower);
-    m_classifier.classifyImport(descriptorname);
+    m_classifier->classifyImport(descriptorname);
 
     for(size_t i = 0; thunk[i]; i++)
     {
@@ -415,7 +417,7 @@ void PELoaderT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor,
 
 const char* PELoader::assembler(const ImageNtHeaders* ntheaders)
 {
-    // if(m_classifier.isDotNet())
+    // if(m_classifier->isDotNet())
     // {
     //     m_plugin->header.puserdata = RD_FindAssembler("cil");
     //     return;
