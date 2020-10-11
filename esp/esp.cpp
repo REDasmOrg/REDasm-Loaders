@@ -11,7 +11,7 @@
 
 typedef std::pair<rd_offset, const char*> ImageItem;
 
-template<typename ESPModel> bool load(RDLoaderPlugin*, RDLoader* loader)
+template<typename ESPModel> bool load(RDContext*, RDLoader* loader)
 {
     std::deque<ImageItem> images;
 
@@ -34,13 +34,13 @@ template<typename ESPModel> bool load(RDLoaderPlugin*, RDLoader* loader)
     return espmodel.load(loader, images[idx].first);
 }
 
-void redasm_entry()
+void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
     ESP8266::initImports();
 
-    RD_PLUGIN_CREATE(RDLoaderPlugin, esp8266, "ESP8266 ROM");
+    RD_PLUGIN_ENTRY(RDEntryLoader, esp8266, "ESP8266 ROM");
     esp8266.test = &ESP8266::test;
     esp8266.load = &load<ESP8266>;
 
-    RDLoader_Register(&esp8266);
+    RDLoader_Register(pm, &esp8266);
 }

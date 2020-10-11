@@ -16,7 +16,7 @@ class ESPCommon
         virtual bool load(RDLoader* loader, rd_offset offset = RD_NPOS);
 
     public:
-        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
+        static const char* test(const RDLoaderRequest* request);
 
     protected:
         bool load(RDLoader* loader, ESP8266RomHeader1* header, rd_offset offset = 0);

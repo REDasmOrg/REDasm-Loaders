@@ -16,7 +16,7 @@ bool ESPCommon::load(RDLoader* loader, rd_offset offset)
     return false;
 }
 
-const char* ESPCommon::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* ESPCommon::test(const RDLoaderRequest* request)
 {
     const auto* h = reinterpret_cast<const ESP8266RomHeader1*>(RDBuffer_Data(request->buffer));
 
