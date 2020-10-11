@@ -23,8 +23,8 @@ void VBAnalyzer::analyze()
     if(RDILExpression_Type(pushexpr) != RDIL_Push) return;
     if(RDILExpression_Type(callexpr) != RDIL_Call) return;
 
-    auto* argexpr = RDILExpression_GetU(pushexpr);
-    if(RDILExpression_Type(argexpr) != RDIL_Cnst) return;
+    auto* argexpr = RDILExpression_Extract(pushexpr, "u:cnst");
+    if(!argexpr) return;
 
     RDILValue v;
     if(!RDILExpression_GetValue(argexpr, &v)) return;
@@ -46,9 +46,11 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     auto* gotoexpr = RDILFunction_GetLastExpression(il.get());
 
     if(RDILExpression_Type(copyexpr) != RDIL_Copy) return;
-    if(!RDILExpression_Match(gotoexpr, "goto c")) return;
+    if(!RDILExpression_Match(gotoexpr, "goto cnst")) return;
 
-    auto* eventexpr = RDILExpression_GetU(gotoexpr);
+    auto* eventexpr = RDILExpression_Extract(gotoexpr, "u:cnst");
+    if(!eventexpr) return;
+
     RDILValue val;
     if(!RDILExpression_GetValue(eventexpr, &val)) return;
 

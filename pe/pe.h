@@ -27,7 +27,8 @@ class PELoader
         static size_t getBits(const ImageNtHeaders* ntheaders);
 };
 
-template<size_t b> class PELoaderT: public PELoader
+template<size_t b>
+class PELoaderT: public PELoader
 {
     private:
         typedef typename std::conditional<b == 64, u64, u32>::type pe_integer_t;
