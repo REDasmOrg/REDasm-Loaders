@@ -71,7 +71,7 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
     for(size_t i = 0; i < c; i++)
     {
         const RDILExpression* e = RDILFunction_GetExpression(il.get(), i);
-        if(RDILExpression_Type(e) == RDIL_Push) args.push_front(RDILExpression_GetU(e));
+        if(RDILExpression_Type(e) == RDIL_Push) args.push_front(RDILExpression_Extract(e, "u:*"));
 
         if(RDILExpression_Type(e) == RDIL_Call)
         {
