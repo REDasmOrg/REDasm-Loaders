@@ -484,7 +484,7 @@ void rdplugin_init(RDContext*, RDPluginModule* pm)
     RD_PLUGIN_ENTRY(RDEntryAnalyzer, elfabi_x86, "x86 ABI Analyzer");
     elfabi_x86.description = "Analyze x86 specific information";
     elfabi_x86.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
-    elfabi_x86.priority = 1000;
+    elfabi_x86.order = 1000;
 
     elfabi_x86.isenabled = [](const RDContext* ctx) -> bool {
         auto* elfloader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));

@@ -29,42 +29,41 @@ void ElfAnalyzerX86::parsePlt()
     const u8* pltbase = m_loader->plt();
     if(!pltbase) return;
 
-    RDDocument* doc = RDContext_GetDocument(m_context);
-    size_t c = RDDocument_FunctionsCount(doc);
-    RDSegment segment{ };
+    m_document = RDContext_GetDocument(m_context);
 
-    for(size_t i = 0; i < c; i++)
-    {
-        auto loc = RDDocument_GetFunctionAt(doc, i);
-        if(!loc.valid) continue;
+    RDDocument_EachFunction(m_document, [](rd_address address, void* userdata) {
+        auto* thethis = reinterpret_cast<ElfAnalyzerX86*>(userdata);
 
-        if(!RDSegment_ContainsAddress(std::addressof(segment), loc.address))
+        if(!RDSegment_ContainsAddress(&thethis->m_segment, address))
         {
-            if(!RDDocument_GetSegmentAddress(doc, loc.address, &segment))
-                continue;
+            if(!RDDocument_GetSegmentAddress(thethis->m_document, address, &thethis->m_segment))
+                return true;
         }
 
-        if(std::strcmp(".plt", segment.name)) continue;
+        if(std::strcmp(".plt", thethis->m_segment.name)) return true;
 
-         switch(m_loader->machine())
-         {
-             case EM_386: this->checkPLT32(doc, loc.address); break;
-             case EM_X86_64: this->checkPLT64(doc, loc.address); break;
-             default: rd_log("Unhandled machine '" + rd_tohex(m_loader->machine()) + "'"); break;
-         }
-    }
+        switch(thethis->m_loader->machine())
+        {
+            case EM_386: thethis->checkPLT32(thethis->m_document, address); break;
+            case EM_X86_64: thethis->checkPLT64(thethis->m_document, address); break;
+            default: rd_log("Unhandled machine '" + rd_tohex(thethis->m_loader->machine()) + "'"); break;
+        }
+
+        return true;
+    }, this);
 }
 
 void ElfAnalyzerX86::findMain32(rd_address address)
 {
     static const std::array<const char*, 3> EP_NAMES = { "fini", "init", "main" };
 
-    rd_ptr<RDILFunction> f(RDILFunction_Create(m_context, address));
+    rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, address));
+    if(!il) return;
     std::vector<rd_address> pushcexpr;
 
-    for(size_t i = 0; i < RDILFunction_Size(f.get()); i++)
+    for(size_t i = 0; i < RDILFunction_Size(il.get()); i++)
     {
-        const auto* e = RDILFunction_GetExpression(f.get(), i);
+        const auto* e = RDILFunction_GetExpression(il.get(), i);
         if(!RDILExpression_Match(e, "push(cnst)")) continue;
 
         const auto* ve = RDILExpression_Extract(e, "u:cnst");
@@ -93,6 +92,7 @@ void ElfAnalyzerX86::findMain64(rd_address address)
     };
 
     rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, address));
+    if(!il) return;
     std::unordered_map<std::string, rd_address> assignexpr;
 
     for(size_t i = 0; i < RDILFunction_Size(il.get()); i++)
@@ -134,4 +134,9 @@ void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)
 
     auto name = m_loader->abi()->plt(idxval.u_value);
     if(name) RDDocument_AddFunction(doc, funcaddress, RD_Thunk(name->c_str()));
+}
+
+void ElfAnalyzerX86::checkPLT64(RDDocument* doc, rd_address funcaddress)
+{
+
 }

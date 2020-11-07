@@ -472,7 +472,7 @@ void rdplugin_init(RDContext*, RDPluginModule* m)
     RD_PLUGIN_ENTRY(RDEntryAnalyzer, pewndproc, "Analyze Window Procedures");
     pewndproc.description = "Find and Disassemble Window Procedure";
     pewndproc.flags = AnalyzerFlags_Selected;
-    pewndproc.priority = 1000;
+    pewndproc.order = 1000;
 
     pewndproc.isenabled = [](const RDContext* ctx) -> bool {
         auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));
@@ -496,7 +496,7 @@ void rdplugin_init(RDContext*, RDPluginModule* m)
     RD_PLUGIN_ENTRY(RDEntryAnalyzer, pevbdecompile, "Decompile VB5/6");
     pevbdecompile.description = "Find and and Decompile Visual Basic events";
     pevbdecompile.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
-    pevbdecompile.priority = 1000;
+    pevbdecompile.order = 1000;
 
     pevbdecompile.isenabled = [](const RDContext* ctx) -> bool {
         auto* peloader = reinterpret_cast<PELoader*>(RDContext_GetUserData(ctx, PELOADER_USERDATA));

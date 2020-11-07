@@ -1,11 +1,11 @@
 #include "chip8.h"
 
-void CHIP8::renderInstruction(RDContext*, const RDRenderItemParams* rip)
+void CHIP8::renderInstruction(RDContext*, const RDRendererParams* rp)
 {
-    //RDRenderer_HexDump(rip, &rip->view, sizeof(u16));
+    //RDSurfaceRenderer_HexDump(rp->renderer, &rp->view, sizeof(u16));
 
     CHIP8Instruction instruction;
-    if(!CHIP8Decoder::decode(&rip->view, &instruction)) return;
+    if(!CHIP8Decoder::decode(&rp->view, &instruction)) return;
 
     if(instruction.mnemonic.empty())
     {
@@ -18,11 +18,11 @@ void CHIP8::renderInstruction(RDContext*, const RDRenderItemParams* rip)
             case CHIP8Opcode_SetPitch:
             case CHIP8Opcode_GetTime:
             case CHIP8Opcode_GetKey:
-                CHIP8::renderCopy(&instruction, rip);
+                CHIP8::renderCopy(&instruction, rp);
                 break;
 
             case CHIP8Opcode_Copy2:
-                CHIP8::renderCopy2(&instruction, rip);
+                CHIP8::renderCopy2(&instruction, rp);
                 break;
 
             case CHIP8Opcode_Add:
@@ -30,26 +30,26 @@ void CHIP8::renderInstruction(RDContext*, const RDRenderItemParams* rip)
             case CHIP8Opcode_And:
             case CHIP8Opcode_Xor:
             case CHIP8Opcode_Or:
-                CHIP8::renderMath(&instruction, rip);
+                CHIP8::renderMath(&instruction, rp);
                 break;
 
-            default: RDRenderer_Text(rip, "???"); break;
+            default: RDRenderer_Text(rp->renderer, "???"); break;
         }
 
         return;
     }
 
-    if(instruction.op == CHIP8Opcode_Return) RDRenderer_Mnemonic(rip, instruction.mnemonic.c_str(), Theme_Ret);
-    else RDRenderer_Mnemonic(rip, instruction.mnemonic.c_str(), Theme_Default);
-    RDRenderer_Text(rip, " ");
+    if(instruction.op == CHIP8Opcode_Return) RDRenderer_Mnemonic(rp->renderer, instruction.mnemonic.c_str(), Theme_Ret);
+    else RDRenderer_Mnemonic(rp->renderer, instruction.mnemonic.c_str(), Theme_Default);
+    RDRenderer_Text(rp->renderer, " ");
 
     for(size_t i = 0; i < instruction.operands.size(); i++)
     {
         const CHIP8Operand* op = &instruction.operands[i];
 
         if(IS_TYPE(op, CHIP8Operand_Null)) break;
-        if(i) RDRenderer_Text(rip, ", ");
-        CHIP8::renderOperand(rip, op);
+        if(i) RDRenderer_Text(rp->renderer, ", ");
+        CHIP8::renderOperand(rp, op);
     }
 }
 
@@ -84,65 +84,65 @@ void CHIP8::emulate(RDContext* ctx, RDEmulateResult* result)
     RDEmulateResult_SetSize(result, sizeof(u16));
 }
 
-void CHIP8::renderOperand(const RDRenderItemParams* rip, const CHIP8Operand* op)
+void CHIP8::renderOperand(const RDRendererParams* rp, const CHIP8Operand* op)
 {
     switch(op->type)
     {
-        case CHIP8Operand_Register:       RDRenderer_Register(rip, ("$v" + std::to_string(op->reg)).c_str()); break;
-        case CHIP8Operand_Register_I:     RDRenderer_Register(rip, "$i");                                     break;
-        case CHIP8Operand_Register_MI:    RDRenderer_Register(rip, "$mi");                                    break;
-        case CHIP8Operand_Register_KEY:   RDRenderer_Register(rip, "KEY");                                    break;
-        case CHIP8Operand_Register_TIME:  RDRenderer_Register(rip, "TIME");                                   break;
-        case CHIP8Operand_Register_TONE:  RDRenderer_Register(rip, "TONE");                                   break;
-        case CHIP8Operand_Register_PITCH: RDRenderer_Register(rip, "PITCH");                                  break;
-        case CHIP8Operand_Register_DEQ:   RDRenderer_Register(rip, "DEQ");                                    break;
-        case CHIP8Operand_Register_DSP:   RDRenderer_Register(rip, "DSP");                                    break;
-        case CHIP8Operand_Register_RS485: RDRenderer_Register(rip, "RS485");                                  break;
-        case CHIP8Operand_Register_BAUD:  RDRenderer_Register(rip, "BAUD");                                   break;
-        case CHIP8Operand_Constant:       RDRenderer_Constant(rip, RD_ToHex(op->cnst));                       break;
-        case CHIP8Operand_Address:        RDRenderer_Unsigned(rip, op->addr);                                 break;
+        case CHIP8Operand_Register:       RDRenderer_Register(rp->renderer, ("$v" + std::to_string(op->reg)).c_str()); break;
+        case CHIP8Operand_Register_I:     RDRenderer_Register(rp->renderer, "$i");                                     break;
+        case CHIP8Operand_Register_MI:    RDRenderer_Register(rp->renderer, "$mi");                                    break;
+        case CHIP8Operand_Register_KEY:   RDRenderer_Register(rp->renderer, "KEY");                                    break;
+        case CHIP8Operand_Register_TIME:  RDRenderer_Register(rp->renderer, "TIME");                                   break;
+        case CHIP8Operand_Register_TONE:  RDRenderer_Register(rp->renderer, "TONE");                                   break;
+        case CHIP8Operand_Register_PITCH: RDRenderer_Register(rp->renderer, "PITCH");                                  break;
+        case CHIP8Operand_Register_DEQ:   RDRenderer_Register(rp->renderer, "DEQ");                                    break;
+        case CHIP8Operand_Register_DSP:   RDRenderer_Register(rp->renderer, "DSP");                                    break;
+        case CHIP8Operand_Register_RS485: RDRenderer_Register(rp->renderer, "RS485");                                  break;
+        case CHIP8Operand_Register_BAUD:  RDRenderer_Register(rp->renderer, "BAUD");                                   break;
+        case CHIP8Operand_Constant:       RDRenderer_Constant(rp->renderer, RD_ToHex(op->cnst));                       break;
+        case CHIP8Operand_Address:        RDRenderer_Unsigned(rp->renderer, op->addr);                                 break;
 
         case CHIP8Operand_Register_Range:
-            RDRenderer_Register(rip, ("$v" + std::to_string(op->reg1)).c_str());
-            RDRenderer_Text(rip, ":");
-            RDRenderer_Register(rip, ("$v" + std::to_string(op->reg2)).c_str());
+            RDRenderer_Register(rp->renderer, ("$v" + std::to_string(op->reg1)).c_str());
+            RDRenderer_Text(rp->renderer, ":");
+            RDRenderer_Register(rp->renderer, ("$v" + std::to_string(op->reg2)).c_str());
             break;
 
-        default: RDRenderer_Text(rip, "???"); break;
+        default: RDRenderer_Text(rp->renderer, "???"); break;
     }
 }
 
-void CHIP8::renderCopy(CHIP8Instruction* instruction, const RDRenderItemParams* rip)
+void CHIP8::renderCopy(CHIP8Instruction* instruction, const RDRendererParams* rp)
 {
-    CHIP8::renderOperand(rip, &instruction->operands[0]);
-    RDRenderer_Text(rip, " = ");
-    CHIP8::renderOperand(rip, &instruction->operands[1]);
+    CHIP8::renderOperand(rp, &instruction->operands[0]);
+    RDRenderer_Text(rp->renderer, " = ");
+    CHIP8::renderOperand(rp, &instruction->operands[1]);
 }
 
-void CHIP8::renderCopy2(CHIP8Instruction* instruction, const RDRenderItemParams* rip)
+void CHIP8::renderCopy2(CHIP8Instruction* instruction, const RDRendererParams* rp)
 {
-    CHIP8::renderOperand(rip, &instruction->operands[0]);
-    RDRenderer_Text(rip, " = ");
-    CHIP8::renderOperand(rip, &instruction->operands[1]);
-    RDRenderer_Text(rip, ", ");
-    CHIP8::renderOperand(rip, &instruction->operands[2]);
+    CHIP8::renderOperand(rp, &instruction->operands[0]);
+    RDRenderer_Text(rp->renderer, " = ");
+    CHIP8::renderOperand(rp, &instruction->operands[1]);
+    RDRenderer_Text(rp->renderer, ", ");
+    CHIP8::renderOperand(rp, &instruction->operands[2]);
 }
 
-void CHIP8::renderMath(CHIP8Instruction* instruction, const RDRenderItemParams* rip)
+void CHIP8::renderMath(CHIP8Instruction* instruction, const RDRendererParams* rp)
 {
-    CHIP8::renderOperand(rip, &instruction->operands[0]);
-    RDRenderer_Text(rip, " = ");
-    CHIP8::renderOperand(rip, &instruction->operands[0]);
+    CHIP8::renderOperand(rp, &instruction->operands[0]);
+    RDRenderer_Text(rp->renderer, " = ");
+    CHIP8::renderOperand(rp, &instruction->operands[0]);
 
     switch(instruction->op)
     {
-        case CHIP8Opcode_Add: RDRenderer_Text(rip, " + "); break;
-        case CHIP8Opcode_Sub: RDRenderer_Text(rip, " - "); break;
-        case CHIP8Opcode_And: RDRenderer_Text(rip, " & "); break;
-        case CHIP8Opcode_Xor: RDRenderer_Text(rip, " ^ "); break;
-        case CHIP8Opcode_Or:  RDRenderer_Text(rip, " | "); break;
-        default: RDRenderer_Text(rip, " ??? "); break;
+        case CHIP8Opcode_Add: RDRenderer_Text(rp->renderer, " + "); break;
+        case CHIP8Opcode_Sub: RDRenderer_Text(rp->renderer, " - "); break;
+        case CHIP8Opcode_And: RDRenderer_Text(rp->renderer, " & "); break;
+        case CHIP8Opcode_Xor: RDRenderer_Text(rp->renderer, " ^ "); break;
+        case CHIP8Opcode_Or:  RDRenderer_Text(rp->renderer, " | "); break;
+        default: RDRenderer_Text(rp->renderer, " ??? "); break;
     }
 
-    CHIP8::renderOperand(rip, &instruction->operands[1]);
+    CHIP8::renderOperand(rp, &instruction->operands[1]);
 }
