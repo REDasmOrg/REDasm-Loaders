@@ -56,9 +56,7 @@ size_t WndProcAnalyzer::getAPIReferences(const std::string& library, const std::
 
 void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
 {
-    RDDocument* doc = RDContext_GetDocument(m_context);
-
-    auto loc = RDDocument_GetFunctionStart(doc, refaddress);
+    auto loc = RDContext_GetFunctionStart(m_context, refaddress);
     if(!loc.valid) return;
 
     rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, loc.address));
@@ -67,6 +65,8 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
     auto* disassembler = RDContext_GetDisassembler(m_context);
     size_t c = RDILFunction_Size(il.get());
     std::deque<const RDILExpression*> args;
+
+    RDDocument* doc = RDContext_GetDocument(m_context);
 
     for(size_t i = 0; i < c; i++)
     {

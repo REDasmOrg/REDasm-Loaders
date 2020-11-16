@@ -79,8 +79,7 @@ void ElfAnalyzerX86::findMain32(rd_address address)
         return;
     }
 
-    auto* disassembler = RDContext_GetDisassembler(m_context);
-    for(size_t i = 0; i < EP_NAMES.size(); i++) RDDisassembler_ScheduleFunction(disassembler, pushcexpr[i], EP_NAMES[i]);
+    for(size_t i = 0; i < EP_NAMES.size(); i++) RDContext_ScheduleFunction(m_context, pushcexpr[i], EP_NAMES[i]);
 }
 
 void ElfAnalyzerX86::findMain64(rd_address address)
@@ -115,8 +114,7 @@ void ElfAnalyzerX86::findMain64(rd_address address)
         return;
     }
 
-    auto* disassembler = RDContext_GetDisassembler(m_context);
-    for(const auto& [regname, address] : assignexpr) RDDisassembler_ScheduleFunction(disassembler, address, EP_NAMES.at(regname));
+    for(const auto& [regname, address] : assignexpr) RDContext_ScheduleFunction(m_context, address, EP_NAMES.at(regname));
 }
 
 void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)

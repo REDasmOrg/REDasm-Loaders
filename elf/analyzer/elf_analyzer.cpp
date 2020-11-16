@@ -6,10 +6,11 @@ ElfAnalyzer::ElfAnalyzer(RDContext* ctx): m_context(ctx) { m_loader = reinterpre
 
 void ElfAnalyzer::analyze()
 {
-    RDDocument* doc = RDContext_GetDocument(m_context);
-    RDLocation loc = RDDocument_GetEntryPoint(doc);
+    RDLocation loc = RDContext_GetEntryPoint(m_context);
     if(!loc.valid) return;
     this->findMain(loc.address);
+
+    RDDocument* doc = RDContext_GetDocument(m_context);
 
     RDSymbol symbol;
     if(RDDocument_GetSymbolByName(doc, "main", &symbol))
