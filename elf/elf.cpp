@@ -164,8 +164,8 @@ void ElfLoaderT<bits>::doLoad(RDLoader* loader)
     m_loader = loader;
 
     RDDocument* doc = RDLoader_GetDocument(loader);
-    this->readProgramHeader(doc);
     this->readSectionHeader(doc);
+    this->readProgramHeader(doc);
 
     m_abi.reset(new ElfABIT<bits>(this));
     m_abi->parse();
@@ -180,11 +180,11 @@ void ElfLoaderT<bits>::readSectionHeader(RDDocument* doc)
     for(u64 i = 0; i < ELF_LDR_VAL(this->m_ehdr->e_shnum); i++)
     {
         const SHDR& shdr = this->m_shdr[i];
+        this->checkMappedSegment(&shdr, doc);
 
         switch(ELF_LDR_VAL(shdr.sh_type))
         {
-            case SHT_SYMTAB:
-            {
+            case SHT_SYMTAB: {
                 auto it = m_dynamic.find(DT_SYMENT);
 
                 if(it != m_dynamic.end()) {
@@ -211,10 +211,6 @@ void ElfLoaderT<bits>::readProgramHeader(RDDocument* doc)
 
         switch(ELF_LDR_VAL(phdr.p_type))
         {
-            case PT_LOAD:
-                if(phdr.p_vaddr) this->loadSegments(&phdr, doc);
-                break;
-
             case PT_DYNAMIC:
                 if(phdr.p_offset) this->readDynamic(&phdr, doc);
                 break;
@@ -310,40 +306,35 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
 }
 
 template<size_t bits>
-void ElfLoaderT<bits>::loadSegments(const PHDR* phdr, RDDocument* doc)
+void ElfLoaderT<bits>::checkMappedSegment(const SHDR* shdr, RDDocument* doc)
 {
-    std::vector<const SHDR*> segments;
-    if(!this->findSegments(phdr, segments)) return;
+    if(!shdr->sh_addr || !shdr->sh_size || !(shdr->sh_flags & SHF_ALLOC)) return;
 
     const SHDR& shstr = ELF_STRING_TABLE;
+    rd_flag flags = SegmentFlags_None;
 
-    for(const auto* shdr : segments)
+    switch(ELF_LDR_VAL(shdr->sh_type))
     {
-        rd_flag flags = SegmentFlags_None;
+        case SHT_PROGBITS:
+            if(ELF_LDR_VAL(shdr->sh_flags) & SHF_EXECINSTR) flags = SegmentFlags_Code;
+            else flags = SegmentFlags_Data;
+            break;
 
-        switch(ELF_LDR_VAL(shdr->sh_type))
-        {
-            case SHT_PROGBITS:
-                if(ELF_LDR_VAL(shdr->sh_flags) & SHF_EXECINSTR) flags = SegmentFlags_Code;
-                else flags = SegmentFlags_Data;
-                break;
+        case SHT_INIT_ARRAY:
+        case SHT_FINI_ARRAY:
+            flags = SegmentFlags_Data;
+            break;
 
-            case SHT_INIT_ARRAY:
-            case SHT_FINI_ARRAY:
-                flags = SegmentFlags_Data;
-                break;
+        case SHT_NOBITS:
+            flags = SegmentFlags_Bss;
+            break;
 
-            case SHT_NOBITS:
-                flags = SegmentFlags_Bss;
-                break;
-
-            default: break;
-        }
-
-        if(flags == SegmentFlags_None) continue;
-        const char* name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
-        RDDocument_AddSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
+        default: break;
     }
+
+    if(flags == SegmentFlags_None) return;
+    const char* name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
+    RDDocument_AddSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
 }
 
 template<size_t bits>

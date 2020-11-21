@@ -77,7 +77,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
         void readSectionHeader(RDDocument* doc);
         void readProgramHeader(RDDocument* doc);
         void readDynamic(const PHDR* phdr, RDDocument* doc);
-        void loadSegments(const PHDR* phdr, RDDocument* doc);
+        void checkMappedSegment(const SHDR* shdr, RDDocument* doc);
         void readArray(RDDocument* doc, UVAL address, UVAL size, SVAL type);
         void readVersions(UVAL address, UVAL count);
         void readSymbols(RDDocument* doc, const SHDR* shdr, UVAL offset, UVAL entrysize);
