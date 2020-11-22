@@ -21,7 +21,7 @@ template<int b> bool PEImports::importName(const std::string &dllname, ordinal_t
     if(!m_ordinalsdb) m_ordinalsdb.reset(RDDatabase_Open(("loaders/pe/ordinals" + std::to_string(b)).c_str()));
     if(!m_ordinalsdb) return false;
 
-    std::string modulename = fs::path(dllname).stem() / std::to_string(ordinal);
+    std::string modulename = (fs::path(dllname).stem() / std::to_string(ordinal)).string();
     std::transform(modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
 
     RDDatabaseValue value;

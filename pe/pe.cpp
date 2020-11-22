@@ -8,6 +8,7 @@
 #include "analyzers/wndproc_analyzer.h"
 #include <cstring>
 #include <climits>
+#include <sstream>
 
 #define PELOADER_USERDATA "peloader_userdata"
 
