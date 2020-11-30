@@ -25,7 +25,6 @@ template<int b> bool PEImports::importName(const std::string &dllname, ordinal_t
     std::transform(modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
 
     RDDatabaseValue value;
-
     if(!RDDatabase_Query(m_ordinalsdb.get(), modulename.c_str(), &value)) return false;
     name = RD_Demangle(value.s);
     return true;

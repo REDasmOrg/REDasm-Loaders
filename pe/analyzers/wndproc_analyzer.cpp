@@ -62,7 +62,6 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
     rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, loc.address));
     if(!il) return;
 
-    auto* disassembler = RDContext_GetDisassembler(m_context);
     size_t c = RDILFunction_Size(il.get());
     std::deque<const RDILExpression*> args;
 
@@ -90,10 +89,7 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
                         RDSegment segment;
 
                         if(RDDocument_GetSegmentAddress(doc, v.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
-                        {
-                            RDDocument_AddFunction(doc, v.address, (std::string("DlgProc_") + RD_ToHexAuto(v.address)).c_str());
-                            RDDisassembler_Enqueue(disassembler, v.address);
-                        }
+                            RDContext_ScheduleFunction(m_context, v.address, (std::string("DlgProc_") + RD_ToHexAuto(v.address)).c_str());
                     }
                 }
             }
