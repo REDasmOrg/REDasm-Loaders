@@ -188,6 +188,51 @@ void PEClassifier::display()
         case PEClassification::BorlandCpp: rd_log("PE Classification: Borland C++"); break;
         default: rd_log("PE Classification: Unclassified"); break;
     }
+
+    this->applyABI();
+}
+
+void PEClassifier::applyABI()
+{
+    switch(m_classification)
+    {
+        case PEClassification::VisualBasic_5:
+        case PEClassification::VisualBasic_6:
+        case PEClassification::VisualStudio:
+        case PEClassification::VisualStudio_4:
+        case PEClassification::VisualStudio_5:
+        case PEClassification::VisualStudio_6:
+        case PEClassification::VisualStudio_2002:
+        case PEClassification::VisualStudio_2003:
+        case PEClassification::VisualStudio_2005:
+        case PEClassification::VisualStudio_2008:
+        case PEClassification::VisualStudio_2010:
+        case PEClassification::VisualStudio_2012:
+        case PEClassification::VisualStudio_2013:
+        case PEClassification::VisualStudio_2015:
+        case PEClassification::VisualStudio_2017:
+            RDContext_SetABI(m_context, CompilerABI_MSVC);
+            RDContext_SetCC(m_context, CompilerCC_Cdecl);
+            break;
+
+        case PEClassification::DotNet_1:
+        case PEClassification::DotNet:
+            RDContext_SetABI(m_context, CompilerABI_DotNET);
+            break;
+
+        case PEClassification::BorlandDelphi:
+        case PEClassification::BorlandDelphi_3:
+        case PEClassification::BorlandDelphi_6:
+        case PEClassification::BorlandDelphi_7:
+        case PEClassification::BorlandDelphi_9_10:
+        case PEClassification::BorlandDelphi_XE:
+        case PEClassification::BorlandDelphi_XE2_6:
+        case PEClassification::BorlandCpp:
+            RDContext_SetABI(m_context, CompilerABI_Borland);
+            break;
+
+        default: break;
+    }
 }
 
 bool PEClassifier::isClassified() const { return m_classification != PEClassification::Unclassified;  }

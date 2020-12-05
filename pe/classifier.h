@@ -48,6 +48,7 @@ class PEClassifier
         void display();
 
     private:
+        void applyABI();
         void checkLinkerVersion(u8 major, u8 minor);
         void addSignature(const std::string &s);
 
