@@ -342,7 +342,7 @@ void PELoaderT<b>::loadConfig()
     ImageLoadConfigDirectory* loadconfigdir = this->rvaPointer<ImageLoadConfigDirectory>(configdir.VirtualAddress);
     if(!loadconfigdir || !loadconfigdir->SecurityCookie) return;
 
-    RDDocument_AddData(m_document, loadconfigdir->SecurityCookie, b, PE_SECURITY_COOKIE_SYMBOL);
+    RDDocument_AddData(m_document, loadconfigdir->SecurityCookie, b / CHAR_BIT, PE_SECURITY_COOKIE_SYMBOL);
 }
 
 template<size_t b>
