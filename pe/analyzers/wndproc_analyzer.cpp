@@ -29,9 +29,9 @@ void WndProcAnalyzer::analyze()
 {
     for(auto it = m_wndprocapi.begin(); it != m_wndprocapi.end(); it++)
     {
-        const rd_address* references = nullptr;
-        size_t c = this->getAPIReferences("user32.dll", it->second, &references);
-        for(size_t i = 0; i < c; i++) this->findWndProc(references[i], it->first);
+        const RDReference* refs = nullptr;
+        size_t c = this->getAPIReferences("user32.dll", it->second, &refs);
+        for(size_t i = 0; i < c; i++) this->findWndProc(refs[i].address, it->first);
     }
 }
 
@@ -45,13 +45,13 @@ bool WndProcAnalyzer::getImport(const std::string& library, const std::string& a
     return false;
 }
 
-size_t WndProcAnalyzer::getAPIReferences(const std::string& library, const std::string& api, const rd_address** references)
+size_t WndProcAnalyzer::getAPIReferences(const std::string& library, const std::string& api, const RDReference** refs)
 {
     RDSymbol symbol;
     if(!this->getImport(library, api, &symbol)) return 0;
 
     const RDNet* net = RDContext_GetNet(m_context);
-    return RDNet_GetReferences(net, symbol.address, references);
+    return RDNet_GetReferences(net, symbol.address, refs);
 }
 
 void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
