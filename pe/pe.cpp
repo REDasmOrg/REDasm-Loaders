@@ -408,7 +408,7 @@ void PELoaderT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor,
         {
             u16 ordinal = static_cast<u16>(ordinalflag ^ thunk[i]);
 
-            if(!m_imports.importName<b>(descriptorname, ordinal, importname)) importname = PEUtils::importName(descriptorname, ordinal);
+            if(!m_imports.importName<b>(m_context, descriptorname, ordinal, importname)) importname = PEUtils::importName(descriptorname, ordinal);
             else importname = PEUtils::importName(descriptorname, importname);
         }
 

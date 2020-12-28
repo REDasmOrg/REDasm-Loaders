@@ -1,31 +1,27 @@
 #pragma once
 
-#include <filesystem>
 #include <rdapi/rdapi.h>
 
-namespace fs = std::filesystem;
 typedef u16 ordinal_t;
 
 class PEImports
 {
     public:
         PEImports() = default;
-        template<int b> bool importName(const std::string& dllname, ordinal_t ordinal, std::string& name);
-
-    private:
-        rd_ptr<RDDatabase> m_ordinalsdb;
+        template<int b> bool importName(RDContext* ctx, const std::string& dllname, ordinal_t ordinal, std::string& name);
+        std::string dbImportName(const std::string& dllname, int bits) const;
+        std::string dllStem(const std::string& dllname) const;
 };
 
-template<int b> bool PEImports::importName(const std::string &dllname, ordinal_t ordinal, std::string &name)
+template<int b> bool PEImports::importName(RDContext* ctx, const std::string &dllname, ordinal_t ordinal, std::string &name)
 {
-    if(!m_ordinalsdb) m_ordinalsdb.reset(RDDatabase_Open(("loaders/pe/ordinals" + std::to_string(b)).c_str()));
-    if(!m_ordinalsdb) return false;
+    std::string importname = this->dbImportName(dllname, b), ordinalspath = "ordinals/" + this->dllStem(dllname);
 
-    std::string modulename = (fs::path(dllname).stem() / std::to_string(ordinal)).string();
-    std::transform(modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
+    auto* db = RDContext_GetDatabase(ctx);
+    if(!RDDatabase_Add(db, ordinalspath.c_str(), importname.c_str())) return false;
 
     RDDatabaseValue value;
-    if(!RDDatabase_Query(m_ordinalsdb.get(), modulename.c_str(), &value)) return false;
+    if(!RDDatabase_Query(db, (ordinalspath + "/" + std::to_string(ordinal)).c_str(), &value)) return false;
     name = RD_Demangle(value.s);
     return true;
 }
