@@ -89,7 +89,7 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
                         RDSegment segment;
 
                         if(RDDocument_GetSegmentAddress(doc, v.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
-                            RDContext_ScheduleFunction(m_context, v.address, (std::string("DlgProc_") + RD_ToHexAuto(m_context, v.address)).c_str());
+                            RDContext_DisassembleFunction(m_context, v.address, (std::string("DlgProc_") + RD_ToHexAuto(m_context, v.address)).c_str());
                     }
                 }
             }

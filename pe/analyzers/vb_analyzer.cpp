@@ -58,7 +58,7 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     if(!RDDocument_GetSegmentAddress(doc, val.address, nullptr)) return;
 
     rd_statusaddress("Decoding" + name, val.address);
-    RDContext_ScheduleFunction(m_context, val.address, name.c_str());
+    RDContext_DisassembleFunction(m_context, val.address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)
