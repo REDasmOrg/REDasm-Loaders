@@ -1,6 +1,7 @@
 #include "chips/esp_common.h"
 #include "chips/esp8266.h"
 #include <rdapi/rdapi.h>
+#include <algorithm>
 #include <vector>
 #include <deque>
 
