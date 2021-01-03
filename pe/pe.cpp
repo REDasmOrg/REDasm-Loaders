@@ -6,6 +6,7 @@
 #include "borland/borland_version.h"
 #include "analyzers/vb_analyzer.h"
 #include "analyzers/wndproc_analyzer.h"
+#include <algorithm>
 #include <cstring>
 #include <climits>
 #include <sstream>
