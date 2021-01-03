@@ -1,5 +1,4 @@
 #include "elf_analyzer.h"
-#include "elf.h"
 #include "../elf_common.h"
 
 ElfAnalyzer::ElfAnalyzer(RDContext* ctx): m_context(ctx) { m_loader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA)); }
