@@ -90,7 +90,7 @@ bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, rd_offset offs
         }
 
         RDDocument_AddSegment(document, segname.c_str(), RD_FileOffset(loader, segment).offset + sizeof(ESPSegment), segment->address, segment->size, segflags);
-        if(offset != RD_NPOS) offset += segment->size;
+        if(offset != RD_NVAL) offset += segment->size;
 
         segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(segment, sizeof(ESPSegment) + segment->size));
     }

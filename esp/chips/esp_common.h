@@ -13,7 +13,7 @@ class ESPCommon
 {
     public:
         ESPCommon() = default;
-        virtual bool load(RDLoader* loader, rd_offset offset = RD_NPOS);
+        virtual bool load(RDLoader* loader, rd_offset offset = RD_NVAL);
 
     public:
         static const char* test(const RDLoaderRequest* request);
