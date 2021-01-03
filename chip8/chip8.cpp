@@ -4,7 +4,7 @@
 
 const char* test(const RDLoaderRequest* request)
 {
-    std::string ext = std::filesystem::path(request->filepath).extension();
+    auto ext = std::filesystem::path(request->filepath).extension();
 
     if((ext == ".chip8") || (ext == ".ch8") || (ext == ".rom"))
     {
