@@ -71,12 +71,11 @@ const char* ElfLoaderT<bits>::assembler() const
             if(this->endianness() == Endianness_Big) return "xtensabe";
             else return "xtensale";
 
-        case EM_ARM:
-            if constexpr(bits == 64) {
-                if(this->endianness() == Endianness_Big) return "arm64be";
-                return "arm64le";
-            }
+        case EM_AARCH64:
+            if(this->endianness() == Endianness_Big) return "arm64be";
+            return "arm64le";
 
+        case EM_ARM:
             if(this->endianness() == Endianness_Big) return "armbe";
             else return "armle";
 
