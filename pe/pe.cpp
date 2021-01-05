@@ -230,7 +230,7 @@ void PELoaderT<b>::loadSections()
         std::string name = PEUtils::sectionName(reinterpret_cast<const char*>(section.Name));
 
         if(name.empty()) // Rename unnamed sections
-            name = "sect" + std::string(RD_ToString(i));
+            name = "sect" + rd_tostring(i);
 
         rd_address va = m_imagebase + section.VirtualAddress;
 
