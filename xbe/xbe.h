@@ -2,28 +2,28 @@
 
 // Documentation: www.caustik.com/cxbx/download/xbe.htm
 
-#include <redasm/plugins/loader/loader.h>
+#include <rdapi/rdapi.h>
 #include "xbe_header.h"
 
-using namespace REDasm;
-
-class XbeLoader : public Loader
+class XbeLoader
 {
     public:
         XbeLoader();
-        AssemblerRequest assembler() const override;
-        bool test(const LoadRequest &request) const override;
-        void load() override;
+        static const char* test(const RDLoaderRequest* request);
+        static bool load(RDContext*ctx, RDLoader* loader);
 
     private:
-        void displayXbeInfo(const XbeImageHeader *header);
-        bool decodeEP(u32 encodedep, address_t &ep);
-        bool decodeKernel(u32 encodedthunk, u32 &thunk);
-        void loadSections(const XbeImageHeader *header, XbeSectionHeader* sectionhdr);
-        bool loadXBoxKrnl(const XbeImageHeader* header);
+        static void displayXbeInfo(RDLoader* loader, const XbeImageHeader *header);
+        static bool decodeEP(RDContext* ctx, u32 encodedep, rd_address &ep);
+        static bool decodeKernel(RDContext* ctx, u32 encodedthunk, u32 &thunk);
+        static void loadSections(RDContext* ctx, RDLoader* loader, const XbeImageHeader *header, XbeSectionHeader* sectionhdr);
+        static bool loadXBoxKrnl(const XbeImageHeader* header);
 
     private:
-        template<typename T> T* memoryoffset(const XbeImageHeader* header, u32 memaddress) const;
+        template<typename T> static T* memoryoffset(RDLoader* loader, const XbeImageHeader* header, u32 memaddress);
 };
 
-template<typename T> T* XbeLoader::memoryoffset(const XbeImageHeader* header, u32 memaddress) const { return this->pointer<T>(memaddress - header->BaseAddress); }
+template<typename T>
+T* XbeLoader::memoryoffset(RDLoader* loader, const XbeImageHeader* header, u32 memaddress) {
+    return reinterpret_cast<T*>(RD_Pointer(loader, memaddress - header->BaseAddress));
+}

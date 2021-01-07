@@ -1,53 +1,48 @@
 #include "xbe.h"
-#include <redasm/support/filesystem.h>
-#include <redasm/support/ordinals.h>
+#include <string>
 
 #define XBE_XBOXKRNL_BASEADDRESS 0x80000000
 
-XbeLoader::XbeLoader(): Loader() { }
-AssemblerRequest XbeLoader::assembler() const { return ASSEMBLER_REQUEST("x86", "x86_32"); }
-
-bool XbeLoader::test(const LoadRequest &request) const
+const char* XbeLoader::test(const RDLoaderRequest* request)
 {
-    auto* header = request.pointer<XbeImageHeader>();
+    auto* header = reinterpret_cast<const XbeImageHeader*>(RDBuffer_Data(request->buffer));
 
     if((header->Magic != XBE_MAGIC_NUMBER) || !header->SectionHeader || !header->NumberOfSections)
-        return false;
+        return nullptr;
 
+    return "x86_32";
+}
+
+bool XbeLoader::load(RDContext* ctx, RDLoader* loader)
+{
+    const auto* header = reinterpret_cast<XbeImageHeader*>(RDLoader_GetData(loader));
+    XbeLoader::loadSections(ctx, loader, header, XbeLoader::memoryoffset<XbeSectionHeader>(loader, header, header->SectionHeader));
+    rd_address entrypoint = 0;
+
+    if(!XbeLoader::decodeEP(ctx, header->EntryPoint, entrypoint))
+    {
+        RD_Log("Cannot decode Entry Point");
+        return false;
+    }
+
+    //if(!XbeLoader::loadXBoxKrnl(header))
+        //RD_Log("Cannot load XBoxKrnl Imports");
+
+    RDDocument* doc = RDLoader_GetDocument(loader);
+    RDDocument_SetEntry(doc, entrypoint);
+    XbeLoader::displayXbeInfo(loader, header);
     return true;
 }
 
-void XbeLoader::load()
+void XbeLoader::displayXbeInfo(RDLoader* loader, const XbeImageHeader* header)
 {
-    const auto* header = this->pointer<XbeImageHeader>();
-    this->loadSections(header, this->memoryoffset<XbeSectionHeader>(header, header->SectionHeader));
-    address_t entrypoint = 0;
+    auto* certificate = XbeLoader::memoryoffset<XbeCertificate>(loader, header, header->CertificateAddress);
+    //auto title = std::wstring(&certificate->TitleName, XBE_TITLENAME_SIZE);
 
-    if(!this->decodeEP(header->EntryPoint, entrypoint))
-    {
-        r_ctx->log("Cannot decode Entry Point");
-        return;
-    }
+    //if(!title.empty())
+        //rd_log("Game Title: " + title.quoted());
 
-    if(!this->loadXBoxKrnl(header))
-    {
-        r_ctx->log("Cannot load XBoxKrnl Imports");
-        return;
-    }
-
-    ldrdoc->entry(entrypoint);
-    this->displayXbeInfo(header);
-}
-
-void XbeLoader::displayXbeInfo(const XbeImageHeader* header)
-{
-    auto* certificate = this->memoryoffset<XbeCertificate>(header, header->CertificateAddress);
-    String title = String::wide(certificate->TitleName, XBE_TITLENAME_SIZE);
-
-    if(!title.empty())
-        r_ctx->log("Game Title: " + title.quoted());
-
-    String s;
+    std::string s;
 
     if(certificate->GameRegion & XBE_GAME_REGION_RESTOFWORLD)
         s += "ALL";
@@ -64,95 +59,106 @@ void XbeLoader::displayXbeInfo(const XbeImageHeader* header)
         s += s.empty() ? "DEBUG" : ", DEBUG";
 
     if(!s.empty())
-        r_ctx->log("Allowed Regions: " + s);
+        rd_log("Allowed Regions: " + s);
 }
 
-bool XbeLoader::decodeEP(u32 encodedep, address_t& ep)
+bool XbeLoader::decodeEP(RDContext* ctx, u32 encodedep, rd_address& ep)
 {
+    auto* doc = RDContext_GetDocument(ctx);
     ep = encodedep ^ XBE_ENTRYPOINT_XOR_RETAIL;
-    const Segment* segment = ldrdoc->segment(ep);
 
-    if(!segment)
+    bool decoded = false;
+
+    if(!(decoded = RDDocument_GetSegmentAddress(doc, ep, nullptr)))
     {
         ep = encodedep ^ XBE_ENTRYPOINT_XOR_DEBUG;
-        segment = ldrdoc->segment(ep);
 
-        if(segment)
-            r_ctx->log("Executable Type: DEBUG");
+        if((decoded = RDDocument_GetSegmentAddress(doc, ep, nullptr)))
+            rd_log("Executable Type: DEBUG");
     }
     else
-        r_ctx->log("Executable Type: RETAIL");
+        rd_log("Executable Type: RETAIL");
 
-    return segment != nullptr;
+    return decoded;
 }
 
-bool XbeLoader::decodeKernel(u32 encodedthunk, u32 &thunk)
+bool XbeLoader::decodeKernel(RDContext* ctx, u32 encodedthunk, u32 &thunk)
 {
+    auto* doc = RDContext_GetDocument(ctx);
     thunk = encodedthunk ^ XBE_KERNEL_XOR_RETAIL;
-    const Segment* segment = ldrdoc->segment(thunk);
 
-    if(!segment)
+    bool decoded = false;
+
+    if((decoded = RDDocument_GetSegmentAddress(doc, thunk, nullptr)))
     {
         thunk = encodedthunk ^ XBE_KERNEL_XOR_DEBUG;
-        segment = ldrdoc->segment(thunk);
+
+        if(!RDDocument_GetSegmentAddress(doc, thunk, nullptr))
+            return false;
     }
 
-    return segment != nullptr;
+    return decoded;
 }
 
-void XbeLoader::loadSections(const XbeImageHeader* header, XbeSectionHeader *sectionhdr)
+void XbeLoader::loadSections(RDContext* ctx, RDLoader* loader, const XbeImageHeader* header, XbeSectionHeader *sectionhdr)
 {
+    auto* doc = RDContext_GetDocument(ctx);
+
     for(u32 i = 0; i < header->NumberOfSections; i++)
     {
-        String sectname = this->memoryoffset<const char>(header, sectionhdr[i].SectionName);
-        type_t secttype = Segment::T_None;
+        std::string sectname = XbeLoader::memoryoffset<const char>(loader, header, sectionhdr[i].SectionName);
+        rd_flag secttype = SegmentFlags_None;
 
         if(sectionhdr[i].Flags.Executable)
         {
-            if((sectname[0] == '.') && sectname.contains("data"))
-                secttype = Segment::T_Data;
+            if((sectname[0] == '.') && (sectname.find("data") != std::string::npos))
+                secttype = SegmentFlags_Data;
             else
-                secttype = Segment::T_Code;
+                secttype = SegmentFlags_Code;
         }
         else
-            secttype = Segment::T_Data;
+            secttype = SegmentFlags_Data;
 
         if(!sectionhdr[i].RawSize)
-            secttype = Segment::T_Bss;
+            secttype = SegmentFlags_Bss;
 
-        ldrdoc->segment(sectname, sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
+        RDDocument_AddSegment(doc, sectname.c_str(), sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
     }
 
-    ldrdoc->segment("XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, Segment::T_Bss);
+    RDDocument_AddSegment(doc, "XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, SegmentFlags_Bss);
 }
 
-bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)
+// bool XbeLoader::loadXBoxKrnl(const XbeImageHeader* header)
+// {
+//     Ordinals ordinals;
+//     ordinals.load(r_ctx->db(REDasm::FS::Path::join("xbe", "xboxkrnl.json")));
+//
+//     u32 kernelimagethunk = 0;
+//
+//     if(!this->decodeKernel(header->KernelImageThunk, kernelimagethunk))
+//         return false;
+//
+//     offset_location thunkoffset = this->offset(kernelimagethunk);
+//
+//     if(!thunkoffset.valid)
+//         return false;
+//
+//     u32* pthunk = this->pointer<u32>(thunkoffset);
+//
+//     while(*pthunk)
+//     {
+//         String ordinalname = ordinals.name(*pthunk ^ XBE_ORDINAL_FLAG, "XBoxKrnl!");
+//         ldrdoc->imported(*pthunk, sizeof(u32), ordinalname);
+//         pthunk++;
+//     }
+//
+//     return true;
+// }
+
+void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
-    Ordinals ordinals;
-    ordinals.load(r_ctx->db(REDasm::FS::Path::join("xbe", "xboxkrnl.json")));
-
-    u32 kernelimagethunk = 0;
-
-    if(!this->decodeKernel(header->KernelImageThunk, kernelimagethunk))
-        return false;
-
-    offset_location thunkoffset = this->offset(kernelimagethunk);
-
-    if(!thunkoffset.valid)
-        return false;
-
-    u32* pthunk = this->pointer<u32>(thunkoffset);
-
-    while(*pthunk)
-    {
-        String ordinalname = ordinals.name(*pthunk ^ XBE_ORDINAL_FLAG, "XBoxKrnl!");
-        ldrdoc->imported(*pthunk, sizeof(u32), ordinalname);
-        pthunk++;
-    }
-
-    return true;
+    RD_PLUGIN_ENTRY(RDEntryLoader, xbe, "XBox Executable");
+    xbe.load = &XbeLoader::load;
+    xbe.test = &XbeLoader::test;
+    RDLoader_Register(pm, &xbe);
 }
-
-REDASM_LOADER("XBox Executable", "Dax", "MIT", 1)
-REDASM_LOAD { xbe.plugin = new XbeLoader(); return true; }
-REDASM_UNLOAD { xbe.plugin->release(); }

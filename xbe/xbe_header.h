@@ -1,6 +1,6 @@
 #pragma once
 
-#include <redasm/redasm.h>
+#include <rdapi/rdapi.h>
 
 #define XBE_MAGIC_NUMBER               0x48454258 // 'XBEH'
 #define XBE_ORDINAL_FLAG               0x80000000
@@ -15,8 +15,6 @@
 #define XBE_GAME_REGION_MANUFACTURING  0x80000000
 
 #define XBE_TITLENAME_SIZE        40
-
-namespace REDasm {
 
 struct XbeImageHeader
 {
@@ -78,5 +76,3 @@ struct XbeSectionHeader
     u32 HeadSharedRefCount, TailSharedRefCount;
     u8 SectionDigest[20];
 };
-
-} // namespace REDasm
