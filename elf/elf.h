@@ -28,19 +28,19 @@ class ElfLoader
         virtual ~ElfLoader() = default;
         virtual size_t endianness() const = 0;
         virtual const char* assembler() const = 0;
-        virtual RDLoader* loader() const = 0;
+        virtual RDContext* context() const = 0;
         virtual RDDocument* document() const = 0;
         virtual const ElfABI* abi() const = 0;
         virtual const u8* plt() const = 0;
         virtual u16 machine() const = 0;
 
     protected:
-        virtual void doLoad(RDLoader* loader) = 0;
+        virtual void doLoad(RDContext* ctx) = 0;
 
     public:
         static ElfLoader* parse(RDBuffer* buffer);
         static const char* test(const RDLoaderRequest* request);
-        static bool load(RDContext* ctx, RDLoader* loader);
+        static bool load(RDContext* ctx);
 };
 
 template<size_t bits> class ElfLoaderT: public ElfLoader
@@ -61,7 +61,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
         ElfLoaderT(RDBuffer* buffer);
         size_t endianness() const override;
         const char* assembler() const override;
-        RDLoader* loader() const override;
+        RDContext* context() const override;
         RDDocument* document() const override;
         const ElfABI* abi() const override;
         const u8* plt() const override;
@@ -71,7 +71,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
         const SHDR* findSegment(rd_address address) const;
 
     protected:
-        void doLoad(RDLoader* loader) override;
+        void doLoad(RDContext* ctx) override;
 
     private:
         void readSectionHeader(RDDocument* doc);
@@ -100,14 +100,14 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
         }
 
         template<typename T> const T* elfptr(const SHDR* shdr, rd_offset offset) const {
-            return reinterpret_cast<const T*>(reinterpret_cast<u8*>(RDLoader_GetData(m_loader)) + (ELF_LDR_VAL(shdr->sh_offset) + offset));
+            return reinterpret_cast<const T*>(reinterpret_cast<u8*>(RDContext_GetData(m_context)) + (ELF_LDR_VAL(shdr->sh_offset) + offset));
         }
 
     private:
         std::unordered_map<UVAL, std::string> m_versions;
         std::unordered_map<SVAL, UVAL> m_dynamic;
         std::unique_ptr<ElfABI> m_abi;
-        RDLoader* m_loader{nullptr};
+        RDContext* m_context{nullptr};
         RDBuffer* m_buffer;
         EHDR* m_ehdr;
         SHDR* m_shdr;

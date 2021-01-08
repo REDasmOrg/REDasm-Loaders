@@ -20,10 +20,10 @@ const char* PsxBiosLoader::test(const RDLoaderRequest* request)
     return "mips32le";
 }
 
-bool PsxBiosLoader::load(RDContext*, RDLoader* loader)
+bool PsxBiosLoader::load(RDContext* ctx)
 {
-    RDDocument* doc = RDLoader_GetDocument(loader);
-    RDBuffer* b = RDLoader_GetBuffer(loader);
+    RDDocument* doc = RDContext_GetDocument(ctx);
+    RDBuffer* b = RDContext_GetBuffer(ctx);
 
     RDDocument_AddSegment(doc, "RAM", 0, 0, PSX_RAM_SIZE, SegmentFlags_Bss);
     RDDocument_AddSegmentRange(doc, "KERNEL1", 0, PSX_BIOS_KERNEL1, 0xBFC10000, SegmentFlags_CodeData);
@@ -31,21 +31,21 @@ bool PsxBiosLoader::load(RDContext*, RDLoader* loader)
     RDDocument_AddSegmentRange(doc, "BOOTMENU", 0x18000, PSX_BIOS_BOOTMENU, 0xBFC64000, SegmentFlags_CodeData);
     RDDocument_AddSegmentRange(doc, "CHARACTERS", 0x64000, PSX_BIOS_CHARACTERS, PSX_BIOS_CHARACTERS + RDBuffer_Size(b), SegmentFlags_Data);
 
-    PsxBiosLoader::parseROM(doc, loader);
+    PsxBiosLoader::parseROM(doc, ctx);
     PsxBiosLoader::parseRAM(doc, b);
     RDDocument_SetEntry(doc, PSX_BIOS_ENTRYPOINT);
     return true;
 }
 
-void PsxBiosLoader::parseStrings(rd_address startaddress, const std::vector<std::string> strings, RDDocument* doc, RDLoader* ldr)
+void PsxBiosLoader::parseStrings(rd_address startaddress, const std::vector<std::string> strings, RDDocument* doc, RDContext* ctx)
 {
-    u8* data = RD_AddrPointer(ldr, startaddress);
+    u8* data = RD_AddrPointer(ctx, startaddress);
     if(!data) return;
 
     for(const std::string& s : strings)
     {
         size_t len = std::strlen(reinterpret_cast<char*>(data));
-        auto loc = RD_AddressOf(ldr, data);
+        auto loc = RD_AddressOf(ctx, data);
         if(!loc.valid) break;
 
         RDDocument_AddAsciiString(doc, loc.address, len, s.c_str());
@@ -58,10 +58,10 @@ void PsxBiosLoader::parseStrings(rd_address startaddress, const std::vector<std:
     }
 }
 
-void PsxBiosLoader::parseROM(RDDocument* doc, RDLoader* ldr)
+void PsxBiosLoader::parseROM(RDDocument* doc, RDContext* ctx)
 {
-    PsxBiosLoader::parseStrings(0xBFC00108, { "kernelMaker", "versionString" }, doc, ldr);
-    PsxBiosLoader::parseStrings(0xBFC7FF32, { "guiVersion", "copyrightString" }, doc, ldr);
+    PsxBiosLoader::parseStrings(0xBFC00108, { "kernelMaker", "versionString" }, doc, ctx);
+    PsxBiosLoader::parseStrings(0xBFC7FF32, { "guiVersion", "copyrightString" }, doc, ctx);
 
     RDDocument_AddData(doc, 0xBFC00100, 4, "kernelDate");
     //u8* data = RD_AddrPointer(ldr, 0xBFC00100);

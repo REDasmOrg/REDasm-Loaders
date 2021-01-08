@@ -2,14 +2,14 @@
 
 #define IS_VALID_MAGIC(magic) ((magic == ESP_IMAGE1_MAGIC) || (magic == ESP_IMAGE2_MAGIC))
 
-bool ESPCommon::load(RDLoader* loader, rd_offset offset)
+bool ESPCommon::load(RDContext* ctx, rd_offset offset)
 {
-    u8* magic = RD_Pointer(loader, offset);
+    u8* magic = RD_Pointer(ctx, offset);
 
     switch(*magic)
     {
-        case ESP_IMAGE1_MAGIC: return this->load(loader, reinterpret_cast<ESP8266RomHeader1*>(magic));
-        case ESP_IMAGE2_MAGIC: return this->load(loader, reinterpret_cast<ESP8266RomHeader2*>(magic));
+        case ESP_IMAGE1_MAGIC: return this->load(ctx, reinterpret_cast<ESP8266RomHeader1*>(magic));
+        case ESP_IMAGE2_MAGIC: return this->load(ctx, reinterpret_cast<ESP8266RomHeader2*>(magic));
         default: rd_log("Unknown magic: " + rd_tohex(*magic)); break;
     }
 
@@ -53,9 +53,9 @@ const char* ESPCommon::test(const RDLoaderRequest* request)
     return "xtensale";
 }
 
-bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, rd_offset offset)
+bool ESPCommon::load(RDContext* ctx, ESP8266RomHeader1 *header, rd_offset offset)
 {
-    RDDocument* document = RDLoader_GetDocument(loader);
+    RDDocument* document = RDContext_GetDocument(ctx);
     auto* segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(header, sizeof(ESP8266RomHeader1)));
 
     for(size_t i = 0 ; segment && (i < header->segments); i++)
@@ -89,7 +89,7 @@ bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, rd_offset offs
             segflags = SegmentFlags_Data;
         }
 
-        RDDocument_AddSegment(document, segname.c_str(), RD_FileOffset(loader, segment).offset + sizeof(ESPSegment), segment->address, segment->size, segflags);
+        RDDocument_AddSegment(document, segname.c_str(), RD_FileOffset(ctx, segment).offset + sizeof(ESPSegment), segment->address, segment->size, segflags);
         if(offset != RD_NVAL) offset += segment->size;
 
         segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(segment, sizeof(ESPSegment) + segment->size));
@@ -99,13 +99,13 @@ bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader1 *header, rd_offset offs
     return true;
 }
 
-bool ESPCommon::load(RDLoader* loader, ESP8266RomHeader2 *header)
+bool ESPCommon::load(RDContext* ctx, ESP8266RomHeader2 *header)
 {
     auto* header1 = reinterpret_cast<ESP8266RomHeader1*>(RD_RelPointer(header, sizeof(ESP8266RomHeader2) + header->size));
     if(!header1 || (header1->magic != ESP_IMAGE1_MAGIC)) return false;
 
-    auto loc = RD_FileOffset(loader, header);
+    auto loc = RD_FileOffset(ctx, header);
     if(!loc.valid) return false;
 
-    return this->load(loader, header1, loc.offset + sizeof(ESP8266RomHeader2));
+    return this->load(ctx, header1, loc.offset + sizeof(ESP8266RomHeader2));
 }

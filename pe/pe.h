@@ -18,11 +18,11 @@ class PELoader
 
     public:
         static const char* test(const RDLoaderRequest* request);
-        static bool load(RDContext* ctx, RDLoader* loader);
+        static bool load(RDContext* ctx);
         static const char* assembler(const ImageNtHeaders* ntheaders);
 
     public:
-        static const ImageNtHeaders* getNtHeaders(RDLoader* loader, const ImageDosHeader** dosheader = nullptr);
+        static const ImageNtHeaders* getNtHeaders(RDContext* ctx, const ImageDosHeader** dosheader = nullptr);
         static const ImageNtHeaders* getNtHeaders(RDBuffer* buffer, const ImageDosHeader** dosheader = nullptr);
         static size_t getBits(const ImageNtHeaders* ntheaders);
 };
@@ -38,7 +38,7 @@ class PELoaderT: public PELoader
         typedef typename std::conditional<b == 64, ImageLoadConfigDirectory64, ImageLoadConfigDirectory32>::type ImageLoadConfigDirectory;
 
     public:
-        PELoaderT(RDContext* ctx, RDLoader* loader);
+        PELoaderT(RDContext* ctx);
         const PEClassifier* classifier() const override;
         void parse() override;
 
@@ -66,12 +66,11 @@ class PELoaderT: public PELoader
     private:
         template<typename T> T* rvaPointer(pe_integer_t rva) const {
             RDLocation offset = PEUtils::rvaToOffset(m_ntheaders, rva);
-            return offset.valid ? reinterpret_cast<T*>(RD_Pointer(m_loader, offset.value)) : nullptr;
+            return offset.valid ? reinterpret_cast<T*>(RD_Pointer(m_context, offset.value)) : nullptr;
         }
 
     private:
         RDContext* m_context;
-        RDLoader* m_loader;
         RDDocument* m_document;
         PEImports m_imports;
         std::unique_ptr<PEClassifier> m_classifier;

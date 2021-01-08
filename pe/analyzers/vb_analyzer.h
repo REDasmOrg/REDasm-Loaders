@@ -12,7 +12,7 @@ class VBAnalyzer
 
     private:
         void disassembleTrampoline(rd_address eventva, const std::string &name);
-        void decompileObject(RDLoader* loader, const VBPublicObjectDescriptor& pubobjdescr);
+        void decompileObject(const VBPublicObjectDescriptor& pubobjdescr);
         bool decompile(rd_address thunrtdata);
 
     private:

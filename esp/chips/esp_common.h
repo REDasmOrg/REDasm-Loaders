@@ -13,12 +13,12 @@ class ESPCommon
 {
     public:
         ESPCommon() = default;
-        virtual bool load(RDLoader* loader, rd_offset offset = RD_NVAL);
+        virtual bool load(RDContext* ctx, rd_offset offset = RD_NVAL);
 
     public:
         static const char* test(const RDLoaderRequest* request);
 
     protected:
-        bool load(RDLoader* loader, ESP8266RomHeader1* header, rd_offset offset = 0);
-        bool load(RDLoader* loader, ESP8266RomHeader2* header);
+        bool load(RDContext* ctx, ESP8266RomHeader1* header, rd_offset offset = 0);
+        bool load(RDContext* ctx, ESP8266RomHeader2* header);
 };

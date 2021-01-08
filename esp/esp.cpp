@@ -12,17 +12,17 @@
 
 typedef std::pair<rd_offset, const char*> ImageItem;
 
-template<typename ESPModel> bool load(RDContext*, RDLoader* loader)
-{
+template<typename ESPModel>
+bool load(RDContext* ctx) {
     std::deque<ImageItem> images;
 
-    const u8* magic = RDLoader_GetData(loader);
+    const u8* magic = RDContext_GetData(ctx);
     if(IS_VALID_MAGIC(*magic)) images.push_back({ 0, "BootLoader" });
 
-    magic = RD_Pointer(loader, ESP_IMAGE0_OFFSET);
+    magic = RD_Pointer(ctx, ESP_IMAGE0_OFFSET);
     if(magic && IS_VALID_MAGIC(*magic)) images.push_back({ ESP_IMAGE0_OFFSET, "Image 0" });
 
-    magic = RD_Pointer(loader, ESP_IMAGE1_OFFSET);
+    magic = RD_Pointer(ctx, ESP_IMAGE1_OFFSET);
     if(magic && IS_VALID_MAGIC(*magic)) images.push_back({ ESP_IMAGE1_OFFSET, "Image 1" });
 
     std::vector<RDUIOptions> options;
@@ -32,7 +32,7 @@ template<typename ESPModel> bool load(RDContext*, RDLoader* loader)
     if(idx == -1) return false;
 
     ESPModel espmodel;
-    return espmodel.load(loader, images[idx].first);
+    return espmodel.load(ctx, images[idx].first);
 }
 
 void rdplugin_init(RDContext*, RDPluginModule* pm)

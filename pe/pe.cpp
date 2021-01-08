@@ -13,9 +13,9 @@
 
 #define PELOADER_USERDATA "peloader_userdata"
 
-const ImageNtHeaders* PELoader::getNtHeaders(RDLoader* loader, const ImageDosHeader** dosheader)
+const ImageNtHeaders* PELoader::getNtHeaders(RDContext* ctx, const ImageDosHeader** dosheader)
 {
-    return PELoader::getNtHeaders(RDLoader_GetBuffer(loader), dosheader);
+    return PELoader::getNtHeaders(RDContext_GetBuffer(ctx), dosheader);
 }
 
 const ImageNtHeaders* PELoader::getNtHeaders(RDBuffer* buffer, const ImageDosHeader** dosheader)
@@ -45,9 +45,9 @@ size_t PELoader::getBits(const ImageNtHeaders* ntheaders)
 }
 
 template<size_t b>
-PELoaderT<b>::PELoaderT(RDContext* ctx, RDLoader* loader): m_context(ctx), m_loader(loader)
+PELoaderT<b>::PELoaderT(RDContext* ctx): m_context(ctx)
 {
-    m_document = RDLoader_GetDocument(loader);
+    m_document = RDContext_GetDocument(ctx);
 
     m_classifier = std::make_unique<PEClassifier>(ctx);
     m_classifier->setBits(b);
@@ -65,7 +65,7 @@ template<size_t b> const PEClassifier *PELoaderT<b>::classifier() const { return
 template<size_t b>
 void PELoaderT<b>::parse()
 {
-    m_ntheaders = PELoader::getNtHeaders(m_loader, &m_dosheader);
+    m_ntheaders = PELoader::getNtHeaders(RDContext_GetBuffer(m_context), &m_dosheader);
     m_sectiontable = IMAGE_FIRST_SECTION(m_ntheaders);
 
     if(b == 32) m_optionalheader = reinterpret_cast<const ImageOptionalHeader*>(&m_ntheaders->OptionalHeader32);
@@ -122,7 +122,7 @@ void PELoaderT<b>::checkDebugInfo()
         rd_log("Debug info type: CodeView");
         m_classifier->classifyVisualStudio();
 
-        CVHeader* cvhdr = reinterpret_cast<CVHeader*>(RD_Pointer(m_loader, dbgoffset));
+        CVHeader* cvhdr = reinterpret_cast<CVHeader*>(RD_Pointer(m_context, dbgoffset));
         if(!cvhdr) return;
 
         if(cvhdr->Signature == PE_PDB_NB10_SIGNATURE)
@@ -365,8 +365,8 @@ template<size_t b> void PELoaderT<b>::loadSymbolTable()
 
     //FIXME: RDArguments a;
     //FIXME: RDArguments_Init(&a);
-    //FIXME: RDArguments_PushPointer(&a, RDLoader_GetDocument(m_loader));
-    //FIXME: RDArguments_PushPointer(&a, RD_Pointer(m_loader, m_ntheaders->FileHeader.PointerToSymbolTable));
+    //FIXME: RDArguments_PushPointer(&a, RDContext_GetDocument(m_context));
+    //FIXME: RDArguments_PushPointer(&a, RD_Pointer(m_context, m_ntheaders->FileHeader.PointerToSymbolTable));
     //FIXME: RDArguments_PushUInt(&a, m_ntheaders->FileHeader.NumberOfSymbols);
     //FIXME: RDCommand_Execute("COFF", &a);
 }
@@ -376,7 +376,7 @@ void PELoaderT<b>::readTLSCallbacks(const ImageTlsDirectory *tlsdirectory)
 {
     if(!tlsdirectory->AddressOfCallBacks) return;
 
-    pe_integer_t* callbacks = reinterpret_cast<pe_integer_t*>(RD_AddrPointer(m_loader, tlsdirectory->AddressOfCallBacks));
+    pe_integer_t* callbacks = reinterpret_cast<pe_integer_t*>(RD_AddrPointer(m_context, tlsdirectory->AddressOfCallBacks));
 
     for(pe_integer_t i = 0; *callbacks; i++, callbacks++)
         RDDocument_AddFunction(m_document, *callbacks, rd_str("TlsCallback_" + std::to_string(i)));
@@ -451,13 +451,13 @@ const char* PELoader::test(const RDLoaderRequest* request)
     return PELoader::assembler(ntheaders);
 }
 
-bool PELoader::load(RDContext* ctx, RDLoader* loader)
+bool PELoader::load(RDContext* ctx)
 {
-    const ImageNtHeaders* ntheaders = PELoader::getNtHeaders(RDLoader_GetBuffer(loader), nullptr);
+    const ImageNtHeaders* ntheaders = PELoader::getNtHeaders(RDContext_GetBuffer(ctx), nullptr);
     PELoader* peloader = nullptr;
 
-    if(PELoader::getBits(ntheaders) == 32) peloader = new PELoaderT<32>(ctx, loader);
-    else peloader = new PELoaderT<64>(ctx, loader);
+    if(PELoader::getBits(ntheaders) == 32) peloader = new PELoaderT<32>(ctx);
+    else peloader = new PELoaderT<64>(ctx);
 
     RDContext_SetUserData(ctx, PELOADER_USERDATA, reinterpret_cast<uintptr_t>(peloader));
     peloader->parse();

@@ -61,28 +61,28 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     RDContext_DisassembleFunction(m_context, val.address, name.c_str());
 }
 
-void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescriptor &pubobjdescr)
+void VBAnalyzer::decompileObject(const VBPublicObjectDescriptor &pubobjdescr)
 {
     if(!pubobjdescr.lpObjectInfo) return;
 
-    VBObjectInfoOptional* objinfo = reinterpret_cast<VBObjectInfoOptional*>(RD_AddrPointer(loader, pubobjdescr.lpObjectInfo));
+    VBObjectInfoOptional* objinfo = reinterpret_cast<VBObjectInfoOptional*>(RD_AddrPointer(m_context, pubobjdescr.lpObjectInfo));
 
     // if lpConstants points to the address after it,
     // there's no optional object information
     if(!HAS_OPTIONAL_INFO(pubobjdescr, objinfo) || !objinfo->lpControls)
         return;
 
-    std::string pubobjname = reinterpret_cast<const char*>(RD_AddrPointer(loader, pubobjdescr.lpszObjectName));
-    VBControlInfo* ctrlinfo = reinterpret_cast<VBControlInfo*>(RD_AddrPointer(loader, objinfo->lpControls));
+    std::string pubobjname = reinterpret_cast<const char*>(RD_AddrPointer(m_context, pubobjdescr.lpszObjectName));
+    VBControlInfo* ctrlinfo = reinterpret_cast<VBControlInfo*>(RD_AddrPointer(m_context, objinfo->lpControls));
 
     for(size_t i = 0; i < objinfo->dwControlCount; i++)
     {
         const VBControlInfo& ctrl = ctrlinfo[i];
-        const VBComponents::Component* component = VBComponents::get(m_context, reinterpret_cast<GUID*>(RD_AddrPointer(loader, ctrl.lpGuid)));
+        const VBComponents::Component* component = VBComponents::get(m_context, reinterpret_cast<GUID*>(RD_AddrPointer(m_context, ctrl.lpGuid)));
         if(!component) continue;
 
-        VBEventInfo* eventinfo = reinterpret_cast<VBEventInfo*>(RD_AddrPointer(loader, ctrl.lpEventInfo));
-        std::string componentname = reinterpret_cast<const char*>(RD_AddrPointer(loader, ctrl.lpszName));
+        VBEventInfo* eventinfo = reinterpret_cast<VBEventInfo*>(RD_AddrPointer(m_context, ctrl.lpEventInfo));
+        std::string componentname = reinterpret_cast<const char*>(RD_AddrPointer(m_context, ctrl.lpszName));
         u32* events = &eventinfo->lpEvents[0];
 
         for(size_t j = 0; j < component->events.size(); j++)
@@ -92,17 +92,15 @@ void VBAnalyzer::decompileObject(RDLoader* loader, const VBPublicObjectDescripto
 
 bool VBAnalyzer::decompile(rd_address thunrtdata)
 {
-    RDLoader* loader = RDContext_GetLoader(m_context);
-
-    m_vbheader = reinterpret_cast<VBHeader*>(RD_AddrPointer(loader, thunrtdata));
+    m_vbheader = reinterpret_cast<VBHeader*>(RD_AddrPointer(m_context, thunrtdata));
     if(!m_vbheader) return false;
 
     if(std::strncmp(m_vbheader->szVbMagic, "VB5!", VB_SIGNATURE_SIZE)) return false;
 
-    m_vbprojinfo = reinterpret_cast<VBProjectInfo*>(RD_AddrPointer(loader, m_vbheader->lpProjectData));
-    m_vbobjtable = reinterpret_cast<VBObjectTable*>(RD_AddrPointer(loader, m_vbprojinfo->lpObjectTable));
-    m_vbobjtreeinfo = reinterpret_cast<VBObjectTreeInfo*>(RD_AddrPointer(loader, m_vbobjtable->lpObjectTreeInfo));
-    m_vbpubobjdescr = reinterpret_cast<VBPublicObjectDescriptor*>(RD_AddrPointer(loader, m_vbobjtable->lpPubObjArray));
+    m_vbprojinfo = reinterpret_cast<VBProjectInfo*>(RD_AddrPointer(m_context, m_vbheader->lpProjectData));
+    m_vbobjtable = reinterpret_cast<VBObjectTable*>(RD_AddrPointer(m_context, m_vbprojinfo->lpObjectTable));
+    m_vbobjtreeinfo = reinterpret_cast<VBObjectTreeInfo*>(RD_AddrPointer(m_context, m_vbobjtable->lpObjectTreeInfo));
+    m_vbpubobjdescr = reinterpret_cast<VBPublicObjectDescriptor*>(RD_AddrPointer(m_context, m_vbobjtable->lpPubObjArray));
 
     //REDASM_SYMBOLIZE(VBHeader, thunrtdata);
     //REDASM_SYMBOLIZE(VBProjectInfo, m_vbheader->lpProjectData);
@@ -111,7 +109,7 @@ bool VBAnalyzer::decompile(rd_address thunrtdata)
     //REDASM_SYMBOLIZE(VBPublicObjectDescriptor, m_vbobjtable->lpPubObjArray);
 
     for(size_t i = 0; i < m_vbobjtable->wTotalObjects; i++)
-        this->decompileObject(loader, m_vbpubobjdescr[i]);
+        this->decompileObject(m_vbpubobjdescr[i]);
 
     return true;
 }

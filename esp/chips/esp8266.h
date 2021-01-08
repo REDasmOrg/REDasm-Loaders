@@ -6,7 +6,7 @@
 class ESP8266: public ESPCommon
 {
     public:
-        bool load(RDLoader* loader, rd_offset offset = 0) override;
+        bool load(RDContext* ctx, rd_offset offset = 0) override;
         static void initImports();
 
     private:

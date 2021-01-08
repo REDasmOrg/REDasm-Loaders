@@ -15,10 +15,10 @@ const char* test(const RDLoaderRequest* request)
     return nullptr;
 }
 
-static bool load(RDContext*, RDLoader* loader)
+static bool load(RDContext* ctx)
 {
-    RDBuffer* buffer = RDLoader_GetBuffer(loader);
-    RDDocument* doc = RDLoader_GetDocument(loader);
+    RDBuffer* buffer = RDContext_GetBuffer(ctx);
+    RDDocument* doc = RDContext_GetDocument(ctx);
 
     RDDocument_AddSegment(doc, "STACK", 0, 0, 0x0040, SegmentFlags_Bss);
     RDDocument_AddSegment(doc, "SCRATCHPAD", 0, 0x0040, 0x000D, SegmentFlags_Bss);

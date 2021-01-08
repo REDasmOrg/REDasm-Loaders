@@ -5,15 +5,15 @@
 
 std::unordered_map<rd_address, const char*> ESP8266::m_imports;
 
-bool ESP8266::load(RDLoader* loader, rd_offset offset)
+bool ESP8266::load(RDContext* ctx, rd_offset offset)
 {
-    RDDocument* document = RDLoader_GetDocument(loader);
+    RDDocument* document = RDContext_GetDocument(ctx);
     RDDocument_AddSegment(document, ".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentFlags_Bss);
 
     for(const auto& [address, name] : m_imports)
         RDDocument_AddImported(document, address, sizeof(u32), name);
 
-    return ESPCommon::load(loader, offset);
+    return ESPCommon::load(ctx, offset);
 }
 
 void ESP8266::initImports()
