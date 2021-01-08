@@ -39,10 +39,9 @@ void XbeLoader::displayXbeInfo(RDContext* ctx, const XbeImageHeader* header)
 {
     auto* certificate = XbeLoader::memoryoffset<XbeCertificate>(ctx, header, header->CertificateAddress);
 
-    //auto title = std::wstring(&certificate->TitleName, XBE_TITLENAME_SIZE);
-
-    //if(!title.empty())
-        //rd_log("Game Title: " + title.quoted());
+    size_t len = XBE_TITLENAME_SIZE;
+    const auto* title = RD_FromWString(reinterpret_cast<const char16_t*>(&certificate->TitleName), &len);
+    if(title && len) rd_log("Game Title: '" + std::string(title) + "'");
 
     std::string s;
 
