@@ -2,7 +2,7 @@
 #include <string>
 
 #define XBE_XBOXKRNL_BASEADDRESS 0x80000000
-#define XBOXKRNL_ORDINALS        "ordinals"
+#define XBOXKRNL_ORDINALS        "xboxkrnl_ordinals"
 
 const char* XbeLoader::test(const RDLoaderRequest* request)
 {
@@ -91,11 +91,11 @@ bool XbeLoader::decodeKernel(RDContext* ctx, u32 encodedthunk, u32 &thunk)
 
     bool decoded = false;
 
-    if((decoded = RDDocument_GetSegmentAddress(doc, thunk, nullptr)))
+    if(!(decoded = RDDocument_GetSegmentAddress(doc, thunk, nullptr)))
     {
         thunk = encodedthunk ^ XBE_KERNEL_XOR_DEBUG;
 
-        if(!RDDocument_GetSegmentAddress(doc, thunk, nullptr))
+        if(!(decoded = RDDocument_GetSegmentAddress(doc, thunk, nullptr)))
             return false;
     }
 
@@ -145,16 +145,23 @@ bool XbeLoader::loadXBoxKrnl(RDContext* ctx, const XbeImageHeader* header)
     auto loc = RD_Offset(ctx, kernelimagethunk);
     if(!loc.valid) return false;
 
-    //     u32* pthunk = this->pointer<u32>(thunkoffset);
-    //
-    //     while(*pthunk)
-    //     {
-    //         String ordinalname = ordinals.name(*pthunk ^ XBE_ORDINAL_FLAG, "XBoxKrnl!");
-    //         ldrdoc->imported(*pthunk, sizeof(u32), ordinalname);
-    //         pthunk++;
-    //     }
-    //
-    //     return true;
+    auto* doc = RDContext_GetDocument(ctx);
+    u32* pthunk = reinterpret_cast<u32*>(RD_Pointer(ctx, loc.offset));
+
+    while(*pthunk)
+    {
+        u32 ordinal = *pthunk ^ XBE_ORDINAL_FLAG;
+        RDDatabaseValue value;
+
+        if(RDDatabase_Query(db, (std::string(XBOXKRNL_ORDINALS) + "/" + std::to_string(ordinal)).c_str(), &value))
+            RDDocument_AddImported(doc, *pthunk, sizeof(u32), value.s);
+        else
+            RDDocument_AddImported(doc, *pthunk, sizeof(u32), ("XBoxKrnl!Ordinal_" + rd_tohexbits(ordinal, 16, false)).c_str());
+
+        pthunk++;
+    }
+
+    return true;
 }
 
 void rdplugin_init(RDContext*, RDPluginModule* pm)
