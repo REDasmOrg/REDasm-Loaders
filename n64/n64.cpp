@@ -287,5 +287,5 @@ bool N64Loader::checkCountryCode(const N64RomHeader *header)
 }
 
 REDASM_LOADER("Nintendo 64 ROM", "Dax", "MIT", 1)
-REDASM_LOAD { n64.plugin = new N64Loader(); return true; }
-REDASM_UNLOAD { n64.plugin->release(); }
+//REDASM_LOAD { n64.plugin = new N64Loader(); return true; }
+//REDASM_UNLOAD { n64.plugin->release(); }
