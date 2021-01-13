@@ -184,14 +184,9 @@ void ElfLoaderT<bits>::readSectionHeader(RDDocument* doc)
         switch(ELF_LDR_VAL(shdr.sh_type))
         {
             case SHT_SYMTAB: {
-                auto it = m_dynamic.find(DT_SYMENT);
-
-                if(it != m_dynamic.end()) {
-                    auto val = ELF_LDR_VAL(shdr.sh_offset);
-                    rd_log("Reading symbol table @ " + rd_tohex(val));
-                    this->readSymbols(doc, &shdr, val, it->second);
-                }
-
+                auto val = ELF_LDR_VAL(shdr.sh_offset);
+                if(shdr.sh_entsize) rd_log("Reading symbol table @ " + rd_tohex(val));
+                this->readSymbols(doc, &shdr, val, shdr.sh_entsize);
                 break;
             }
 
@@ -393,7 +388,7 @@ void ElfLoaderT<bits>::readVersions(ElfLoaderT::UVAL address, ElfLoaderT::UVAL c
 template<size_t bits>
 void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr, ElfLoaderT::UVAL offset, UVAL entrysize)
 {
-    if(!shdr || (ELF_LDR_VAL(shdr->sh_link) >= ELF_LDR_VAL(this->m_ehdr->e_shnum))) return;
+    if(!entrysize || !shdr || (ELF_LDR_VAL(shdr->sh_link) >= ELF_LDR_VAL(this->m_ehdr->e_shnum))) return;
 
     rd_offset baseoffset = offset - ELF_LDR_VAL(shdr->sh_offset);
     ElfLoaderT::UVAL count = (ELF_LDR_VAL(shdr->sh_size) - baseoffset) / entrysize;
