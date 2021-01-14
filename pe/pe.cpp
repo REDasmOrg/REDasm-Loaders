@@ -363,12 +363,11 @@ template<size_t b> void PELoaderT<b>::loadSymbolTable()
 
     rd_log("Loading symbol table @ " + rd_tohex(m_ntheaders->FileHeader.PointerToSymbolTable));
 
-    //FIXME: RDArguments a;
-    //FIXME: RDArguments_Init(&a);
-    //FIXME: RDArguments_PushPointer(&a, RDContext_GetDocument(m_context));
-    //FIXME: RDArguments_PushPointer(&a, RD_Pointer(m_context, m_ntheaders->FileHeader.PointerToSymbolTable));
-    //FIXME: RDArguments_PushUInt(&a, m_ntheaders->FileHeader.NumberOfSymbols);
-    //FIXME: RDCommand_Execute("COFF", &a);
+    RDArguments a;
+    RDArguments_Init(&a);
+    RDArguments_PushPointer(&a, const_cast<ImageFileHeader*>(&m_ntheaders->FileHeader)); // COFF EntryPoint
+    RDArguments_PushUInt(&a, m_optionalheader->ImageBase);
+    RDContext_ExecuteCommand(m_context, "parsecoff", &a);
 }
 
 template<size_t b>
