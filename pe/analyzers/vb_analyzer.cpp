@@ -37,13 +37,13 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
 {
     if(!eventva) return;
 
-    if(!RDContext_CreateFunction(m_context, eventva, RD_Thunk(name.c_str()))) return;
+    if(!RDContext_DisassembleFunction(m_context, eventva, RD_Thunk(name.c_str()))) return;
 
     rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, eventva));
-    if(!il) return;
+    if(!il || (RDILFunction_Size(il.get()) < 2)) return;
 
-    auto* copyexpr = RDILFunction_GetFirstExpression(il.get());
-    auto* gotoexpr = RDILFunction_GetLastExpression(il.get());
+    auto* copyexpr = RDILFunction_GetExpression(il.get(), 0);
+    auto* gotoexpr = RDILFunction_GetExpression(il.get(), 1);
 
     if(RDILExpression_Type(copyexpr) != RDIL_Copy) return;
     if(!RDILExpression_Match(gotoexpr, "goto cnst")) return;
