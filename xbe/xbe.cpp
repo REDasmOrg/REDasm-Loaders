@@ -16,7 +16,7 @@ const char* XbeLoader::test(const RDLoaderRequest* request)
 
 bool XbeLoader::load(RDContext* ctx)
 {
-    const auto* header = reinterpret_cast<XbeImageHeader*>(RDContext_GetData(ctx));
+    const auto* header = reinterpret_cast<XbeImageHeader*>(RDContext_GetBufferData(ctx));
     XbeLoader::loadSections(ctx, header, XbeLoader::memoryoffset<XbeSectionHeader>(ctx, header, header->SectionHeader));
     rd_address entrypoint = 0;
 

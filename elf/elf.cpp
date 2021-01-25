@@ -108,7 +108,7 @@ const u8* ElfLoaderT<bits>::plt() const
 {
     auto it = m_dynamic.find(DT_JMPREL);
     if(it == m_dynamic.end()) return nullptr;
-    return RDContext_GetData(m_context) + it->second;
+    return RDContext_GetBufferData(m_context) + it->second;
 }
 
 template<size_t bits>
@@ -366,7 +366,7 @@ void ElfLoaderT<bits>::readVersions(ElfLoaderT::UVAL address, ElfLoaderT::UVAL c
     const SHDR* shdr = this->findSegment(address);
     if(!shdr || (ELF_LDR_VAL(shdr->sh_link) >= ELF_LDR_VAL(this->m_ehdr->e_shnum))) return;
 
-    auto* verneed = reinterpret_cast<Elf_Verneed*>(RDContext_GetData(m_context) + ((address - ELF_LDR_VAL(shdr->sh_addr)) + ELF_LDR_VAL(shdr->sh_offset)));
+    auto* verneed = reinterpret_cast<Elf_Verneed*>(RDContext_GetBufferData(m_context) + ((address - ELF_LDR_VAL(shdr->sh_addr)) + ELF_LDR_VAL(shdr->sh_offset)));
     const SHDR* segstrings = &m_shdr[ELF_LDR_VAL(shdr->sh_link)];
 
     for(UVAL i = 0; i < count; i++)

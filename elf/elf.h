@@ -100,7 +100,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
         }
 
         template<typename T> const T* elfptr(const SHDR* shdr, rd_offset offset) const {
-            return reinterpret_cast<const T*>(reinterpret_cast<u8*>(RDContext_GetData(m_context)) + (ELF_LDR_VAL(shdr->sh_offset) + offset));
+            return reinterpret_cast<const T*>(reinterpret_cast<u8*>(RDContext_GetBufferData(m_context)) + (ELF_LDR_VAL(shdr->sh_offset) + offset));
         }
 
     private:

@@ -13,7 +13,7 @@ bool PsxExeLoader::load(RDContext* ctx)
     // this->signature("psyq");
     RDDocument* doc = RDContext_GetDocument(ctx);
 
-    const auto* header = reinterpret_cast<const PsxExeHeader*>(RDContext_GetData(ctx));
+    const auto* header = reinterpret_cast<const PsxExeHeader*>(RDContext_GetBufferData(ctx));
 
     if(header->t_addr > PSX_USER_RAM_START)
         RDDocument_AddSegment(doc, "RAM0", 0, PSX_USER_RAM_START, (header->t_addr - PSX_USER_RAM_START), SegmentFlags_Bss);
