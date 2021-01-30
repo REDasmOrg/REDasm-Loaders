@@ -1,9 +1,4 @@
-//#include <miniz.h>
 #include "n64.h"
-#include "n64_analyzer.h"
-#include <redasm/buffer/memorybuffer.h>
-#include <redasm/support/utils.h>
-#include <redasm/support/hash.h>
 
 // https://level42.ca/projects/ultra64/Documentation/man/pro-man/pro09/index9.3.html
 // http://en64.shoutwiki.com/wiki/ROM#Cartridge_ROM_Header
@@ -32,71 +27,76 @@
 #define N64_MAGIC_BS_B1         0x37
 #define N64_MAGIC_LE_B1         0x40
 
-N64Loader::N64Loader(): Loader() { }
-AssemblerRequest N64Loader::assembler() const { return ASSEMBLER_REQUEST("mips", "mips64be"); }
-
-bool N64Loader::test(const LoadRequest &request) const
+const char* N64Loader::test(const RDLoaderRequest* request)
 {
-    const auto* header = request.pointer<N64RomHeader>();
-    u32 magic = header->magic;
+    auto* header = reinterpret_cast<const N64RomHeader*>(RDBuffer_Data(request->buffer));
+    u32 magic = rd_frombe32(header->magic);
 
     if((magic != N64_MAGIC_BS) && (magic != N64_MAGIC_BE) && (magic != N64_MAGIC_LE))
-        return false;
+        return nullptr;
 
-    MemoryBuffer swappedbuffer;
+    //MemoryBuffer swappedbuffer;
 
-    if(magic != N64_MAGIC_BE)
-    {
-        REDasm::swapEndianness<u16>(request.view().buffer(), &swappedbuffer, sizeof(N64RomHeader)); // Swap the header
-        header = reinterpret_cast<const N64RomHeader*>(swappedbuffer.data());
-    }
+    //if(magic != N64_MAGIC_BE)
+    //{
+    //    REDasm::swapEndianness<u16>(request.view().buffer(), &swappedbuffer, sizeof(N64RomHeader)); // Swap the header
+    //    header = reinterpret_cast<const N64RomHeader*>(swappedbuffer.data());
+    //}
 
-    if(!N64Loader::checkMediaType(header) || !N64Loader::checkCountryCode(header))
-        return false;
+    //if(!N64Loader::checkMediaType(header) || !N64Loader::checkCountryCode(header))
+    //    return false;
 
-    if(!swappedbuffer.empty()) // Swap all
-    {
-        REDasm::swapEndianness<u16>(request.view().buffer(), &swappedbuffer);
-        header = reinterpret_cast<const N64RomHeader*>(swappedbuffer.data());
+    //if(!swappedbuffer.empty()) // Swap all
+    //{
+    //    REDasm::swapEndianness<u16>(request.view().buffer(), &swappedbuffer);
+    //    header = reinterpret_cast<const N64RomHeader*>(swappedbuffer.data());
 
-        BufferView swappedview = swappedbuffer.view();
-        return N64Loader::checkChecksum(header, swappedview);
-    }
+    //    BufferView swappedview = swappedbuffer.view();
+    //    return N64Loader::checkChecksum(header, swappedview);
+    //}
 
-    return N64Loader::checkChecksum(header, request.view());
+    //return N64Loader::checkChecksum(header, request.view())) "mips64be" : nullptr;
+    return "mips64be";
 }
 
-Analyzer *N64Loader::doCreateAnalyzer() const { return new N64Analyzer(); }
-
-void N64Loader::load()
+bool N64Loader::load(RDContext* ctx)
 {
-    const auto* header = this->pointer<N64RomHeader>();
+    auto* header = reinterpret_cast<const N64RomHeader*>(RDContext_GetBufferData(ctx));
+    RDDocument* doc = RDContext_GetDocument(ctx);
 
-    if(header->magic_0 != N64_MAGIC_BE_B1)
-        REDasm::swapEndianness<u16>(this->buffer());
+    //if(header->magic_0 != N64_MAGIC_BE_B1)
+        //REDasm::swapEndianness<u16>(this->buffer());
 
-    ldrdoc->segment("KSEG0", N64_ROM_HEADER_SIZE, this->getEP(header), this->buffer()->size() - N64_ROM_HEADER_SIZE, Segment::T_Code | Segment::T_Data);
+    RDDocument_AddSegment(doc, "KSEG0", N64_ROM_HEADER_SIZE,
+                          N64Loader::getEP(header), RDContext_GetBufferSize(ctx) - N64_ROM_HEADER_SIZE, SegmentFlags_CodeData);
+
     // TODO: map other segments
-    ldrdoc->entry(this->getEP(header));
+    RDDocument_SetEntry(doc, N64Loader::getEP(header));
+    return true;
 }
 
 u32 N64Loader::getEP(const N64RomHeader* header)
 {
-    u32be pc = header->program_counter;
-    u32 cic_version = N64Loader::getCICVersion(header);
+    u32 pc = rd_frombe32(header->program_counter);
+    u32 cicversion = N64Loader::getCICVersion(header);
 
-    if(cic_version != 0)
+    switch(cicversion)
     {
-        if(cic_version == 6103)         // CIC 6103 EP manipulation
+        case 6103: // CIC 6103 EP manipulation
             pc -= 0x100000;
-        else if (cic_version == 6106)   // CIC 6106 EP manipulation
+            break;
+
+        case 6106: // CIC 6106 EP manipulation
             pc -= 0x200000;
+            break;
+
+        default: break;
     }
 
     return pc;
 }
 
-u32 N64Loader::calculateChecksum(const N64RomHeader* header, const BufferView &view, u32 *crc) // Adapted from n64crc (http://n64dev.org/n64crc.html)
+u32 N64Loader::calculateChecksum(const N64RomHeader* header, const RDBufferView* view, u32 *crc) // Adapted from n64crc (http://n64dev.org/n64crc.html)
 {
     u32 bootcode, i, seed, t1, t2, t3, t4, t5, t6, r;
     u32 d;
@@ -109,20 +109,20 @@ u32 N64Loader::calculateChecksum(const N64RomHeader* header, const BufferView &v
 
     while (i < (N64_ROM_CHECKSUM_START + N64_ROM_CHECKSUM_LENGTH))
     {
-        d = static_cast<u32be>(view + i);
+        d = rd_frombe32(*reinterpret_cast<const u32*>(view->data + i));
 
         if((t6 + d) < t6)
             t4++;
 
         t6 += d;
         t3 ^= d;
-        r = Utils::rol(d, (d & 0x1F));
+        r = RD_Rol32(d, (d & 0x1F));
         t5 += r;
         if (t2 > d) t2 ^= r;
         else t2 ^= t6 ^ d;
 
         if(bootcode == 6105)
-            t1 += static_cast<u32be>(view + (N64_ROM_HEADER_SIZE + 0x0710 + (i & 0xFF))) ^ d;
+            t1 += rd_frombe32(*reinterpret_cast<const u32*>(view->data + (N64_ROM_HEADER_SIZE + 0x0710 + (i & 0xFF)))) ^ d;
         else
             t1 += t5 ^ d;
 
@@ -148,7 +148,7 @@ u32 N64Loader::calculateChecksum(const N64RomHeader* header, const BufferView &v
     return 0;
 }
 
-bool N64Loader::checkChecksum(const N64RomHeader *header, const BufferView &view)
+bool N64Loader::checkChecksum(const N64RomHeader *header, const RDBufferView* view)
 {
     u32 crc[2] = { 0 };
 
@@ -166,26 +166,13 @@ bool N64Loader::getBootcodeAndSeed(const N64RomHeader *header, u32 *bootcode, u3
     switch((*bootcode = N64Loader::getCICVersion(header)))
     {
         case 6101:
-        case 7102:
         case 6102:
-            *seed = N64_ROM_CHECKSUM_CIC_6102;
-            break;
+        case 7102: *seed = N64_ROM_CHECKSUM_CIC_6102; break;
 
-        case 6103:
-            *seed = N64_ROM_CHECKSUM_CIC_6103;
-            break;
-
-        case 6105:
-            *seed = N64_ROM_CHECKSUM_CIC_6105;
-            break;
-
-        case 6106:
-            *seed = N64_ROM_CHECKSUM_CIC_6106;
-            break;
-
-        default:
-            *seed = 0;
-            return false;
+        case 6103: *seed = N64_ROM_CHECKSUM_CIC_6103; break;
+        case 6105: *seed = N64_ROM_CHECKSUM_CIC_6105; break;
+        case 6106: *seed = N64_ROM_CHECKSUM_CIC_6106; break;
+        default: *seed = 0; return false;
     }
 
     return true;
@@ -193,37 +180,18 @@ bool N64Loader::getBootcodeAndSeed(const N64RomHeader *header, u32 *bootcode, u3
 
 u32 N64Loader::getCICVersion(const N64RomHeader* header)
 {
-    u64 bootcodecrc = Hash::crc32(reinterpret_cast<const u8*>(header->boot_code), N64_BOOT_CODE_SIZE);
+    u32 bootcodecrc = RD_Crc32(reinterpret_cast<const u8*>(header->boot_code), N64_BOOT_CODE_SIZE);
     u32 cic = 0;
 
     switch(bootcodecrc)
     {
-        case N64_BOOT_CODE_CIC_6101_CRC:
-            cic = 6101;
-            break;
-
-        case N64_BOOT_CODE_CIC_7102_CRC:
-            cic = 7102;
-            break;
-
-        case N64_BOOT_CODE_CIC_6102_CRC:
-            cic = 6102;
-            break;
-
-        case N64_BOOT_CODE_CIC_6103_CRC:
-            cic = 6103;
-            break;
-
-        case N64_BOOT_CODE_CIC_6105_CRC:
-            cic = 6105;
-            break;
-
-        case N64_BOOT_CODE_CIC_6106_CRC:
-            cic = 6106;
-            break;
-
-        default:
-            break;
+        case N64_BOOT_CODE_CIC_6101_CRC: cic = 6101; break;
+        case N64_BOOT_CODE_CIC_7102_CRC: cic = 7102; break;
+        case N64_BOOT_CODE_CIC_6102_CRC: cic = 6102; break;
+        case N64_BOOT_CODE_CIC_6103_CRC: cic = 6103; break;
+        case N64_BOOT_CODE_CIC_6105_CRC: cic = 6105; break;
+        case N64_BOOT_CODE_CIC_6106_CRC: cic = 6106; break;
+        default: break;
     }
 
     return cic;
@@ -272,20 +240,18 @@ bool N64Loader::checkCountryCode(const N64RomHeader *header)
      * 0x59 'Y' "European"
      */
 
-    if(header->country_code == 0x37)
-        return true;
-    if((header->country_code >= 0x41) && (header->country_code <= 0x4C))
-        return true;
-    if((header->country_code == 0x4E) || (header->country_code == 0x50))
-        return true;
-    if((header->country_code == 0x53) || (header->country_code == 0x55))
-        return true;
-    if((header->country_code >= 0x57) && (header->country_code <= 0x59))
-        return true;
-
+    if(header->country_code == 0x37) return true;
+    if((header->country_code >= 0x41) && (header->country_code <= 0x4C)) return true;
+    if((header->country_code == 0x4E) || (header->country_code == 0x50)) return true;
+    if((header->country_code == 0x53) || (header->country_code == 0x55)) return true;
+    if((header->country_code >= 0x57) && (header->country_code <= 0x59)) return true;
     return false;
 }
 
-REDASM_LOADER("Nintendo 64 ROM", "Dax", "MIT", 1)
-//REDASM_LOAD { n64.plugin = new N64Loader(); return true; }
-//REDASM_UNLOAD { n64.plugin->release(); }
+void rdplugin_init(RDContext*, RDPluginModule* pm)
+{
+    RD_PLUGIN_ENTRY(RDEntryLoader, n64, "Nintendo 64 ROM");
+    n64.test = &N64Loader::test;
+    n64.load = &N64Loader::load;
+    RDLoader_Register(pm, &n64);
+}
