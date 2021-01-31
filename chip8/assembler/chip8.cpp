@@ -99,8 +99,8 @@ void CHIP8::renderOperand(const RDRendererParams* rp, const CHIP8Operand* op)
         case CHIP8Operand_Register_DSP:   RDRenderer_Register(rp->renderer, "DSP");                                    break;
         case CHIP8Operand_Register_RS485: RDRenderer_Register(rp->renderer, "RS485");                                  break;
         case CHIP8Operand_Register_BAUD:  RDRenderer_Register(rp->renderer, "BAUD");                                   break;
-        case CHIP8Operand_Constant:       RDRenderer_Constant(rp->renderer, RD_ToHex(op->cnst));                       break;
-        case CHIP8Operand_Address:        RDRenderer_Unsigned(rp->renderer, op->addr);                                 break;
+        case CHIP8Operand_Constant:       RDRenderer_Unsigned(rp->renderer, op->cnst);                                 break;
+        case CHIP8Operand_Address:        RDRenderer_Reference(rp->renderer, op->addr);                                break;
 
         case CHIP8Operand_Register_Range:
             RDRenderer_Register(rp->renderer, ("$v" + std::to_string(op->reg1)).c_str());

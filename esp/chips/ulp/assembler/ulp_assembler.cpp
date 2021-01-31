@@ -120,7 +120,7 @@ void ULPAssembler::renderAluImm(const ULPInstruction* ulpinstr, const RDRenderer
     }
 
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->aluimm.imm));
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->aluimm.imm);
 }
 
 void ULPAssembler::renderAluStage(const ULPInstruction* ulpinstr, const RDRendererParams* rp)
@@ -131,7 +131,7 @@ void ULPAssembler::renderAluStage(const ULPInstruction* ulpinstr, const RDRender
 
     RDRenderer_MnemonicWord(rp->renderer, STAgeSEL[ulpinstr->alustage.sel], Theme_Default);
     if(ulpinstr->alustage.sel == 2) return;
-    RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->alustage.imm));
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->alustage.imm);
 }
 
 void ULPAssembler::renderJmp(const ULPInstruction* ulpinstr, const RDRendererParams* rp)
@@ -142,7 +142,7 @@ void ULPAssembler::renderJmp(const ULPInstruction* ulpinstr, const RDRendererPar
             RDRenderer_MnemonicWord(rp->renderer, "jump", ulpinstr->jump.type ? Theme_JumpCond : Theme_Jump);
 
             if(ulpinstr->jump.sel) RDRenderer_Register(rp->renderer, ULPAssembler::regName(ulpinstr->jump.rdest).c_str());
-            else RDRenderer_Unsigned(rp->renderer, WORDS_TO_ADDR(ulpinstr->jump.addr));
+            else RDRenderer_Reference(rp->renderer, WORDS_TO_ADDR(ulpinstr->jump.addr));
 
             if(ulpinstr->jump.type) {
                 RDRenderer_Text(rp->renderer, ", ");
@@ -158,9 +158,9 @@ void ULPAssembler::renderJmp(const ULPInstruction* ulpinstr, const RDRendererPar
             int sign = ulpinstr->jumpr.step & 0x80 ? -1 : +1;
 
             RDRenderer_MnemonicWord(rp->renderer, "jumpr", Theme_JumpCond);
-            RDRenderer_Unsigned(rp->renderer, rp->address + sign * relative);
+            RDRenderer_Reference(rp->renderer, rp->address + sign * relative);
             RDRenderer_Text(rp->renderer, ", ");
-            RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->jumps.thres));
+            RDRenderer_Unsigned(rp->renderer, ulpinstr->jumps.thres);
 
             RDRenderer_Text(rp->renderer, ", ");
             RDRenderer_Text(rp->renderer, ulpinstr->jumpr.cond ? "ge" : "lt");
@@ -174,7 +174,7 @@ void ULPAssembler::renderJmp(const ULPInstruction* ulpinstr, const RDRendererPar
             RDRenderer_MnemonicWord(rp->renderer, "jumps", Theme_JumpCond);
             RDRenderer_Unsigned(rp->renderer, rp->address + (sign * relative));
             RDRenderer_Text(rp->renderer, ", ");
-            RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->jumps.thres));
+            RDRenderer_Unsigned(rp->renderer, ulpinstr->jumps.thres);
 
             RDRenderer_Text(rp->renderer, ", ");
 
@@ -193,7 +193,7 @@ void ULPAssembler::renderWakeSleep(const ULPInstruction* ulpinstr, const RDRende
     if(ulpinstr->wakesleep.wakeorsleep)
     {
         RDRenderer_MnemonicWord(rp->renderer, "sleep", Theme_Default);
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->wakesleep.reg).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->wakesleep.reg);
     }
     else
         RDRenderer_Mnemonic(rp->renderer, "wake", Theme_Default);
@@ -204,7 +204,7 @@ void ULPAssembler::renderWait(const ULPInstruction* ulpinstr, const RDRendererPa
     if(ulpinstr->wait.cycles)
     {
         RDRenderer_MnemonicWord(rp->renderer, "wait", Theme_Default);
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->wait.cycles).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->wait.cycles);
     }
     else
         RDRenderer_Mnemonic(rp->renderer, "nop", Theme_Nop);
@@ -215,7 +215,7 @@ void ULPAssembler::renderTSens(const ULPInstruction* ulpinstr, const RDRendererP
     RDRenderer_MnemonicWord(rp->renderer, "tsens", Theme_Default);
     RDRenderer_Register(rp->renderer, ULPAssembler::regName(ulpinstr->tsens.rdst).c_str());
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->tsens.delay));
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->tsens.delay);
 }
 
 void ULPAssembler::renderAdc(const ULPInstruction* ulpinstr, const RDRendererParams* rp)
@@ -223,9 +223,9 @@ void ULPAssembler::renderAdc(const ULPInstruction* ulpinstr, const RDRendererPar
     RDRenderer_MnemonicWord(rp->renderer, "adc", Theme_Default);
     RDRenderer_Register(rp->renderer, ULPAssembler::regName(ulpinstr->adc.rdst).c_str());
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->adc.sel));
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->adc.sel);
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->adc.sarmux));
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->adc.sarmux);
 }
 
 void ULPAssembler::renderI2C(const ULPInstruction* ulpinstr, const RDRendererParams* rp)
@@ -233,26 +233,26 @@ void ULPAssembler::renderI2C(const ULPInstruction* ulpinstr, const RDRendererPar
     if(ulpinstr->i2c.rw)
     {
         RDRenderer_MnemonicWord(rp->renderer, "i2c_wr", Theme_Default);
-        RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->i2c.subaddr));
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.subaddr);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.data).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.data);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.high).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.high);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.low).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.low);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.sel).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.sel);
     }
     else
     {
         RDRenderer_MnemonicWord(rp->renderer, "i2c_rd", Theme_Default);
-        RDRenderer_Constant(rp->renderer, RD_ToHex(ulpinstr->i2c.subaddr));
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.subaddr);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.high).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.high);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.low).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.low);
         RDRenderer_Text(rp->renderer, ", ");
-        RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->i2c.sel).c_str());
+        RDRenderer_Unsigned(rp->renderer, ulpinstr->i2c.sel);
     }
 }
 
@@ -271,12 +271,12 @@ void ULPAssembler::renderRegRD(const ULPInstruction* ulpinstr, const RDRendererP
     RDRenderer_MnemonicWord(rp->renderer, "reg_rd", Theme_Default);
 
     if(offset) RDRenderer_Constant(rp->renderer, (rd_tohex(base) + "+" + rd_tohex(offset)).c_str());
-    else RDRenderer_Constant(rp->renderer, rd_tohex(base).c_str());
+    else RDRenderer_Unsigned(rp->renderer, base);
 
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->regwr.high).c_str());
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->regwr.high);
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->regwr.low).c_str());
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->regwr.low);
 }
 
 void ULPAssembler::renderRegWR(const ULPInstruction* ulpinstr, const RDRendererParams* rp)
@@ -294,14 +294,14 @@ void ULPAssembler::renderRegWR(const ULPInstruction* ulpinstr, const RDRendererP
     RDRenderer_MnemonicWord(rp->renderer, "reg_wr", Theme_Default);
 
     if(offset) RDRenderer_Constant(rp->renderer, (rd_tohex(base) + "+" + rd_tohex(offset)).c_str());
-    else RDRenderer_Constant(rp->renderer, rd_tohex(base).c_str());
+    else RDRenderer_Unsigned(rp->renderer, base);
 
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->regwr.high).c_str());
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->regwr.high);
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, std::to_string(ulpinstr->regwr.low).c_str());
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->regwr.low);
     RDRenderer_Text(rp->renderer, ", ");
-    RDRenderer_Constant(rp->renderer, rd_tohex(ulpinstr->regwr.data).c_str());
+    RDRenderer_Unsigned(rp->renderer, ulpinstr->regwr.data);
 }
 
 void ULPAssembler::renderStore(const ULPInstruction* ulpinstr, const RDRendererParams* rp)
