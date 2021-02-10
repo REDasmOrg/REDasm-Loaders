@@ -70,34 +70,23 @@ void PEClassifier::classifyDotNet(ImageCorHeader *corheader)
 
 void PEClassifier::classifyImport(const std::string& library)
 {
-    if(!library.find("msvbvm50"))
-        m_classification = PEClassification::VisualBasic_5;
-    else if(!library.find("msvbvm60"))
-        m_classification = PEClassification::VisualBasic_6;
+    if(!library.find("msvbvm50")) m_classification = PEClassification::VisualBasic_5;
+    else if(!library.find("msvbvm60")) m_classification = PEClassification::VisualBasic_6;
+    else if(!library.find("libstdc++")) m_classification = PEClassification::MinGW;
 
     if((this->isVisualBasic() || this->isClassified()) && (m_classification != PEClassification::VisualStudio))
         return;
 
-    if(!library.find("msvcp50"))
-        m_classification = PEClassification::VisualStudio_5;
-    else if(!library.find("msvcp60") || !library.find("msvcrt."))
-        m_classification = PEClassification::VisualStudio_6;
-    else if(!library.find("msvcp70") || !library.find("msvcr70"))
-        m_classification = PEClassification::VisualStudio_2002;
-    else if(!library.find("msvcp71") || !library.find("msvcr71"))
-        m_classification = PEClassification::VisualStudio_2003;
-    else if(!library.find("msvcp80") || !library.find("msvcr80"))
-        m_classification = PEClassification::VisualStudio_2005;
-    else if(!library.find("msvcp90") || !library.find("msvcr90"))
-        m_classification = PEClassification::VisualStudio_2008;
-    else if(!library.find("msvcp100") || library.find("msvcr100"))
-        m_classification = PEClassification::VisualStudio_2010;
-    else if(!library.find("msvcp110") || !library.find("msvcr110"))
-        m_classification = PEClassification::VisualStudio_2012;
-    else if(!library.find("msvcp120") || !library.find("msvcr120"))
-        m_classification = PEClassification::VisualStudio_2013;
-    else if(!library.find("msvcp140") || !library.find("vcruntime140"))
-        m_classification = PEClassification::VisualStudio_2015;
+    if(!library.find("msvcp50")) m_classification = PEClassification::VisualStudio_5;
+    else if(!library.find("msvcp60") || !library.find("msvcrt.")) m_classification = PEClassification::VisualStudio_6;
+    else if(!library.find("msvcp70") || !library.find("msvcr70")) m_classification = PEClassification::VisualStudio_2002;
+    else if(!library.find("msvcp71") || !library.find("msvcr71")) m_classification = PEClassification::VisualStudio_2003;
+    else if(!library.find("msvcp80") || !library.find("msvcr80")) m_classification = PEClassification::VisualStudio_2005;
+    else if(!library.find("msvcp90") || !library.find("msvcr90")) m_classification = PEClassification::VisualStudio_2008;
+    else if(!library.find("msvcp100") || !library.find("msvcr100")) m_classification = PEClassification::VisualStudio_2010;
+    else if(!library.find("msvcp110") || !library.find("msvcr110")) m_classification = PEClassification::VisualStudio_2012;
+    else if(!library.find("msvcp120") || !library.find("msvcr120")) m_classification = PEClassification::VisualStudio_2013;
+    else if(!library.find("msvcp140") || !library.find("vcruntime140")) m_classification = PEClassification::VisualStudio_2015;
 }
 
 void PEClassifier::classifyDelphi(const ImageDosHeader* dosheader, const ImageNtHeaders* ntheaders, const PEResources &peresources)
@@ -186,7 +175,9 @@ void PEClassifier::display()
         case PEClassification::BorlandDelphi_XE: rd_log("PE Classification: Borland Delphi XE"); break;
         case PEClassification::BorlandDelphi_XE2_6: rd_log("PE Classification: Borland Delphi XE 2.6"); break;
         case PEClassification::BorlandCpp: rd_log("PE Classification: Borland C++"); break;
-        default: rd_log("PE Classification: Unclassified"); break;
+        case PEClassification::MinGW: rd_log("PE Classification: MinGW"); break;
+        case PEClassification::Unclassified: rd_log("PE Classification: Unclassified"); break;
+        default: rd_log("PE Classification: ERROR"); break;
     }
 
     this->applyABI();
@@ -229,6 +220,11 @@ void PEClassifier::applyABI()
         case PEClassification::BorlandDelphi_XE2_6:
         case PEClassification::BorlandCpp:
             RDContext_SetABI(m_context, CompilerABI_Borland);
+            break;
+
+        case PEClassification::MinGW:
+            RDContext_SetABI(m_context, CompilerABI_GNU);
+            RDContext_SetCC(m_context, CompilerCC_Cdecl);
             break;
 
         default: break;

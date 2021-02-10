@@ -12,6 +12,7 @@
 
 enum class PEClassification {
     Unclassified = 0,
+    MinGW,
     VisualBasic_5, VisualBasic_6,
     VisualStudio, VisualStudio_4, VisualStudio_5, VisualStudio_6,
     VisualStudio_2002, VisualStudio_2003, VisualStudio_2005, VisualStudio_2008,
