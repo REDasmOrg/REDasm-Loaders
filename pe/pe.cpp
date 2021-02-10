@@ -475,7 +475,7 @@ void rdplugin_init(RDContext*, RDPluginModule* m)
         if(!peloader) return false;
 
         auto* c = peloader->classifier();
-        if(!c->isClassified() || c->isDotNet() || c->isVisualBasic()) return false;
+        if(c->isBorland() || c->isDotNet() || c->isVisualBasic()) return false;
         return true;
     };
 
