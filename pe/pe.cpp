@@ -189,9 +189,7 @@ void PELoaderT<b>::loadDotNet(ImageCor20Header* corheader)
 template<size_t b> void PELoaderT<b>::loadDefault()
 {
     this->loadExports();
-
-    if(!this->loadImports())
-        rd_log("WARNING: This file seems to be PACKED");
+    if(!this->loadImports()) rd_log("WARNING: This file seems to be PACKED");
 
     this->loadTLS();
     this->loadConfig();
@@ -202,9 +200,6 @@ template<size_t b> void PELoaderT<b>::loadDefault()
 
     RDDocument_SetEntry(m_document, m_entrypoint);
     m_classifier->classify(m_ntheaders);
-
-    //for(const auto& sig : m_classifier.signatures())
-        //m_peloader->signature(sig);
 }
 
 template<size_t b>

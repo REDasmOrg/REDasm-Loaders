@@ -22,7 +22,7 @@ std::string PEUtils::importName(std::string library, const std::string &name)
 {
     std::transform(library.begin(), library.end(), library.begin(), ::tolower);
     if(library.find(".dll") == std::string::npos) library += ".dll";
-    return library + "_" + name;
+    return library + "_" + RD_Demangle(name.c_str());
 }
 
 std::string PEUtils::importName(const std::string& library, s64 ordinal)
