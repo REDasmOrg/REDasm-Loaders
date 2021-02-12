@@ -31,6 +31,7 @@ bool XbeLoader::load(RDContext* ctx)
     RDDocument* doc = RDContext_GetDocument(ctx);
     RDDocument_SetEntry(doc, entrypoint);
     XbeLoader::displayXbeInfo(ctx, header);
+    RDContext_SetABI(ctx, CompilerABI_MSVC);
     return true;
 }
 
