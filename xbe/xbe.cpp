@@ -26,8 +26,7 @@ bool XbeLoader::load(RDContext* ctx)
         return false;
     }
 
-    if(!XbeLoader::loadXBoxKrnl(ctx, header))
-        rd_log("Cannot load XBoxKrnl Imports");
+    if(!XbeLoader::loadXBoxKrnl(ctx, header)) rd_log("Cannot load XBoxKrnl Imports");
 
     RDDocument* doc = RDContext_GetDocument(ctx);
     RDDocument_SetEntry(doc, entrypoint);
