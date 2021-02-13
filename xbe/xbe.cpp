@@ -147,22 +147,18 @@ bool XbeLoader::loadXBoxKrnl(RDContext* ctx, const XbeImageHeader* header)
     auto* doc = RDContext_GetDocument(ctx);
     u32* pthunk = reinterpret_cast<u32*>(RD_Pointer(ctx, loc.offset));
 
-    while(*pthunk)
+    for( ; *pthunk; pthunk++)
     {
         loc = RD_AddressOf(ctx, pthunk);
+        if(!loc.valid) continue;
 
-        if(loc.valid)
-        {
-            u32 ordinal = *pthunk ^ XBE_ORDINAL_FLAG;
-            RDDatabaseValue value;
-            std::string importname;
+        u32 ordinal = *pthunk ^ XBE_ORDINAL_FLAG;
+        RDDatabaseValue value;
+        std::string importname;
 
-            if(RDDatabase_Query(db, (std::string(XBOXKRNL_ORDINALS) + "/" + std::to_string(ordinal)).c_str(), &value)) importname = value.s;
-            else importname = "XBoxKrnl!Ordinal_" + rd_tohexbits(ordinal, 16, false);
-            RDDocument_AddImported(doc, loc.address, sizeof(u32), importname.c_str());
-        }
-
-        pthunk++;
+        if(RDDatabase_Query(db, (std::string(XBOXKRNL_ORDINALS) + "/" + std::to_string(ordinal)).c_str(), &value)) importname = value.s;
+        else importname = "XBoxKrnl!Ordinal_" + rd_tohexbits(ordinal, 16, false);
+        RDDocument_AddImported(doc, loc.address, sizeof(u32), importname.c_str());
     }
 
     return true;
