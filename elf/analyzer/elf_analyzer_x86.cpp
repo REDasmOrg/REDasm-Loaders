@@ -31,26 +31,26 @@ void ElfAnalyzerX86::parsePlt()
 
     m_document = RDContext_GetDocument(m_context);
 
-    RDDocument_EachFunction(m_document, [](rd_address address, void* userdata) {
-        auto* thethis = reinterpret_cast<ElfAnalyzerX86*>(userdata);
+    const rd_address* addresses = nullptr;
+    size_t c = RDDocument_GetFunctions(m_document, &addresses);
 
-        if(!RDSegment_ContainsAddress(&thethis->m_segment, address))
+    for(size_t i = 0; i < c; i++)
+    {
+        if(!RDSegment_ContainsAddress(&m_segment, addresses[i]))
         {
-            if(!RDDocument_GetSegmentAddress(thethis->m_document, address, &thethis->m_segment))
-                return true;
+            if(!RDDocument_GetSegmentAddress(m_document, addresses[i], &m_segment))
+                continue;
         }
 
-        if(std::strcmp(".plt", thethis->m_segment.name)) return true;
+        if(std::strcmp(".plt", m_segment.name)) continue;
 
-        switch(thethis->m_loader->machine())
+        switch(m_loader->machine())
         {
-            case EM_386: thethis->checkPLT32(thethis->m_document, address); break;
-            case EM_X86_64: thethis->checkPLT64(thethis->m_document, address); break;
-            default: rd_log("Unhandled machine '" + rd_tohex(thethis->m_loader->machine()) + "'"); break;
+            case EM_386: this->checkPLT32(m_document, addresses[i]); break;
+            case EM_X86_64: this->checkPLT64(m_document, addresses[i]); break;
+            default: rd_log("Unhandled machine '" + rd_tohex(m_loader->machine()) + "'"); break;
         }
-
-        return true;
-    }, this);
+    }
 }
 
 void ElfAnalyzerX86::findMain32(rd_address address)
