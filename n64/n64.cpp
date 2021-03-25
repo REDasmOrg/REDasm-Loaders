@@ -67,7 +67,7 @@ bool N64Loader::load(RDContext* ctx)
     //if(header->magic_0 != N64_MAGIC_BE_B1)
         //REDasm::swapEndianness<u16>(this->buffer());
 
-    RDDocument_AddSegment(doc, "KSEG0", N64_ROM_HEADER_SIZE,
+    RDDocument_SetSegment(doc, "KSEG0", N64_ROM_HEADER_SIZE,
                           N64Loader::getEP(header), RDContext_GetBufferSize(ctx) - N64_ROM_HEADER_SIZE, SegmentFlags_CodeData);
 
     // TODO: map other segments

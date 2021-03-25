@@ -8,10 +8,10 @@ std::unordered_map<rd_address, const char*> ESP8266::m_imports;
 bool ESP8266::load(RDContext* ctx, rd_offset offset)
 {
     RDDocument* document = RDContext_GetDocument(ctx);
-    RDDocument_AddSegment(document, ".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentFlags_Bss);
+    RDDocument_SetSegment(document, ".brom", 0, ESP8266_BROM_ADDRESS, ESP8266_BROM_SIZE, SegmentFlags_Bss);
 
     for(const auto& [address, name] : m_imports)
-        RDDocument_AddImported(document, address, sizeof(u32), name);
+        RDDocument_SetImported(document, address, sizeof(u32), name);
 
     return ESPCommon::load(ctx, offset);
 }

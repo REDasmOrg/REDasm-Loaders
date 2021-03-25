@@ -122,7 +122,7 @@ void PELoaderT<b>::checkDebugInfo()
         rd_log("Debug info type: CodeView");
         m_classifier->classifyVisualStudio();
 
-        CVHeader* cvhdr = reinterpret_cast<CVHeader*>(RD_Pointer(m_context, dbgoffset));
+        CVHeader* cvhdr = reinterpret_cast<CVHeader*>(RD_FilePointer(m_context, dbgoffset));
         if(!cvhdr) return;
 
         if(cvhdr->Signature == PE_PDB_NB10_SIGNATURE)
@@ -182,7 +182,7 @@ void PELoaderT<b>::loadDotNet(ImageCor20Header* corheader)
     if(!m_dotnetreader->isValid()) return;
 
     m_dotnetreader->iterateTypes([&](u32 rva, const std::string& name) {
-        RDDocument_AddFunction(m_document, m_imagebase + rva, name.c_str());
+        RDDocument_SetFunction(m_document, m_imagebase + rva, name.c_str());
     });
 }
 
@@ -218,6 +218,7 @@ void PELoaderT<b>::loadSections()
 
         u64 vsize = section.Misc.VirtualSize;
         if(!section.SizeOfRawData) type |= SegmentFlags_Bss;
+        else if(!vsize) vsize = section.SizeOfRawData;
 
         u64 diff = vsize % m_sectionalignment;
         if(diff) vsize += m_sectionalignment - diff;
@@ -232,7 +233,7 @@ void PELoaderT<b>::loadSections()
         if(RD_InRangeSize(m_entrypoint, va, vsize)) // Entry point always points to code segment
             type |= SegmentFlags_Code;
 
-        RDDocument_AddSegmentSize(m_document, name.c_str(), section.PointerToRawData, va, section.SizeOfRawData, vsize, type);
+        RDDocument_SetSegmentSize(m_document, name.c_str(), section.PointerToRawData, va, section.SizeOfRawData, vsize, type);
     }
 }
 
@@ -263,7 +264,7 @@ void PELoaderT<b>::loadExports()
         u64 funcep = m_imagebase + functions[i];
 
         RDSegment segment;
-        if(!RDDocument_GetSegmentAddress(m_document, funcep, &segment)) continue;
+        if(!RDDocument_AddressToSegment(m_document, funcep, &segment)) continue;
 
         bool isfunction = HAS_FLAG(&segment, SegmentFlags_Code);
 
@@ -272,8 +273,8 @@ void PELoaderT<b>::loadExports()
             if(nameords[j] != i) continue;
             namedfunction = true;
 
-            if(isfunction) RDDocument_AddExportedFunction(m_document, funcep, this->rvaPointer<const char>(names[j]));
-            else RDDocument_AddExported(m_document, funcep, b / CHAR_BIT, this->rvaPointer<const char>(names[j]));
+            if(isfunction) RDDocument_SetExportedFunction(m_document, funcep, this->rvaPointer<const char>(names[j]));
+            else RDDocument_SetExported(m_document, funcep, b / CHAR_BIT, this->rvaPointer<const char>(names[j]));
             break;
         }
 
@@ -282,8 +283,8 @@ void PELoaderT<b>::loadExports()
         std::stringstream ss;
         ss << "Ordinal__" << RD_ToHexBits(exporttable->Base + i, 16, false);
 
-        if(isfunction) RDDocument_AddExportedFunction(m_document, funcep, ss.str().c_str());
-        else RDDocument_AddExported(m_document, funcep, b / CHAR_BIT, ss.str().c_str());
+        if(isfunction) RDDocument_SetExportedFunction(m_document, funcep, ss.str().c_str());
+        else RDDocument_SetExported(m_document, funcep, b / CHAR_BIT, ss.str().c_str());
     }
 }
 
@@ -300,7 +301,7 @@ bool PELoaderT<b>::loadImports()
         this->readDescriptor(importtable[i], b == 64 ? IMAGE_ORDINAL_FLAG64 : IMAGE_ORDINAL_FLAG32);
 
     RDSegment segment;
-    return RDDocument_GetSegmentAddress(m_document, m_imagebase + importdir.VirtualAddress, &segment) && (m_validimportsections.find(segment.name) != m_validimportsections.end());
+    return RDDocument_AddressToSegment(m_document, m_imagebase + importdir.VirtualAddress, &segment) && (m_validimportsections.find(segment.name) != m_validimportsections.end());
 }
 
 template<size_t b>
@@ -317,12 +318,12 @@ void PELoaderT<b>::loadExceptions()
     for(pe_integer_t i = 0; csize < exceptiondir.Size; i++, csize += sizeof(ImageRuntimeFunctionEntry))
     {
         rd_address va = m_imagebase + runtimeentry[i].BeginAddress;
-        if(!RDDocument_GetSegmentAddress(m_document, va, nullptr) || (runtimeentry[i].UnwindInfoAddress & 1)) continue;
+        if(!RDDocument_AddressToSegment(m_document, va, nullptr) || (runtimeentry[i].UnwindInfoAddress & 1)) continue;
 
         UnwindInfo* unwindinfo = this->rvaPointer<UnwindInfo>(runtimeentry[i].UnwindInfoAddress & ~1u);
         if(!unwindinfo || (unwindinfo->Flags & UNW_FLAG_CHAININFO)) continue;
 
-        RDDocument_AddFunction(m_document, va, nullptr);
+        RDDocument_SetFunction(m_document, va, nullptr);
         c++;
     }
 
@@ -338,7 +339,7 @@ void PELoaderT<b>::loadConfig()
     ImageLoadConfigDirectory* loadconfigdir = this->rvaPointer<ImageLoadConfigDirectory>(configdir.VirtualAddress);
     if(!loadconfigdir || !loadconfigdir->SecurityCookie) return;
 
-    RDDocument_AddData(m_document, loadconfigdir->SecurityCookie, b / CHAR_BIT, PE_SECURITY_COOKIE_SYMBOL);
+    RDDocument_SetData(m_document, loadconfigdir->SecurityCookie, b / CHAR_BIT, PE_SECURITY_COOKIE_SYMBOL);
 }
 
 template<size_t b>
@@ -373,7 +374,7 @@ void PELoaderT<b>::readTLSCallbacks(const ImageTlsDirectory *tlsdirectory)
     pe_integer_t* callbacks = reinterpret_cast<pe_integer_t*>(RD_AddrPointer(m_context, tlsdirectory->AddressOfCallBacks));
 
     for(pe_integer_t i = 0; *callbacks; i++, callbacks++)
-        RDDocument_AddFunction(m_document, *callbacks, rd_str("TlsCallback_" + std::to_string(i)));
+        RDDocument_SetFunction(m_document, *callbacks, rd_str("TlsCallback_" + std::to_string(i)));
 }
 
 template<size_t b>
@@ -407,7 +408,7 @@ void PELoaderT<b>::readDescriptor(const ImageImportDescriptor& importdescriptor,
             else importname = PEUtils::importName(descriptorname, importname);
         }
 
-        RDDocument_AddImported(m_document, address, b / CHAR_BIT, importname.c_str());
+        RDDocument_SetImported(m_document, address, b / CHAR_BIT, importname.c_str());
     }
 }
 

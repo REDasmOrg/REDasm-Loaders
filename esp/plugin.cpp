@@ -21,10 +21,10 @@ bool load(RDContext* ctx) {
     const u8* magic = RDContext_GetBufferData(ctx);
     if(IS_VALID_MAGIC(*magic)) images.push_back({ 0, "BootLoader" });
 
-    magic = RD_Pointer(ctx, ESP_IMAGE0_OFFSET);
+    magic = RD_FilePointer(ctx, ESP_IMAGE0_OFFSET);
     if(magic && IS_VALID_MAGIC(*magic)) images.push_back({ ESP_IMAGE0_OFFSET, "Image 0" });
 
-    magic = RD_Pointer(ctx, ESP_IMAGE1_OFFSET);
+    magic = RD_FilePointer(ctx, ESP_IMAGE1_OFFSET);
     if(magic && IS_VALID_MAGIC(*magic)) images.push_back({ ESP_IMAGE1_OFFSET, "Image 1" });
 
     std::vector<RDUIOptions> options;

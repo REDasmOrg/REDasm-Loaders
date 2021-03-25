@@ -20,18 +20,18 @@ bool ULPLoader::load(RDContext* ctx)
     if(ulpheader->datasize)
     {
         size_t dataoffset = ulpheader->textoffset + ulpheader->textsize;
-        RDDocument_AddSegment(doc, "DATA", dataoffset, dataoffset, ulpheader->datasize, SegmentFlags_Data);
+        RDDocument_SetSegment(doc, "DATA", dataoffset, dataoffset, ulpheader->datasize, SegmentFlags_Data);
     }
 
     if(ulpheader->bsssize)
     {
         size_t bssoffset = ulpheader->textoffset + ulpheader->textsize + ulpheader->datasize;
-        RDDocument_AddSegment(doc, "BSS", 0, bssoffset, ulpheader->bsssize, SegmentFlags_Bss);
+        RDDocument_SetSegment(doc, "BSS", 0, bssoffset, ulpheader->bsssize, SegmentFlags_Bss);
     }
 
     if(ulpheader->textsize)
     {
-        RDDocument_AddSegment(doc, "TEXT", ulpheader->textoffset, 0, ulpheader->textsize, SegmentFlags_CodeData);
+        RDDocument_SetSegment(doc, "TEXT", ulpheader->textoffset, 0, ulpheader->textsize, SegmentFlags_CodeData);
         RDDocument_SetEntry(doc, 0);
     }
 

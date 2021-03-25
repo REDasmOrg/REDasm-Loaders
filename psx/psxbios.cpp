@@ -25,11 +25,11 @@ bool PsxBiosLoader::load(RDContext* ctx)
     RDDocument* doc = RDContext_GetDocument(ctx);
     RDBuffer* b = RDContext_GetBuffer(ctx);
 
-    RDDocument_AddSegment(doc, "RAM", 0, 0, PSX_RAM_SIZE, SegmentFlags_Bss);
-    RDDocument_AddSegmentRange(doc, "KERNEL1", 0, PSX_BIOS_KERNEL1, 0xBFC10000, SegmentFlags_CodeData);
-    RDDocument_AddSegmentRange(doc, "KERNEL2", 0x10000, PSX_BIOS_KERNEL2, 0xBFC18000, SegmentFlags_CodeData);
-    RDDocument_AddSegmentRange(doc, "BOOTMENU", 0x18000, PSX_BIOS_BOOTMENU, 0xBFC64000, SegmentFlags_CodeData);
-    RDDocument_AddSegmentRange(doc, "CHARACTERS", 0x64000, PSX_BIOS_CHARACTERS, PSX_BIOS_CHARACTERS + RDBuffer_Size(b), SegmentFlags_Data);
+    RDDocument_SetSegment(doc, "RAM", 0, 0, PSX_RAM_SIZE, SegmentFlags_Bss);
+    RDDocument_SetSegmentRange(doc, "KERNEL1", 0, PSX_BIOS_KERNEL1, 0xBFC10000, SegmentFlags_CodeData);
+    RDDocument_SetSegmentRange(doc, "KERNEL2", 0x10000, PSX_BIOS_KERNEL2, 0xBFC18000, SegmentFlags_CodeData);
+    RDDocument_SetSegmentRange(doc, "BOOTMENU", 0x18000, PSX_BIOS_BOOTMENU, 0xBFC64000, SegmentFlags_CodeData);
+    RDDocument_SetSegmentRange(doc, "CHARACTERS", 0x64000, PSX_BIOS_CHARACTERS, PSX_BIOS_CHARACTERS + RDBuffer_Size(b), SegmentFlags_Data);
 
     PsxBiosLoader::parseROM(doc, ctx);
     PsxBiosLoader::parseRAM(doc, b);
@@ -48,7 +48,7 @@ void PsxBiosLoader::parseStrings(rd_address startaddress, const std::vector<std:
         auto loc = RD_AddressOf(ctx, data);
         if(!loc.valid) break;
 
-        RDDocument_AddAsciiString(doc, loc.address, len, s.c_str());
+        RDDocument_SetString(doc, loc.address, len, AddressFlags_AsciiString);
 
         if(s != strings.back())
         {
@@ -63,11 +63,11 @@ void PsxBiosLoader::parseROM(RDDocument* doc, RDContext* ctx)
     PsxBiosLoader::parseStrings(0xBFC00108, { "kernelMaker", "versionString" }, doc, ctx);
     PsxBiosLoader::parseStrings(0xBFC7FF32, { "guiVersion", "copyrightString" }, doc, ctx);
 
-    RDDocument_AddData(doc, 0xBFC00100, 4, "kernelDate");
+    RDDocument_SetData(doc, 0xBFC00100, 4, "kernelDate");
     //u8* data = RD_AddrPointer(ldr, 0xBFC00100);
     //rd_log("Kernel Date: " + std::string(RD_FromBCD(data, sizeof(u32))));
 
-    RDDocument_AddData(doc, 0xBFC00104, 4, "consoleType");
+    RDDocument_SetData(doc, 0xBFC00104, 4, "consoleType");
 }
 
 void PsxBiosLoader::parseRAM(RDDocument* doc, RDBuffer* b)

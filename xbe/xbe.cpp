@@ -70,11 +70,11 @@ bool XbeLoader::decodeEP(RDContext* ctx, u32 encodedep, rd_address& ep)
 
     bool decoded = false;
 
-    if(!(decoded = RDDocument_GetSegmentAddress(doc, ep, nullptr)))
+    if(!(decoded = RDDocument_AddressToSegment(doc, ep, nullptr)))
     {
         ep = encodedep ^ XBE_ENTRYPOINT_XOR_DEBUG;
 
-        if((decoded = RDDocument_GetSegmentAddress(doc, ep, nullptr)))
+        if((decoded = RDDocument_AddressToSegment(doc, ep, nullptr)))
             rd_log("Executable Type: DEBUG");
     }
     else
@@ -90,11 +90,11 @@ bool XbeLoader::decodeKernel(RDContext* ctx, u32 encodedthunk, u32 &thunk)
 
     bool decoded = false;
 
-    if(!(decoded = RDDocument_GetSegmentAddress(doc, thunk, nullptr)))
+    if(!(decoded = RDDocument_AddressToSegment(doc, thunk, nullptr)))
     {
         thunk = encodedthunk ^ XBE_KERNEL_XOR_DEBUG;
 
-        if(!(decoded = RDDocument_GetSegmentAddress(doc, thunk, nullptr)))
+        if(!(decoded = RDDocument_AddressToSegment(doc, thunk, nullptr)))
             return false;
     }
 
@@ -123,10 +123,10 @@ void XbeLoader::loadSections(RDContext* ctx, const XbeImageHeader* header, XbeSe
         if(!sectionhdr[i].RawSize)
             secttype = SegmentFlags_Bss;
 
-        RDDocument_AddSegment(doc, sectname.c_str(), sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
+        RDDocument_SetSegment(doc, sectname.c_str(), sectionhdr[i].RawAddress, sectionhdr[i].VirtualAddress, sectionhdr[i].RawSize, secttype);
     }
 
-    RDDocument_AddSegment(doc, "XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "XBOXKRNL", 0, XBE_XBOXKRNL_BASEADDRESS, 0x10000, SegmentFlags_Bss);
 }
 
 bool XbeLoader::loadXBoxKrnl(RDContext* ctx, const XbeImageHeader* header)
@@ -145,7 +145,7 @@ bool XbeLoader::loadXBoxKrnl(RDContext* ctx, const XbeImageHeader* header)
     if(!loc.valid) return false;
 
     auto* doc = RDContext_GetDocument(ctx);
-    u32* pthunk = reinterpret_cast<u32*>(RD_Pointer(ctx, loc.offset));
+    u32* pthunk = reinterpret_cast<u32*>(RD_FilePointer(ctx, loc.offset));
 
     for( ; *pthunk; pthunk++)
     {
@@ -158,7 +158,7 @@ bool XbeLoader::loadXBoxKrnl(RDContext* ctx, const XbeImageHeader* header)
 
         if(RDDatabase_Query(db, (std::string(XBOXKRNL_ORDINALS) + "/" + std::to_string(ordinal)).c_str(), &value)) importname = value.s;
         else importname = "XBoxKrnl!Ordinal_" + rd_tohexbits(ordinal, 16, false);
-        RDDocument_AddImported(doc, loc.address, sizeof(u32), importname.c_str());
+        RDDocument_SetImported(doc, loc.address, sizeof(u32), importname.c_str());
     }
 
     return true;

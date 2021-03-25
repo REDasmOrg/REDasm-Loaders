@@ -35,23 +35,21 @@ void WndProcAnalyzer::analyze()
     }
 }
 
-bool WndProcAnalyzer::getImport(const std::string& library, const std::string& api, RDSymbol* symbol)
+rd_address WndProcAnalyzer::getImport(const std::string& library, const std::string& api)
 {
     RDDocument* doc = RDContext_GetDocument(m_context);
-
-    if(RDDocument_GetSymbolByName(doc, IMPORT_THUNK(library, api), symbol)) return true;
-    if(RDDocument_GetSymbolByName(doc, IMPORT_NAME(library, api).c_str(), symbol)) return true;
-
-    return false;
+    rd_address address = RDDocument_GetAddress(doc, IMPORT_THUNK(library, api));
+    if(address == RD_NVAL) address = RDDocument_GetAddress(doc, IMPORT_NAME(library, api).c_str());
+    return address;
 }
 
 size_t WndProcAnalyzer::getAPIReferences(const std::string& library, const std::string& api, const RDReference** refs)
 {
-    RDSymbol symbol;
-    if(!this->getImport(library, api, &symbol)) return 0;
+    rd_address address = this->getImport(library, api);
+    if(address == RD_NVAL) return 0;
 
     const RDNet* net = RDContext_GetNet(m_context);
-    return RDNet_GetReferences(net, symbol.address, refs);
+    return RDNet_GetReferences(net, address, refs);
 }
 
 void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
@@ -88,8 +86,8 @@ void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
                     {
                         RDSegment segment;
 
-                        if(RDDocument_GetSegmentAddress(doc, v.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
-                            RDContext_DisassembleFunction(m_context, v.address, (std::string("DlgProc_") + RD_ToHexAuto(m_context, v.address)).c_str());
+                        if(RDDocument_AddressToSegment(doc, v.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
+                            RDDocument_CreateFunction(doc, v.address, (std::string("DlgProc_") + RD_ToHexAuto(m_context, v.address)).c_str());
                     }
                 }
             }

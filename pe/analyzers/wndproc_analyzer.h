@@ -15,7 +15,7 @@ class WndProcAnalyzer
         void analyze();
 
     private:
-        bool getImport(const std::string &library, const std::string &api, RDSymbol* symbol);
+        rd_address getImport(const std::string &library, const std::string &api);
         size_t getAPIReferences(const std::string &library, const std::string &api, const RDReference** refs);
         void findWndProc(rd_address refaddress, size_t argidx);
 

@@ -10,7 +10,8 @@ VBAnalyzer::VBAnalyzer(RDContext* ctx, PELoader* peloader): m_peloader(peloader)
 
 void VBAnalyzer::analyze()
 {
-    auto entry = RDContext_GetEntryPoint(m_context);
+    RDDocument* doc = RDContext_GetDocument(m_context);
+    auto entry = RDDocument_GetEntry(doc);
     if(!entry.valid) return;
 
     rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, entry.address));
@@ -28,8 +29,7 @@ void VBAnalyzer::analyze()
     RDILValue v;
     if(!RDILExpression_GetValue(argexpr, &v)) return;
 
-    RDDocument* doc = RDContext_GetDocument(m_context);
-    if(!RDDocument_GetSegmentAddress(doc, v.address, nullptr)) return;
+    if(!RDDocument_AddressToSegment(doc, v.address, nullptr)) return;
     if(!this->decompile(v.address)) return;
 }
 
@@ -37,7 +37,8 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
 {
     if(!eventva) return;
 
-    if(!RDContext_DisassembleFunction(m_context, eventva, RD_Thunk(name.c_str()))) return;
+    RDDocument* doc = RDContext_GetDocument(m_context);
+    if(!RDDocument_CreateFunction(doc, eventva, RD_Thunk(name.c_str()))) return;
 
     rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, eventva));
     if(!il || (RDILFunction_Size(il.get()) < 2)) return;
@@ -53,12 +54,10 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
 
     RDILValue val;
     if(!RDILExpression_GetValue(eventexpr, &val)) return;
-
-    RDDocument* doc = RDContext_GetDocument(m_context);
-    if(!RDDocument_GetSegmentAddress(doc, val.address, nullptr)) return;
+    if(!RDDocument_AddressToSegment(doc, val.address, nullptr)) return;
 
     rd_statusaddress("Decoding" + name, val.address);
-    RDContext_DisassembleFunction(m_context, val.address, name.c_str());
+    RDDocument_CreateFunction(doc, val.address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(const VBPublicObjectDescriptor &pubobjdescr)

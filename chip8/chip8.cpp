@@ -20,10 +20,10 @@ static bool load(RDContext* ctx)
     RDBuffer* buffer = RDContext_GetBuffer(ctx);
     RDDocument* doc = RDContext_GetDocument(ctx);
 
-    RDDocument_AddSegment(doc, "STACK", 0, 0, 0x0040, SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "SCRATCHPAD", 0, 0x0040, 0x000D, SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "DISPLAY", 0, 0x0100, 0x0100, SegmentFlags_Bss);
-    RDDocument_AddSegmentSize(doc, "PROGRAM", 0, 0x200, RDBuffer_Size(buffer), 0x1000 - 0x200, SegmentFlags_CodeData);
+    RDDocument_SetSegment(doc, "STACK", 0, 0, 0x0040, SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "SCRATCHPAD", 0, 0x0040, 0x000D, SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "DISPLAY", 0, 0x0100, 0x0100, SegmentFlags_Bss);
+    RDDocument_SetSegmentSize(doc, "PROGRAM", 0, 0x200, RDBuffer_Size(buffer), 0x1000 - 0x200, SegmentFlags_CodeData);
     RDDocument_SetEntry(doc, 0x200);
     return true;
 }

@@ -4,7 +4,7 @@
 
 bool ESPCommon::load(RDContext* ctx, rd_offset offset)
 {
-    u8* magic = RD_Pointer(ctx, offset);
+    u8* magic = RD_FilePointer(ctx, offset);
 
     switch(*magic)
     {
@@ -89,7 +89,7 @@ bool ESPCommon::load(RDContext* ctx, ESP8266RomHeader1 *header, rd_offset offset
             segflags = SegmentFlags_Data;
         }
 
-        RDDocument_AddSegment(document, segname.c_str(), RD_FileOffset(ctx, segment).offset + sizeof(ESPSegment), segment->address, segment->size, segflags);
+        RDDocument_SetSegment(document, segname.c_str(), RD_FileOffset(ctx, segment).offset + sizeof(ESPSegment), segment->address, segment->size, segflags);
         if(offset != RD_NVAL) offset += segment->size;
 
         segment = reinterpret_cast<ESPSegment*>(RD_RelPointer(segment, sizeof(ESPSegment) + segment->size));

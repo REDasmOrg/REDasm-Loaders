@@ -40,7 +40,7 @@ void ElfABIT<bits>::processRelocations(const RelType* rel, typename ElfType::UVA
                 auto name = m_elf->symbolName(shdr->sh_link, symidx);
                 if(!name) continue;
 
-                RDDocument_AddData(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
+                RDDocument_SetData(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
                 break;
             }
 
@@ -51,7 +51,7 @@ void ElfABIT<bits>::processRelocations(const RelType* rel, typename ElfType::UVA
                 const auto* s = m_elf->findSegment(rel->r_offset);
                 if(!s) continue;
 
-                RDDocument_AddImported(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
+                RDDocument_SetImported(m_elf->document(), rel->r_offset, bits / CHAR_BIT, name->c_str());
                 m_plt[rel->r_offset - s->sh_addr] = *name;
                 break;
             }

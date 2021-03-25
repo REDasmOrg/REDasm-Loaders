@@ -38,7 +38,7 @@ void ElfAnalyzerX86::parsePlt()
     {
         if(!RDSegment_ContainsAddress(&m_segment, addresses[i]))
         {
-            if(!RDDocument_GetSegmentAddress(m_document, addresses[i], &m_segment))
+            if(!RDDocument_AddressToSegment(m_document, addresses[i], &m_segment))
                 continue;
         }
 
@@ -79,7 +79,7 @@ void ElfAnalyzerX86::findMain32(rd_address address)
         return;
     }
 
-    for(size_t i = 0; i < EP_NAMES.size(); i++) RDContext_DisassembleFunction(m_context, pushcexpr[i], EP_NAMES[i]);
+    for(size_t i = 0; i < EP_NAMES.size(); i++) RDDocument_CreateFunction(m_document, pushcexpr[i], EP_NAMES[i]);
 }
 
 void ElfAnalyzerX86::findMain64(rd_address address)
@@ -114,7 +114,7 @@ void ElfAnalyzerX86::findMain64(rd_address address)
         return;
     }
 
-    for(const auto& [regname, address] : assignexpr) RDContext_DisassembleFunction(m_context, address, EP_NAMES.at(regname));
+    for(const auto& [regname, address] : assignexpr) RDDocument_CreateFunction(m_document, address, EP_NAMES.at(regname));
 }
 
 void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)
@@ -131,7 +131,7 @@ void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)
     if(!RDILExpression_GetValue(idxel, &idxval)) return;
 
     auto name = m_loader->abi()->plt(idxval.u_value);
-    if(name) RDDocument_AddFunction(doc, funcaddress, RD_Thunk(name->c_str()));
+    if(name) RDDocument_SetFunction(doc, funcaddress, RD_Thunk(name->c_str()));
 }
 
 void ElfAnalyzerX86::checkPLT64(RDDocument* doc, rd_address funcaddress)

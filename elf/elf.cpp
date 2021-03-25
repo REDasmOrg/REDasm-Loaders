@@ -36,21 +36,27 @@ ElfLoader* ElfLoader::parse(RDBuffer* buffer)
 const char* ElfLoader::test(const RDLoaderRequest* request)
 {
     std::unique_ptr<ElfLoader> loader(ElfLoader::parse(request->buffer));
-    return loader ? loader->assembler() : nullptr;
+    if(!loader) return nullptr;
+    loader->initialize();
+    return loader->assembler();
 }
 
 bool ElfLoader::load(RDContext* ctx)
 {
     ElfLoader* l = ElfLoader::parse(RDContext_GetBuffer(ctx));
     RDContext_SetUserData(ctx, ELFLOADER_USERDATA, reinterpret_cast<uintptr_t>(l));
+    l->initialize();
     l->doLoad(ctx);
     return true;
 }
 
 template<size_t bits>
-ElfLoaderT<bits>::ElfLoaderT(RDBuffer* buffer): ElfLoader(), m_buffer(buffer)
+ElfLoaderT<bits>::ElfLoaderT(RDBuffer* buffer): ElfLoader(), m_buffer(buffer) { }
+
+template<size_t bits>
+void ElfLoaderT<bits>::initialize()
 {
-    this->m_ehdr = reinterpret_cast<EHDR*>(RDBuffer_Data(buffer));
+    this->m_ehdr = reinterpret_cast<EHDR*>(RDBuffer_Data(m_buffer));
     this->m_shdr = reinterpret_cast<SHDR*>(RD_RelPointer(this->m_ehdr, ELF_LDR_VAL(this->m_ehdr->e_shoff)));
     this->m_phdr = reinterpret_cast<PHDR*>(RD_RelPointer(this->m_ehdr, ELF_LDR_VAL(this->m_ehdr->e_phoff)));
 }
@@ -169,7 +175,7 @@ void ElfLoaderT<bits>::doLoad(RDContext* ctx)
     m_abi.reset(new ElfABIT<bits>(this));
     m_abi->parse();
 
-    if(RDDocument_GetSegmentAddress(doc, ELF_LDR_VAL(this->m_ehdr->e_entry), nullptr))
+    if(RDDocument_AddressToSegment(doc, ELF_LDR_VAL(this->m_ehdr->e_entry), nullptr))
         RDDocument_SetEntry(doc, ELF_LDR_VAL(this->m_ehdr->e_entry));
 }
 
@@ -223,7 +229,7 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
         return;
     }
 
-    const auto* dyn = reinterpret_cast<const DYN*>(RD_Pointer(m_context, ELF_LDR_VAL(phdr->p_offset)));
+    const auto* dyn = reinterpret_cast<const DYN*>(RD_FilePointer(m_context, ELF_LDR_VAL(phdr->p_offset)));
     if(!dyn) return;
 
     while(ELF_LDR_VAL(dyn->d_tag) != DT_NULL)
@@ -282,15 +288,15 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
             }
 
             case DT_PLTGOT:
-                RDDocument_AddData(doc, value, bits / CHAR_BIT, "_GLOBAL_OFFSET_TABLE_");
+                RDDocument_SetData(doc, value, bits / CHAR_BIT, "_GLOBAL_OFFSET_TABLE_");
                 break;
 
             case DT_INIT:
-                RDDocument_AddFunction(doc, value, RDSymbol_NameHint(value, "init", SymbolType_Function, SymbolType_None));
+                RDDocument_SetFunction(doc, value, RD_MakeLabel(value, "sub_init"));
                 break;
 
             case DT_FINI:
-                RDDocument_AddFunction(doc, value, RDSymbol_NameHint(value, "fini", SymbolType_Function, SymbolType_None));
+                RDDocument_SetFunction(doc, value, RD_MakeLabel(value, "sub_fini"));
                 break;
 
             default:
@@ -328,7 +334,7 @@ void ElfLoaderT<bits>::checkMappedSegment(const SHDR* shdr, RDDocument* doc)
 
     if(flags == SegmentFlags_None) return;
     const char* name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
-    RDDocument_AddSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
+    RDDocument_SetSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
 }
 
 template<size_t bits>
@@ -355,8 +361,8 @@ void ElfLoaderT<bits>::readArray(RDDocument* doc, UVAL address, UVAL size, SVAL 
         RDLocation loc = RD_AddressOf(m_context, arr);
         if(!loc.valid) continue;
 
-        RDDocument_AddPointer(doc, loc.address, SymbolType_Data, RDSymbol_NameHint(loc.address, prefix.c_str(), SymbolType_Data, SymbolFlags_Pointer));
-        RDDocument_AddFunction(doc, val, RDSymbol_NameHint(loc.address, prefix.c_str(), SymbolType_Function, SymbolFlags_None));
+        RDDocument_SetPointer(doc, loc.address, rd_makelabel(loc.address, "ptr_" + prefix));
+        RDDocument_SetFunction(doc, val, rd_makelabel(loc.address, "sub_" + prefix));
     }
 }
 
@@ -414,8 +420,8 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
         {
             case STT_FUNC:
             {
-                if(bind == STB_GLOBAL) RDDocument_AddExportedFunction(doc, symvalue, symname);
-                else RDDocument_AddFunction(doc, symvalue, symname);
+                if(bind == STB_GLOBAL) RDDocument_SetExportedFunction(doc, symvalue, symname);
+                else RDDocument_SetFunction(doc, symvalue, symname);
                 break;
             }
 
@@ -424,8 +430,8 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
                 auto sz = ELF_LDR_VAL(sym->st_size);
                 if(!sz) sz = bits / CHAR_BIT;
 
-                if(bind == STB_GLOBAL) RDDocument_AddExported(doc, symvalue, sz, symname);
-                else RDDocument_AddData(doc, symvalue, sz, symname);
+                if(bind == STB_GLOBAL) RDDocument_SetExported(doc, symvalue, sz, symname);
+                else RDDocument_SetData(doc, symvalue, sz, symname);
                 break;
             }
 

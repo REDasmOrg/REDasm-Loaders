@@ -26,6 +26,7 @@ class ElfLoader
 {
     public:
         virtual ~ElfLoader() = default;
+        virtual void initialize() = 0;
         virtual size_t endianness() const = 0;
         virtual const char* assembler() const = 0;
         virtual RDContext* context() const = 0;
@@ -59,6 +60,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
 
     public:
         ElfLoaderT(RDBuffer* buffer);
+        void initialize() override;
         size_t endianness() const override;
         const char* assembler() const override;
         RDContext* context() const override;

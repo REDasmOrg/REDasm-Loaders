@@ -25,5 +25,5 @@ class XbeLoader
 
 template<typename T>
 T* XbeLoader::memoryoffset(RDContext* ctx, const XbeImageHeader* header, u32 memaddress) {
-    return reinterpret_cast<T*>(RD_Pointer(ctx, memaddress - header->BaseAddress));
+    return reinterpret_cast<T*>(RD_FilePointer(ctx, memaddress - header->BaseAddress));
 }
