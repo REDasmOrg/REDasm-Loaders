@@ -29,8 +29,6 @@ void ElfAnalyzerX86::parsePlt()
     const u8* pltbase = m_loader->plt();
     if(!pltbase) return;
 
-    m_document = RDContext_GetDocument(m_context);
-
     const rd_address* addresses = nullptr;
     size_t c = RDDocument_GetFunctions(m_document, &addresses);
 

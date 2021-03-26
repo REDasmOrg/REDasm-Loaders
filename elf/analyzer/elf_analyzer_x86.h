@@ -19,7 +19,6 @@ class ElfAnalyzerX86: public ElfAnalyzer
         void checkPLT64(RDDocument* doc, rd_address funcaddress);
 
     private:
-        RDDocument* m_document{nullptr};
         RDSegment m_segment{ };
 };
 

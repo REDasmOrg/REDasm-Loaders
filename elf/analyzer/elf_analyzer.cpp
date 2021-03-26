@@ -1,7 +1,10 @@
 #include "elf_analyzer.h"
 #include "../elf_common.h"
 
-ElfAnalyzer::ElfAnalyzer(RDContext* ctx): m_context(ctx) { m_loader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA)); }
+ElfAnalyzer::ElfAnalyzer(RDContext* ctx): m_context(ctx), m_document(RDContext_GetDocument(ctx))
+{
+    m_loader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
+}
 
 void ElfAnalyzer::analyze()
 {

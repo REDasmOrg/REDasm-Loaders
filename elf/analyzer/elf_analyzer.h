@@ -17,5 +17,6 @@ class ElfAnalyzer
 
     protected:
         RDContext* m_context;
+        RDDocument* m_document;
         ElfLoader* m_loader;
 };
