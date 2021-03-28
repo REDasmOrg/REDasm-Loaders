@@ -3,7 +3,6 @@
 #include "analyzer/elf_analyzer_x86.h"
 #include <climits>
 #include <memory>
-#include <iostream>
 
 #define ELF_STRING_TABLE         this->m_shdr[ELF_LDR_VAL(this->m_ehdr->e_shstrndx)]
 #define ELF_STRING(shdr, offset) reinterpret_cast<const char*>(RD_RelPointer(this->m_ehdr, ELF_LDR_VAL((shdr)->sh_offset) + offset))

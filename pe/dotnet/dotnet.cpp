@@ -2,7 +2,6 @@
 #include <rdapi/rdapi.h>
 #include <cstring>
 #include <climits>
-#include <iostream>
 
 #define PUSH_TABLE(t) m_tables.push_back(CorMetadataTables::t); \
                       m_dispatcher[CorMetadataTables::t] = &PeDotNet::get##t
