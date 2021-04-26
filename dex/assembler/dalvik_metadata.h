@@ -1,11 +1,18 @@
 #pragma once
 
-#include <redasm/types/base.h>
+#include <rdapi/types.h>
 
-namespace DalvikOperands {
-    enum: u32 {
-        Normal = 0, MethodIndex, TypeIndex, StringIndex, FieldIndex,
-        PackedSwitchTable, SparseSwitchTable, FillArrayData,
-        ParameterFirst = 0x1000, ParameterLast = 0x2000, ParameterThis = 0x4000
-    };
-}
+enum: u32 {
+    DalvikOp_VNormal = 0,
+    DalvikOp_VMethodIndex,
+    DalvikOp_VTypeIndex,
+    DalvikOp_VStringIndex,
+    DalvikOp_VFieldIndex,
+    DalvikOp_VPackedSwitchTable,
+    DalvikOp_VSparseSwitchTable,
+    DalvikOp_VFillArrayData,
+
+    DalvikOp_ParameterFirst = 0x1000,
+    DalvikOp_ParameterLast  = 0x2000,
+    DalvikOp_ParameterThis  = 0x4000
+};

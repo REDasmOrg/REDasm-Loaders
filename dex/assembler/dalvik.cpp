@@ -1,872 +1,483 @@
 #include "dalvik.h"
 #include "../loader/dex.h"
-#include "dalvik_printer.h"
-#include "dalvik_opcodes.h"
-#include "dalvik_metadata.h"
-#include "dalvik_algorithm.h"
-#include <redasm/support/utils.h>
+#include "../common_types.h"
+#include "../demangler.h"
+#include <libdex/DexProto.h>
+#include <climits>
 
-#define SET_DECODE_OPCODE_TO(opcode) m_opcodedispatcher[0x##opcode] = &DalvikAssembler::decode##opcode;
+std::unordered_map<u16, std::string> DalvikAssembler::m_methodcache, DalvikAssembler::m_fieldcache;
+std::unordered_map<rd_address, std::string> DalvikAssembler::m_functioncache;
 
-#define SET_DECODE_TO(op) SET_DECODE_OPCODE_TO(op##0); SET_DECODE_OPCODE_TO(op##1); SET_DECODE_OPCODE_TO(op##2); SET_DECODE_OPCODE_TO(op##3); \
-                          SET_DECODE_OPCODE_TO(op##4); SET_DECODE_OPCODE_TO(op##5); SET_DECODE_OPCODE_TO(op##6); SET_DECODE_OPCODE_TO(op##7); \
-                          SET_DECODE_OPCODE_TO(op##8); SET_DECODE_OPCODE_TO(op##9); SET_DECODE_OPCODE_TO(op##A); SET_DECODE_OPCODE_TO(op##B); \
-                          SET_DECODE_OPCODE_TO(op##C); SET_DECODE_OPCODE_TO(op##D); SET_DECODE_OPCODE_TO(op##E); SET_DECODE_OPCODE_TO(op##F)
-
-ValuedDispatcher<instruction_id_t, bool, BufferView&, Instruction*> DalvikAssembler::m_opcodedispatcher;
-
-DalvikAssembler::DalvikAssembler(): Assembler()
+void DalvikAssembler::emulate(RDContext* ctx, RDEmulateResult* result)
 {
-    if(!m_opcodedispatcher.empty())
-        return;
+    const auto* view = RDEmulateResult_GetView(result);
+    const auto* pcode = reinterpret_cast<const dex_u2*>(view->data);
 
-    SET_DECODE_TO(0); SET_DECODE_TO(1); SET_DECODE_TO(2); SET_DECODE_TO(3);
-    SET_DECODE_TO(4); SET_DECODE_TO(5); SET_DECODE_TO(6); SET_DECODE_TO(7);
-    SET_DECODE_TO(8); SET_DECODE_TO(9); SET_DECODE_TO(A); SET_DECODE_TO(B);
-    SET_DECODE_TO(C); SET_DECODE_TO(D); SET_DECODE_TO(E); SET_DECODE_TO(F);
-}
+    DecodedInstruction di;
+    if(!dexDecodeInstruction(pcode, &di)) return;
 
-size_t DalvikAssembler::bits() const { return 32; }
-String DalvikAssembler::registerName(register_id_t regid) { return "v" + String::number(regid); }
-Printer *DalvikAssembler::doCreatePrinter() const { return new DalvikPrinter(); }
-Algorithm *DalvikAssembler::doCreateAlgorithm() const { return new DalvikAlgorithm(); }
+    rd_address address = RDEmulateResult_GetAddress(result);
+    size_t size = dexGetWidthFromInstruction(pcode) * sizeof(dex_u2);
+    RDEmulateResult_SetSize(result, size);
 
-bool DalvikAssembler::decodeInstruction(const BufferView &view, Instruction *instruction)
-{
-    instruction->id = *view;
-
-    auto it = m_opcodedispatcher.find(instruction->id);
-
-    if(it == m_opcodedispatcher.end())
+    switch(di.opcode)
     {
-        r_ctx->problem("Cannot find opcode " + String::hex(instruction->id));
-        return false;
-    }
+        case OP_FILL_ARRAY_DATA: {
+            rd_address arraydata = address + (di.vB * sizeof(dex_u2));
+            auto* parraydata = reinterpret_cast<DalvikFillArrayDataPayload*>(RD_FilePointer(ctx, arraydata));
 
-    BufferView subview = view + 1;
-    bool res = it->second(subview, instruction);
-
-    if(instruction->size < sizeof(u16))
-        instruction->size = sizeof(u16); // Dalvik uses always 16-bit aligned instructions
-
-    return res;
-}
-
-bool DalvikAssembler::decodeOp0(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->type = type;
-    return true;
-}
-
-bool DalvikAssembler::decodeOp1(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->type = type;
-    instruction->reg(*view & 0xF);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->reg(*view & 0xF);
-    instruction->reg((*view & 0xF0) >> 4);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp3(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->type = type;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->reg(*view++);
-    instruction->reg(*view);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_s(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->imm(static_cast<u16>(view), DalvikOperands::StringIndex);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_t(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->imm(static_cast<u16>(view), DalvikOperands::TypeIndex);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->type = type;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->imm(static_cast<u16>(view), DalvikOperands::FieldIndex);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_16(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->reg(static_cast<u16>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_16_16(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    view++; // Skip first byte
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(static_cast<u16>(view));
-    view += sizeof(u16);
-    instruction->reg(static_cast<u16>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_imm4(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->imm((*view & 0xF0) >> 4);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_imm16(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->imm(static_cast<u16>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_imm32(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 3;
-    instruction->reg(*view++);
-    instruction->imm(static_cast<u32>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_imm64(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) + sizeof(u64);
-    instruction->reg(*view++);
-    instruction->imm(static_cast<u64>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_cnst4(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16);
-    instruction->reg(*view & 0xF);
-    instruction->cnst((*view & 0xF0) >> 4);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_cnst16(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->cnst(static_cast<u16>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_cnst32(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 3;
-    instruction->reg(*view++);
-    instruction->cnst(static_cast<u32>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp2_cnst64(BufferView &view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) + sizeof(u64);
-    instruction->reg(*view++);
-    instruction->cnst(static_cast<u64>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeOp3_f(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->type = type;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view & 0xF);
-    instruction->reg((*view++ & 0xF0) >> 4);
-    instruction->imm(static_cast<u16>(view), DalvikOperands::FieldIndex);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp3_t(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id, type_t type)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->type = type;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view & 0xF);
-    instruction->reg((*view++ & 0xF0) >> 4);
-    instruction->imm(static_cast<u16>(view), DalvikOperands::TypeIndex);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp3_imm8(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++);
-    instruction->imm(*view);
-    return true;
-}
-
-bool DalvikAssembler::decodeOp3_imm16(BufferView& view, Instruction* instruction, const String& mnemonic, instruction_id_t id)
-{
-    instruction->mnemonic(mnemonic);
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg((*view++ & 0xF0) >> 4);
-    instruction->imm(static_cast<u16>(view));
-    return true;
-}
-
-bool DalvikAssembler::decodeIfOp2(BufferView& view, Instruction* instruction, const String& cond, instruction_id_t id)
-{
-    instruction->mnemonic("if-" + cond);
-    instruction->id = id;
-    instruction->type = Instruction::T_Jump;
-    instruction->flags = Instruction::F_Conditional;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view++ & 0xF);
-    instruction->imm(instruction->address + (sizeof(u16) * static_cast<s16>(view)));
-    instruction->targetIdx(1);
-    return true;
-}
-
-bool DalvikAssembler::decodeIfOp3(BufferView& view, Instruction* instruction, const String& cond, instruction_id_t id)
-{
-    instruction->mnemonic("if-" + cond);
-    instruction->id = id;
-    instruction->type = Instruction::T_Jump;
-    instruction->flags = Instruction::F_Conditional;
-    instruction->size = sizeof(u16) * 2;
-    instruction->reg(*view & 0xF);
-    instruction->reg((*view++ & 0xF0) >> 4);
-    instruction->imm(instruction->address + (sizeof(u16) * static_cast<s16>(view)));
-    instruction->targetIdx(2);
-    return true;
-}
-
-bool DalvikAssembler::decodeInvoke(BufferView& view, Instruction* instruction, const String& kind, instruction_id_t id)
-{
-    u8 firstb = *view++;
-    u8 argc = firstb >> 4;
-    bool needslast = false;
-
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 2;
-
-    if((argc > 4) && ((argc % 4) == 1))
-    {
-        needslast = true;
-        argc--;
-    }
-
-    u16 midx = view;
-
-    if(argc)
-    {
-        view += sizeof(u16);
-        u16 argwords = std::max(1, argc / 4);
-        instruction->size += sizeof(u16) * argwords;
-
-        for(u16 argword = 0, c = 0; (c < argc) && (argword < argwords); argword++)
-        {
-            u16 word = view;
-
-            for(u8 i = 0; (c < argc) && (i < (4 * 8)); i += 4, c++)
-            {
-                register_id_t reg = (word & (0xF << i)) >> i;
-                u64 regtype = DalvikOperands::Normal;
-
-                if(!c)
-                    regtype |= DalvikOperands::ParameterFirst;
-
-                if(!needslast && (c == (argc - 1)))
-                    regtype |= DalvikOperands::ParameterLast;
-
-                instruction->reg(reg, regtype);
+            if(parraydata && (parraydata->ident == DALVIK_FILLARRAYDATA_IDENT)) {
+                RDEmulateResult_AddTypeName(result, arraydata, DALVIK_FILLARRAYDATA_PATH);
+                rd_ptr<RDType> t(RDType_CreateArray(parraydata->size, RDType_CreateInt(parraydata->element_width, false)));
+                RDEmulateResult_AddType(result, arraydata + (sizeof(u32) * 2), t.get());
             }
+
+            break;
         }
+
+        case OP_SPARSE_SWITCH: {
+            rd_address sparsedata = address + (di.vB * sizeof(dex_u2));
+            auto* psparsedata = reinterpret_cast<DalvikSparseSwitchPayload*>(RD_FilePointer(ctx, sparsedata));
+
+            if(psparsedata && (psparsedata->ident == DALVIK_SPARSESWITCH_IDENT)) {
+
+            }
+            break;
+        }
+
+        case OP_PACKED_SWITCH: {
+            rd_address packeddata = address + (di.vB * sizeof(dex_u2));
+            auto* ppackeddata = reinterpret_cast<DalvikPackedSwitchPayload*>(RD_FilePointer(ctx, packeddata));
+
+            if(ppackeddata && (ppackeddata->ident == DALVIK_PACKEDSWITCH_IDENT)) {
+                RDEmulateResult_AddTypeName(result, packeddata, DALVIK_PACKEDSWITCH_PATH);
+                //RDEmulateResult_AddBranchTable(result, RD_AddressOf(ctx, &ppackeddata->targets).address, ppackeddata->size);
+                RDEmulateResult_AddBranchTable(result, packeddata + sizeof(u64),  ppackeddata->size);
+            }
+
+            break;
+        }
+
+        case OP_RETURN_VOID:
+        case OP_RETURN:
+        case OP_RETURN_WIDE:
+        case OP_RETURN_OBJECT:
+            RDEmulateResult_AddReturn(result);
+            break;
+
+        case OP_IF_LEZ:
+        case OP_IF_EQZ:
+            RDEmulateResult_AddBranchTrue(result, address + (static_cast<dex_s2>(di.vB) * sizeof(dex_u2)));
+            RDEmulateResult_AddBranchFalse(result, address + size);
+            break;
+
+        case OP_IF_LE:
+        case OP_IF_LT:
+            RDEmulateResult_AddBranchTrue(result, address + (static_cast<dex_s2>(di.vC) * sizeof(dex_u2)));
+            RDEmulateResult_AddBranchFalse(result, address + size);
+            break;
+
+        case OP_GOTO:
+            RDEmulateResult_AddBranch(result, address + (static_cast<dex_s2>(di.vA) * sizeof(dex_u2)));
+            break;
+
+        default: break;
     }
 
-    if(needslast)
-        instruction->reg(firstb & 0xF, DalvikOperands::ParameterLast);
-
-    instruction->imm(midx, DalvikOperands::MethodIndex);
-    instruction->type = Instruction::T_Call;
-    instruction->mnemonic("invoke-" + kind);
-    return true;
-}
-
-bool DalvikAssembler::decodeInvokeRange(BufferView &view, Instruction* instruction, const String& kind, instruction_id_t id)
-{
-    instruction->id = id;
-    instruction->size = sizeof(u16) * 3;
-    instruction->type = Instruction::T_Call;
-    instruction->mnemonic("invoke-" + kind + "/range");
-
-    u8 argc = view++;
-    u16 midx = view;
-    view += sizeof(u16);
-    u16 regbase = view;
-    view += sizeof(u16);
-
-    for(u8 i = 0; i < argc; i++)
+    if(di.indexType != kIndexNone)
     {
-        u64 regtype = DalvikOperands::Normal;
+        DalvikIndex didx;
+        DalvikAssembler::getIndex(di, didx);
+        RDLocation loc;
 
-        if(argc > 1)
+        auto* l = reinterpret_cast<const DexLoader*>(RDContext_GetUserData(ctx, DEXLOADER_USERDATA));
+
+        switch(di.indexType)
         {
-            if(!i)
-                regtype |= DalvikOperands::ParameterFirst;
+            case kIndexStringRef:
+                loc = RD_FileOffset(ctx, dexStringById(l->dexFile(), didx.index));
+                if(loc.valid) RDEmulateResult_AddString(result, loc.address);
+                break;
 
-            if(i == (argc - 1))
-                regtype |= DalvikOperands::ParameterLast;
+            default:
+                break;
+        }
+    }
+}
+
+void DalvikAssembler::renderInstruction(RDContext* ctx, const RDRendererParams* rp)
+{
+    DecodedInstruction di;
+    if(!dexDecodeInstruction(reinterpret_cast<const dex_u2*>(rp->view.data), &di)) return;
+
+    RDRenderer_MnemonicWord(rp->renderer, dexGetOpcodeName(di.opcode), DalvikAssembler::getTheme(di));
+
+    switch(dexGetFormatFromOpcode(di.opcode))
+    {
+        case kFmt10t:
+        case kFmt20t:
+            RDRenderer_Reference(rp->renderer, rp->address + (static_cast<dex_s4>(di.vA) * sizeof(dex_u2)));
+            break;
+
+        case kFmt12x:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vB).c_str());
+            break;
+
+        case kFmt11n:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vB).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Constant(rp->renderer, RD_ToHex(static_cast<dex_u1>(di.vB)));
+            break;
+
+        case kFmt11x:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            break;
+
+        case kFmt21c:
+        case kFmt31c:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            DalvikAssembler::renderIndex(ctx, di, rp->renderer);
+            break;
+
+        case kFmt21h: {
+            if (di.opcode == OP_CONST_HIGH16) {
+                RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+                RDRenderer_Text(rp->renderer, ", ");
+                RDRenderer_Constant(rp->renderer, RD_ToHex(static_cast<dex_s4>(di.vB) << 16));
+            }
+            else {
+                RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+                RDRenderer_Text(rp->renderer, ", ");
+                RDRenderer_Constant(rp->renderer, RD_ToHex(static_cast<dex_s8>(di.vB) << 48));
+            }
+            break;
         }
 
-        instruction->reg(regbase + i, regtype);
+        case kFmt21s:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Constant(rp->renderer, RD_ToHex(static_cast<dex_s4>(di.vB)));
+            break;
+
+        case kFmt21t:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Reference(rp->renderer, rp->address + (static_cast<dex_s4>(di.vB) * sizeof(dex_u2)));
+            break;
+
+        case kFmt22b:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(static_cast<dex_s4>(di.vB)).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Constant(rp->renderer, RD_ToHex(static_cast<dex_u1>(di.vC)));
+            break;
+
+        case kFmt22c:
+        case kFmt22cs:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vB).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            DalvikAssembler::renderIndex(ctx, di, rp->renderer);
+            break;
+
+        case kFmt22t:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vB).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Reference(rp->renderer, rp->address + (static_cast<dex_s4>(di.vC) * sizeof(dex_u2)));
+            break;
+
+        case kFmt23x:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vB).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vC).c_str());
+            break;
+
+        case kFmt31i:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Constant(rp->renderer, RD_ToHex(di.vB));
+            break;
+
+        case kFmt31t:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Reference(rp->renderer, rp->address + (di.vB * sizeof(dex_u2)));
+            break;
+
+        case kFmt32x:
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vA).c_str());
+            RDRenderer_Text(rp->renderer, ", ");
+            RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.vB).c_str());
+            break;
+
+        case kFmt35c:
+        case kFmt35ms:
+        case kFmt35mi: {
+            RDRenderer_Text(rp->renderer, "{");
+
+            for(size_t i = 0; i < di.vA; i++) {
+                if(i) RDRenderer_Text(rp->renderer, ", ");
+                RDRenderer_Register(rp->renderer, DalvikAssembler::reg(di.arg[i]).c_str());
+            }
+
+            RDRenderer_Text(rp->renderer, "}");
+            RDRenderer_Text(rp->renderer, ", ");
+            DalvikAssembler::renderIndex(ctx, di, rp->renderer);
+        }
+
+        case kFmt10x: break;
+        default: RDRenderer_Unknown(rp->renderer); break;
+    }
+}
+
+void DalvikAssembler::renderFunction(RDContext* ctx, const RDRendererParams* rp)
+{
+    if(rp->address == 0x000725A8)
+    {
+        int zzz = 0;
+        zzz++;
     }
 
-    instruction->imm(midx, DalvikOperands::MethodIndex);
-    return true;
+    auto it = m_functioncache.find(rp->address);
+    std::string fn;
+
+    if(it == m_functioncache.end())
+    {
+        auto* l = reinterpret_cast<const DexLoader*>(RDContext_GetUserData(ctx, DEXLOADER_USERDATA));
+        auto methodid = l->addressToMethodId(rp->address);
+        if(!methodid) return;
+
+        auto ofn = DalvikAssembler::getFunctionName(ctx, methodid);
+        if(!ofn) return;
+
+        m_functioncache[rp->address] = *ofn;
+        fn = *ofn;
+    }
+    else
+        fn = it->second;
+
+    RDRenderer_Themed(rp->renderer, fn.c_str(), Theme_Function);
 }
 
-bool DalvikAssembler::decode00(BufferView& view, Instruction* instruction) { return decodeOp0(view, instruction, "nop", DalvikOpcodes::Nop, Instruction::T_Nop); }
-bool DalvikAssembler::decode01(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "move", DalvikOpcodes::Move); }
-bool DalvikAssembler::decode02(BufferView& view, Instruction* instruction) { return decodeOp2_16(view, instruction, "move/from16", DalvikOpcodes::MoveFrom16); }
-bool DalvikAssembler::decode03(BufferView& view, Instruction* instruction) { return decodeOp2_16(view, instruction, "move/16", DalvikOpcodes::Move_16); }
-bool DalvikAssembler::decode04(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "move-wide", DalvikOpcodes::MoveWide); }
-bool DalvikAssembler::decode05(BufferView& view, Instruction* instruction) { return decodeOp2_16(view, instruction, "move-wide/from16", DalvikOpcodes::MoveWideFrom16); }
+std::string DalvikAssembler::reg(dex_u4 id) { return "v" + std::to_string(id); }
 
-bool DalvikAssembler::decode06(BufferView& view, Instruction* instruction)
+void DalvikAssembler::getIndex(const DecodedInstruction& di, DalvikIndex& res)
 {
+    switch(dexGetFormatFromOpcode(di.opcode))
+    {
+        case kFmt20bc:
+        case kFmt21c:
+        case kFmt35c:
+        case kFmt35ms:
+        case kFmt3rc:
+        case kFmt3rms:
+        case kFmt35mi:
+        case kFmt3rmi: res.index = di.vB; res.width = 4; break;
+
+        case kFmt31c: res.index = di.vB; res.width = 8; break;
+
+        case kFmt22c:
+        case kFmt22cs: res.index = di.vC; res.width = 4; break;
+
+        case kFmt45cc:
+        case kFmt4rcc:
+            res.index = di.vB;        // method index
+            res.secindex = di.arg[4]; // proto index
+            res.width = 4;
+            break;
+
+        default: res.index = 0; res.width = 4; break;
+    }
+}
+
+void DalvikAssembler::renderIndex(RDContext* ctx, const DecodedInstruction& di, RDRenderer* r)
+{
+    DalvikIndex didx;
+    DalvikAssembler::getIndex(di, didx);
+
+    auto* l = reinterpret_cast<const DexLoader*>(RDContext_GetUserData(ctx, DEXLOADER_USERDATA));
+    RDLocation loc;
+
+    switch(di.indexType)
+    {
+        case kIndexMethodRef: {
+            auto mi = DalvikAssembler::getMethodInfo(ctx, didx.index);
+            if(mi) RDRenderer_Themed(r, mi->c_str(), Theme_Function);
+            else RDRenderer_Unknown(r);
+            break;
+        }
+
+        case kIndexFieldRef: {
+            auto fi = DalvikAssembler::getFieldInfo(ctx, didx.index);
+            if(fi) RDRenderer_Themed(r, fi->c_str(), Theme_Data);
+            else RDRenderer_Unknown(r);
+            break;
+        }
+
+        case kIndexStringRef: {
+            if (didx.index < l->dexFile()->pHeader->stringIdsSize) {
+                loc = RD_FileOffset(ctx, dexStringById(l->dexFile(), didx.index));
+                if(loc.valid) RDRenderer_Reference(r, loc.address);
+                else RDRenderer_Unknown(r);
+            }
+            else RDRenderer_Unknown(r);
+            break;
+        }
+
+        case kIndexTypeRef: {
+            if(didx.index < l->dexFile()->pHeader->typeIdsSize)
+                RDRenderer_Themed(r, DexLoader::demangle(dexStringByTypeIdx(l->dexFile(), didx.index)).c_str(), Theme_Type);
+            else
+                RDRenderer_Unknown(r);
+            break;
+        }
+
+        default:
+            RDRenderer_Unknown(r);
+            break;
+    }
+}
+
+rd_type DalvikAssembler::getTheme(const DecodedInstruction& di)
+{
+    switch(di.opcode)
+    {
+        case OP_RETURN:
+        case OP_RETURN_OBJECT:
+        case OP_RETURN_VOID:
+        case OP_RETURN_WIDE:
+            return Theme_Ret;
+
+        case OP_INVOKE_DIRECT:
+        case OP_INVOKE_DIRECT_RANGE:
+        case OP_INVOKE_INTERFACE:
+        case OP_INVOKE_INTERFACE_RANGE:
+        case OP_INVOKE_STATIC:
+        case OP_INVOKE_STATIC_RANGE:
+        case OP_INVOKE_SUPER:
+        case OP_INVOKE_SUPER_RANGE:
+        case OP_INVOKE_VIRTUAL:
+        case OP_INVOKE_VIRTUAL_RANGE:
+            return Theme_Call;
+
+        case OP_IF_EQ:
+        case OP_IF_EQZ:
+        case OP_IF_GE:
+        case OP_IF_GEZ:
+        case OP_IF_GT:
+        case OP_IF_GTZ:
+        case OP_IF_LE:
+        case OP_IF_LEZ:
+        case OP_IF_LT:
+        case OP_IF_LTZ:
+        case OP_IF_NE:
+        case OP_IF_NEZ:
+        case OP_SPARSE_SWITCH:
+            return Theme_JumpCond;
+
+        case OP_GOTO:
+        case OP_GOTO_16:
+        case OP_GOTO_32:
+        case OP_PACKED_SWITCH:
+            return Theme_Jump;
+
+        case OP_NOP: return Theme_Nop;
+        default: break;
+    }
+
+    return Theme_Default;
+}
+
+bool DalvikAssembler::isInvoke(const DecodedInstruction& di)
+{
+    switch(di.opcode)
+    {
+        case OP_INVOKE_DIRECT:
+        case OP_INVOKE_DIRECT_RANGE:
+        case OP_INVOKE_INTERFACE:
+        case OP_INVOKE_INTERFACE_RANGE:
+        case OP_INVOKE_STATIC:
+        case OP_INVOKE_STATIC_RANGE:
+        case OP_INVOKE_SUPER:
+        case OP_INVOKE_SUPER_RANGE:
+        case OP_INVOKE_VIRTUAL:
+        case OP_INVOKE_VIRTUAL_RANGE:
+            return true;
+
+        default: break;
+    }
+
     return false;
 }
 
-bool DalvikAssembler::decode07(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "move-object", DalvikOpcodes::MoveObject); }
-bool DalvikAssembler::decode08(BufferView& view, Instruction* instruction) { return decodeOp2_16(view, instruction, "move-object/from16", DalvikOpcodes::MoveObjectFrom16); }
-bool DalvikAssembler::decode09(BufferView& view, Instruction* instruction) { return decodeOp2_16(view, instruction, "move-object/16", DalvikOpcodes::MoveObject_16); }
-bool DalvikAssembler::decode0A(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "move-result", DalvikOpcodes::MoveResult); }
-bool DalvikAssembler::decode0B(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "move-result-wide", DalvikOpcodes::MoveResultWide); }
-bool DalvikAssembler::decode0C(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "move-result-object", DalvikOpcodes::MoveResultObject) ;}
-bool DalvikAssembler::decode0D(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "move-exception", DalvikOpcodes::MoveException); }
-bool DalvikAssembler::decode0E(BufferView& view, Instruction* instruction) { return decodeOp0(view, instruction, "return-void", DalvikOpcodes::ReturnVoid, Instruction::T_Stop); }
-bool DalvikAssembler::decode0F(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "return", DalvikOpcodes::Return, Instruction::T_Stop); }
-bool DalvikAssembler::decode10(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "return-wide", DalvikOpcodes::ReturnWide, Instruction::T_Stop); }
-bool DalvikAssembler::decode11(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "return-object", DalvikOpcodes::ReturnObject, Instruction::T_Stop); }
-bool DalvikAssembler::decode12(BufferView& view, Instruction* instruction) { return decodeOp2_cnst4(view, instruction, "const/4", DalvikOpcodes::Const_4); }
-bool DalvikAssembler::decode13(BufferView& view, Instruction* instruction) { return decodeOp2_cnst16(view, instruction, "const/16", DalvikOpcodes::Const_16); }
-bool DalvikAssembler::decode14(BufferView& view, Instruction* instruction) { return decodeOp2_cnst32(view, instruction, "const", DalvikOpcodes::Const); }
-bool DalvikAssembler::decode15(BufferView& view, Instruction* instruction) { return decodeOp2_cnst16(view, instruction, "const-high/16", DalvikOpcodes::ConstHigh16); }
-bool DalvikAssembler::decode16(BufferView& view, Instruction* instruction) { return decodeOp2_cnst16(view, instruction, "const-wide/16", DalvikOpcodes::ConstWide_16); }
-bool DalvikAssembler::decode17(BufferView& view, Instruction* instruction) { return decodeOp2_cnst32(view, instruction, "const-wide/32", DalvikOpcodes::ConstWide_32);  }
-bool DalvikAssembler::decode18(BufferView& view, Instruction* instruction) { return decodeOp2_cnst64(view, instruction, "const-wide", DalvikOpcodes::ConstWide); }
-bool DalvikAssembler::decode19(BufferView& view, Instruction* instruction) { return decodeOp2_cnst16(view, instruction, "const-wide-high/16", DalvikOpcodes::ConstWideHigh16); }
-bool DalvikAssembler::decode1A(BufferView& view, Instruction* instruction) { return decodeOp2_s(view, instruction, "const-string", DalvikOpcodes::ConstString); }
-
-bool DalvikAssembler::decode1B(BufferView& view, Instruction* instruction)
+std::optional<std::string> DalvikAssembler::getMethodInfo(RDContext* ctx, dex_u4 methodidx)
 {
-    return false;
+    auto* l = reinterpret_cast<const DexLoader*>(RDContext_GetUserData(ctx, DEXLOADER_USERDATA));
+    if(methodidx >= l->dexFile()->pHeader->methodIdsSize) return std::nullopt;
+
+    auto it = m_methodcache.find(methodidx);
+    if(it != m_methodcache.end()) return it->second;
+
+    const auto* methodid = dexGetMethodId(l->dexFile(), methodidx);
+    if(!methodid) return std::nullopt;
+
+    const auto* name = dexStringById(l->dexFile(), methodid->nameIdx);
+    if(!name) return std::nullopt;
+
+    const auto* classdescriptor = dexStringByTypeIdx(l->dexFile(), methodid->classIdx);
+    if(!classdescriptor) return std::nullopt;
+
+    auto* signature = dexCopyDescriptorFromMethodId(l->dexFile(), methodid);
+    m_methodcache[methodidx] = Demangler::getObjectName(classdescriptor) + "." + name + Demangler::getSignature(signature);
+    std::free(signature);
+    return m_methodcache[methodidx];
 }
 
-bool DalvikAssembler::decode1C(BufferView& view, Instruction* instruction) { return decodeOp2_t(view, instruction, "const-class", DalvikOpcodes::ConstClass); }
-bool DalvikAssembler::decode1D(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "monitor-enter", DalvikOpcodes::MonitorEnter); }
-bool DalvikAssembler::decode1E(BufferView& view, Instruction* instruction) { return decodeOp0(view, instruction, "monitor-exit", DalvikOpcodes::MonitorExit); }
-bool DalvikAssembler::decode1F(BufferView& view, Instruction* instruction) { return decodeOp2_t(view, instruction, "check-cast", DalvikOpcodes::CheckCast); }
-bool DalvikAssembler::decode20(BufferView& view, Instruction* instruction) { return decodeOp3_t(view, instruction, "instance-of", DalvikOpcodes::InstanceOf); }
-bool DalvikAssembler::decode21(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "array-length", DalvikOpcodes::ArrayLength); }
-bool DalvikAssembler::decode22(BufferView& view, Instruction* instruction) { return decodeOp2_t(view, instruction, "new-instance", DalvikOpcodes::NewInstance); }
-bool DalvikAssembler::decode23(BufferView& view, Instruction* instruction) { return decodeOp3_t(view, instruction, "new-array", DalvikOpcodes::NewArray); }
-
-bool DalvikAssembler::decode24(BufferView& view, Instruction* instruction)
+std::optional<std::string> DalvikAssembler::getFieldInfo(RDContext* ctx, dex_u4 fieldidx)
 {
-    return false;
+    auto* l = reinterpret_cast<const DexLoader*>(RDContext_GetUserData(ctx, DEXLOADER_USERDATA));
+    if(fieldidx >= l->dexFile()->pHeader->fieldIdsSize) return std::nullopt;
+
+    auto it = m_fieldcache.find(fieldidx);
+    if(it != m_fieldcache.end()) return it->second;
+
+    const auto* fieldid = dexGetFieldId(l->dexFile(), fieldidx);
+    if(!fieldid) return std::nullopt;
+
+    const auto* name = dexStringById(l->dexFile(), fieldid->nameIdx);
+    if(!name) return std::nullopt;
+
+    const auto* signature = dexStringByTypeIdx(l->dexFile(), fieldid->typeIdx);
+    if(!signature) return std::nullopt;
+
+    const auto* classdescriptor = dexStringByTypeIdx(l->dexFile(), fieldid->classIdx);
+    if(!classdescriptor) return std::nullopt;
+
+    m_fieldcache[fieldidx] = Demangler::getObjectName(classdescriptor) + "." + name + Demangler::getSignature(signature);
+    return m_fieldcache[fieldidx];
 }
 
-bool DalvikAssembler::decode25(BufferView& view, Instruction* instruction)
+std::optional<std::string> DalvikAssembler::getFunctionName(RDContext* ctx, const DexMethodId* methodid)
 {
-    return false;
-}
+    auto* l = reinterpret_cast<const DexLoader*>(RDContext_GetUserData(ctx, DEXLOADER_USERDATA));
 
-bool DalvikAssembler::decode26(BufferView& view, Instruction* instruction)
-{
-    decodeOp2_imm32(view, instruction, "fill-array-data", DalvikOpcodes::FillArrayData);
+    const auto* classdescriptor = dexStringByTypeIdx(l->dexFile(), methodid->classIdx);
+    if(!classdescriptor) return std::nullopt;
 
-    Operand* op = instruction->op(1);
-    op->u_value = instruction->address + (op->u_value * sizeof(u16)); // Offset in 16-bit code units
-    op->tag = DalvikOperands::FillArrayData;
-    return true;
-}
+    const auto* name = dexStringById(l->dexFile(), methodid->nameIdx);
+    if(!name) return std::nullopt;
 
-bool DalvikAssembler::decode27(BufferView& view, Instruction* instruction) { return decodeOp1(view, instruction, "throw-vx", DalvikOpcodes::Throw); }
-
-bool DalvikAssembler::decode28(BufferView& view, Instruction* instruction)
-{
-    instruction->mnemonic("goto");
-    instruction->id = DalvikOpcodes::Goto;
-    instruction->type = Instruction::T_Jump;
-    instruction->size = sizeof(u16);
-    instruction->imm(instruction->address + (static_cast<s8>(*view) * sizeof(u16)));
-    instruction->targetIdx(0);
-    return true;
-}
-
-bool DalvikAssembler::decode29(BufferView& view, Instruction* instruction)
-{
-    view++; // Skip byte
-
-    instruction->mnemonic("goto/16");
-    instruction->id = DalvikOpcodes::Goto_16;
-    instruction->type = Instruction::T_Jump;
-    instruction->size = sizeof(u16) * 2;
-    instruction->imm(instruction->address + (static_cast<s16>(view) * sizeof(u16)));
-    instruction->targetIdx(0);
-    return true;
-}
-
-bool DalvikAssembler::decode2A(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode2B(BufferView& view, Instruction* instruction)
-{
-    instruction->mnemonic("packed-switch");
-    instruction->id = DalvikOpcodes::PackedSwitch;
-    instruction->type = Instruction::T_Jump;
-    instruction->size = sizeof(u16) * 3;
-    instruction->reg(*view++);
-    instruction->imm(instruction->address + (static_cast<s32>(view) * sizeof(u16)), DalvikOperands::PackedSwitchTable);
-    return true;
-}
-
-bool DalvikAssembler::decode2C(BufferView& view, Instruction* instruction)
-{
-    instruction->mnemonic("sparse-switch");
-    instruction->id = DalvikOpcodes::SparseSwitch;
-    instruction->type = Instruction::T_Jump;
-    instruction->flags = Instruction::F_Conditional;
-    instruction->size = sizeof(u16) * 3;
-    instruction->reg(*view++);
-    instruction->imm(instruction->address + (static_cast<s32>(view) * sizeof(u16)), DalvikOperands::SparseSwitchTable);
-    return true;
-}
-
-bool DalvikAssembler::decode2D(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "cmpl-float", DalvikOpcodes::CmplFloat); }
-bool DalvikAssembler::decode2E(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "cmpg-float", DalvikOpcodes::CmpgFloat); }
-bool DalvikAssembler::decode2F(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "cmpl-double", DalvikOpcodes::CmplDouble); }
-bool DalvikAssembler::decode30(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "cmpg-double", DalvikOpcodes::CmpgDouble); }
-bool DalvikAssembler::decode31(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "cmp-long", DalvikOpcodes::CmpLong); }
-bool DalvikAssembler::decode32(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "eq", DalvikOpcodes::IfEq); }
-bool DalvikAssembler::decode33(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "ne", DalvikOpcodes::IfNe); }
-bool DalvikAssembler::decode34(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "lt", DalvikOpcodes::IfLt); }
-bool DalvikAssembler::decode35(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "ge", DalvikOpcodes::IfGe); }
-bool DalvikAssembler::decode36(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "gt", DalvikOpcodes::IfGt); }
-bool DalvikAssembler::decode37(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "le", DalvikOpcodes::IfLe); }
-bool DalvikAssembler::decode38(BufferView& view, Instruction* instruction) { return decodeIfOp3(view, instruction, "eqz", DalvikOpcodes::IfEqz); }
-bool DalvikAssembler::decode39(BufferView& view, Instruction* instruction) { return decodeIfOp2(view, instruction, "nez", DalvikOpcodes::IfNez); }
-bool DalvikAssembler::decode3A(BufferView& view, Instruction* instruction) { return decodeIfOp2(view, instruction, "ltz", DalvikOpcodes::IfLtz); }
-bool DalvikAssembler::decode3B(BufferView& view, Instruction* instruction) { return decodeIfOp2(view, instruction, "gez", DalvikOpcodes::IfGez); }
-bool DalvikAssembler::decode3C(BufferView& view, Instruction* instruction) { return decodeIfOp2(view, instruction, "gtz", DalvikOpcodes::IfGtz); }
-bool DalvikAssembler::decode3D(BufferView& view, Instruction* instruction) { return decodeIfOp2(view, instruction, "lez", DalvikOpcodes::IfLez); }
-
-bool DalvikAssembler::decode3E(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode3F(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode40(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode41(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode42(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode43(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode44(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget", DalvikOpcodes::Aget, Instruction::T_Load); }
-bool DalvikAssembler::decode45(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget-wide", DalvikOpcodes::AgetWide, Instruction::T_Load); }
-bool DalvikAssembler::decode46(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget-object", DalvikOpcodes::AgetObject, Instruction::T_Load); }
-bool DalvikAssembler::decode47(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget-boolean", DalvikOpcodes::AgetBoolean, Instruction::T_Load); }
-bool DalvikAssembler::decode48(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget-byte", DalvikOpcodes::AgetByte, Instruction::T_Load); }
-bool DalvikAssembler::decode49(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget-char", DalvikOpcodes::AgetChar, Instruction::T_Load); }
-bool DalvikAssembler::decode4A(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aget-short", DalvikOpcodes::AgetShort, Instruction::T_Load); }
-bool DalvikAssembler::decode4B(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput", DalvikOpcodes::Aput, Instruction::T_Store); }
-bool DalvikAssembler::decode4C(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput-wide", DalvikOpcodes::AputWide, Instruction::T_Store); }
-bool DalvikAssembler::decode4D(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput-object", DalvikOpcodes::AputObject, Instruction::T_Store); }
-bool DalvikAssembler::decode4E(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput-boolean", DalvikOpcodes::AputBoolean, Instruction::T_Store); }
-bool DalvikAssembler::decode4F(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput-byte", DalvikOpcodes::AputByte, Instruction::T_Store); }
-bool DalvikAssembler::decode50(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput-char", DalvikOpcodes::AputChar, Instruction::T_Store); }
-bool DalvikAssembler::decode51(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "aput-short", DalvikOpcodes::AputShort, Instruction::T_Store); }
-bool DalvikAssembler::decode52(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget", DalvikOpcodes::Iget, Instruction::T_Load); }
-bool DalvikAssembler::decode53(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget-wide", DalvikOpcodes::IgetWide, Instruction::T_Load); }
-bool DalvikAssembler::decode54(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget-object", DalvikOpcodes::IgetObject, Instruction::T_Load); }
-bool DalvikAssembler::decode55(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget-boolean", DalvikOpcodes::IgetBoolean, Instruction::T_Load); }
-bool DalvikAssembler::decode56(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget-byte", DalvikOpcodes::IgetByte, Instruction::T_Load); }
-bool DalvikAssembler::decode57(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget-char", DalvikOpcodes::IgetChar, Instruction::T_Load); }
-bool DalvikAssembler::decode58(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iget-short", DalvikOpcodes::IgetShort, Instruction::T_Load); }
-bool DalvikAssembler::decode59(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput", DalvikOpcodes::Iput, Instruction::T_Store); }
-bool DalvikAssembler::decode5A(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput-wide", DalvikOpcodes::IputWide, Instruction::T_Store); }
-bool DalvikAssembler::decode5B(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput-object", DalvikOpcodes::IputObject, Instruction::T_Store); }
-bool DalvikAssembler::decode5C(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput-boolean", DalvikOpcodes::IputBoolean, Instruction::T_Store); }
-bool DalvikAssembler::decode5D(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput-byte", DalvikOpcodes::IputByte, Instruction::T_Store); }
-bool DalvikAssembler::decode5E(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput-char", DalvikOpcodes::IputChar, Instruction::T_Store); }
-bool DalvikAssembler::decode5F(BufferView& view, Instruction* instruction) { return decodeOp3_f(view, instruction, "iput-short", DalvikOpcodes::IputShort, Instruction::T_Store); }
-bool DalvikAssembler::decode60(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget", DalvikOpcodes::Sget, Instruction::T_Load); }
-bool DalvikAssembler::decode61(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget-wide", DalvikOpcodes::SgetWide, Instruction::T_Load); }
-bool DalvikAssembler::decode62(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget-object", DalvikOpcodes::SgetObject, Instruction::T_Load); }
-bool DalvikAssembler::decode63(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget-boolean", DalvikOpcodes::SgetBoolean, Instruction::T_Load); }
-bool DalvikAssembler::decode64(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget-byte", DalvikOpcodes::SgetByte, Instruction::T_Load); }
-bool DalvikAssembler::decode65(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget-char", DalvikOpcodes::SgetChar, Instruction::T_Load); }
-bool DalvikAssembler::decode66(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sget-short", DalvikOpcodes::SgetShort, Instruction::T_Load); }
-bool DalvikAssembler::decode67(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput", DalvikOpcodes::Sput, Instruction::T_Store); }
-bool DalvikAssembler::decode68(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput-wide", DalvikOpcodes::SputWide, Instruction::T_Store); }
-bool DalvikAssembler::decode69(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput-object", DalvikOpcodes::SputObject, Instruction::T_Store); }
-bool DalvikAssembler::decode6A(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput-boolean", DalvikOpcodes::SputBoolean, Instruction::T_Store); }
-bool DalvikAssembler::decode6B(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput-byte", DalvikOpcodes::SputByte, Instruction::T_Store); }
-bool DalvikAssembler::decode6C(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput-char", DalvikOpcodes::SputChar, Instruction::T_Store); }
-bool DalvikAssembler::decode6D(BufferView& view, Instruction* instruction) { return decodeOp2_f(view, instruction, "sput-short", DalvikOpcodes::SputShort, Instruction::T_Store); }
-bool DalvikAssembler::decode6E(BufferView& view, Instruction* instruction) { return decodeInvoke(view, instruction, "virtual", DalvikOpcodes::InvokeVirtual); }
-bool DalvikAssembler::decode6F(BufferView& view, Instruction* instruction) { return decodeInvoke(view, instruction, "super", DalvikOpcodes::InvokeSuper); }
-bool DalvikAssembler::decode70(BufferView& view, Instruction* instruction) { return decodeInvoke(view, instruction, "direct", DalvikOpcodes::InvokeDirect); }
-bool DalvikAssembler::decode71(BufferView& view, Instruction* instruction) { return decodeInvoke(view, instruction, "static", DalvikOpcodes::InvokeStatic); }
-bool DalvikAssembler::decode72(BufferView& view, Instruction* instruction) { return decodeInvoke(view, instruction, "interface", DalvikOpcodes::InvokeInterface); }
-bool DalvikAssembler::decode73(BufferView&, Instruction* ) { /* Unused */ return false; }
-bool DalvikAssembler::decode74(BufferView& view, Instruction* instruction) { return decodeInvokeRange(view, instruction, "virtual", DalvikOpcodes::InvokeVirtualRange); }
-bool DalvikAssembler::decode75(BufferView& view, Instruction* instruction) { return decodeInvokeRange(view, instruction, "super", DalvikOpcodes::InvokeSuperRange); }
-bool DalvikAssembler::decode76(BufferView& view, Instruction* instruction) { return decodeInvokeRange(view, instruction, "direct", DalvikOpcodes::InvokeDirectRange); }
-bool DalvikAssembler::decode77(BufferView& view, Instruction* instruction) { return decodeInvokeRange(view, instruction, "static", DalvikOpcodes::InvokeStaticRange); }
-bool DalvikAssembler::decode78(BufferView& view, Instruction* instruction) { return decodeInvokeRange(view, instruction, "interface", DalvikOpcodes::InvokeInterfaceRange); }
-
-bool DalvikAssembler::decode79(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode7A(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode7B(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "neg-int", DalvikOpcodes::NegInt); }
-
-bool DalvikAssembler::decode7C(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode7D(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "neg-long", DalvikOpcodes::NegLong); }
-
-bool DalvikAssembler::decode7E(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decode7F(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "neg-float", DalvikOpcodes::NegFloat); }
-bool DalvikAssembler::decode80(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "neg-double", DalvikOpcodes::NegDouble); }
-bool DalvikAssembler::decode81(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "int-to-long", DalvikOpcodes::IntToLong); }
-bool DalvikAssembler::decode82(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "int-to-float", DalvikOpcodes::IntToFloat); }
-bool DalvikAssembler::decode83(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "int-to-double", DalvikOpcodes::IntToDouble); }
-bool DalvikAssembler::decode84(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "long-to-int", DalvikOpcodes::LongToInt); }
-bool DalvikAssembler::decode85(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "long-to-float", DalvikOpcodes::LongToFloat); }
-bool DalvikAssembler::decode86(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "long-to-double", DalvikOpcodes::LongToDouble); }
-bool DalvikAssembler::decode87(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "float-to-int", DalvikOpcodes::FloatToInt); }
-bool DalvikAssembler::decode88(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "float-to-long", DalvikOpcodes::FloatToLong); }
-bool DalvikAssembler::decode89(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "float-to-double", DalvikOpcodes::FloatToDouble); }
-bool DalvikAssembler::decode8A(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "double-to-int", DalvikOpcodes::DoubleToInt); }
-bool DalvikAssembler::decode8B(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "double-to-long", DalvikOpcodes::DoubleToLong); }
-bool DalvikAssembler::decode8C(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "double-to-float", DalvikOpcodes::DoubleToFloat); }
-bool DalvikAssembler::decode8D(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "int-to-byte", DalvikOpcodes::IntToByte); }
-bool DalvikAssembler::decode8E(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "int-to-char", DalvikOpcodes::IntToChar); }
-bool DalvikAssembler::decode8F(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "int-to-short", DalvikOpcodes::IntToShort); }
-bool DalvikAssembler::decode90(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "add-int", DalvikOpcodes::AddInt); }
-bool DalvikAssembler::decode91(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "sub-int", DalvikOpcodes::SubInt); }
-bool DalvikAssembler::decode92(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "mul-int", DalvikOpcodes::MulInt); }
-bool DalvikAssembler::decode93(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "div-int", DalvikOpcodes::DivInt); }
-bool DalvikAssembler::decode94(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "rem-int", DalvikOpcodes::RemInt); }
-bool DalvikAssembler::decode95(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "and-int", DalvikOpcodes::AndInt); }
-bool DalvikAssembler::decode96(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "or-int", DalvikOpcodes::OrInt); }
-bool DalvikAssembler::decode97(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "xor-int", DalvikOpcodes::XorInt); }
-bool DalvikAssembler::decode98(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "shl-int", DalvikOpcodes::ShlInt); }
-bool DalvikAssembler::decode99(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "shr-int", DalvikOpcodes::ShrInt); }
-bool DalvikAssembler::decode9A(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "ushr-int", DalvikOpcodes::UshrInt); }
-bool DalvikAssembler::decode9B(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "add-long", DalvikOpcodes::AddLong); }
-bool DalvikAssembler::decode9C(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "sub-long", DalvikOpcodes::SubLong); }
-bool DalvikAssembler::decode9D(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "mul-long", DalvikOpcodes::MulLong); }
-bool DalvikAssembler::decode9E(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "div-long", DalvikOpcodes::DivLong); }
-bool DalvikAssembler::decode9F(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "rem-long", DalvikOpcodes::RemLong); }
-bool DalvikAssembler::decodeA0(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "and-long", DalvikOpcodes::AndLong); }
-bool DalvikAssembler::decodeA1(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "or-long", DalvikOpcodes::OrLong); }
-bool DalvikAssembler::decodeA2(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "xor-long", DalvikOpcodes::XorLong); }
-bool DalvikAssembler::decodeA3(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "shl-long", DalvikOpcodes::ShlLong); }
-bool DalvikAssembler::decodeA4(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "shr-long", DalvikOpcodes::ShrLong); }
-bool DalvikAssembler::decodeA5(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "ushr-long", DalvikOpcodes::UshrLong); }
-bool DalvikAssembler::decodeA6(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "add-float", DalvikOpcodes::AddFloat); }
-bool DalvikAssembler::decodeA7(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "sub-float", DalvikOpcodes::SubFloat); }
-bool DalvikAssembler::decodeA8(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "mul-float", DalvikOpcodes::MulFloat); }
-bool DalvikAssembler::decodeA9(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "div-float", DalvikOpcodes::DivFloat); }
-bool DalvikAssembler::decodeAA(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "rem-float", DalvikOpcodes::RemFloat); }
-bool DalvikAssembler::decodeAB(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "add-double", DalvikOpcodes::AddDouble); }
-bool DalvikAssembler::decodeAC(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "sub-double", DalvikOpcodes::SubDouble); }
-bool DalvikAssembler::decodeAD(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "mul-double", DalvikOpcodes::MulDouble); }
-bool DalvikAssembler::decodeAE(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "div-double", DalvikOpcodes::DivDouble); }
-bool DalvikAssembler::decodeAF(BufferView& view, Instruction* instruction) { return decodeOp3(view, instruction, "rem-double", DalvikOpcodes::RemDouble); }
-bool DalvikAssembler::decodeB0(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "add-int/2addr", DalvikOpcodes::AddInt_2Addr); }
-bool DalvikAssembler::decodeB1(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "sub-int/2addr", DalvikOpcodes::SubInt_2Addr); }
-bool DalvikAssembler::decodeB2(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "mul-int/2addr", DalvikOpcodes::MulInt_2Addr); }
-bool DalvikAssembler::decodeB3(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "div-int/2addr", DalvikOpcodes::DivInt_2Addr); }
-bool DalvikAssembler::decodeB4(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "rem-int/2addr", DalvikOpcodes::RemInt_2Addr); }
-bool DalvikAssembler::decodeB5(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "and-int/2addr", DalvikOpcodes::AndInt_2Addr); }
-bool DalvikAssembler::decodeB6(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "or-int/2addr", DalvikOpcodes::OrInt_2Addr); }
-bool DalvikAssembler::decodeB7(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "xor-int/2addr", DalvikOpcodes::XorInt_2Addr); }
-bool DalvikAssembler::decodeB8(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "shl-int/2addr", DalvikOpcodes::ShlInt_2Addr); }
-bool DalvikAssembler::decodeB9(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "shr-int/2addr", DalvikOpcodes::ShrInt_2Addr); }
-bool DalvikAssembler::decodeBA(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "ushr-int/2addr", DalvikOpcodes::UshrInt_2Addr); }
-bool DalvikAssembler::decodeBB(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "add-long/2addr", DalvikOpcodes::AddLong_2Addr); }
-bool DalvikAssembler::decodeBC(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "sub-long/2addr", DalvikOpcodes::SubLong_2Addr); }
-bool DalvikAssembler::decodeBD(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "mul-long/2addr", DalvikOpcodes::MulLong_2Addr); }
-bool DalvikAssembler::decodeBE(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "div-long/2addr", DalvikOpcodes::DivLong_2Addr); }
-bool DalvikAssembler::decodeBF(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "rem-long/2addr", DalvikOpcodes::RemLong_2Addr); }
-bool DalvikAssembler::decodeC0(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "and-long/2addr", DalvikOpcodes::AndLong_2Addr); }
-bool DalvikAssembler::decodeC1(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "or-long/2addr", DalvikOpcodes::OrLong_2Addr); }
-bool DalvikAssembler::decodeC2(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "xor-long/2addr", DalvikOpcodes::XorLong_2Addr); }
-bool DalvikAssembler::decodeC3(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "shl-long/2addr", DalvikOpcodes::ShlLong_2Addr); }
-bool DalvikAssembler::decodeC4(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "shr-long/2addr", DalvikOpcodes::ShrLong_2Addr); }
-bool DalvikAssembler::decodeC5(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "ushr-long/2addr", DalvikOpcodes::UshrLong_2Addr); }
-bool DalvikAssembler::decodeC6(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "add-float/2addr", DalvikOpcodes::AddFloat_2Addr); }
-bool DalvikAssembler::decodeC7(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "sub-float/2addr", DalvikOpcodes::SubFloat_2Addr); }
-bool DalvikAssembler::decodeC8(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "mul-float/2addr", DalvikOpcodes::MulFloat_2Addr); }
-bool DalvikAssembler::decodeC9(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "div-float/2addr", DalvikOpcodes::DivFloat_2Addr); }
-bool DalvikAssembler::decodeCA(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "rem-float/2addr", DalvikOpcodes::RemFloat_2Addr); }
-bool DalvikAssembler::decodeCB(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "add-double/2addr", DalvikOpcodes::AddDouble_2Addr); }
-bool DalvikAssembler::decodeCC(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "sub-double/2addr", DalvikOpcodes::SubDouble_2Addr); }
-bool DalvikAssembler::decodeCD(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "mul-double/2addr", DalvikOpcodes::MulDouble_2Addr); }
-bool DalvikAssembler::decodeCE(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "div-double/2addr", DalvikOpcodes::DivDouble_2Addr); }
-bool DalvikAssembler::decodeCF(BufferView& view, Instruction* instruction) { return decodeOp2(view, instruction, "rem-double/2addr", DalvikOpcodes::RemDouble_2Addr); }
-bool DalvikAssembler::decodeD0(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "add-int/lit16", DalvikOpcodes::AddIntLit16); }
-bool DalvikAssembler::decodeD1(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "sub-int/lit16", DalvikOpcodes::SubIntLit16); }
-bool DalvikAssembler::decodeD2(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "mul-int/lit16", DalvikOpcodes::MulIntLit16); }
-bool DalvikAssembler::decodeD3(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "div-int/lit16", DalvikOpcodes::DivIntLit16); }
-bool DalvikAssembler::decodeD4(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "rem-int/lit16", DalvikOpcodes::RemIntLit16); }
-bool DalvikAssembler::decodeD5(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "and-int/lit16", DalvikOpcodes::AndIntLit16); }
-bool DalvikAssembler::decodeD6(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "or-int/lit16", DalvikOpcodes::OrIntLit16); }
-bool DalvikAssembler::decodeD7(BufferView& view, Instruction* instruction) { return decodeOp3_imm16(view, instruction, "xor-int/lit16", DalvikOpcodes::XorIntLit16); }
-bool DalvikAssembler::decodeD8(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "add-int/lit8", DalvikOpcodes::AddIntLit8); }
-bool DalvikAssembler::decodeD9(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "sub-int/lit8", DalvikOpcodes::SubIntLit8); }
-bool DalvikAssembler::decodeDA(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "mul-int/lit8", DalvikOpcodes::MulIntLit8); }
-bool DalvikAssembler::decodeDB(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "div-int/lit8", DalvikOpcodes::DivIntLit8); }
-bool DalvikAssembler::decodeDC(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "rem-int/lit8", DalvikOpcodes::RemIntLit8); }
-bool DalvikAssembler::decodeDD(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "and-int/lit8", DalvikOpcodes::AndIntLit8); }
-bool DalvikAssembler::decodeDE(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "or-int/lit8", DalvikOpcodes::OrIntLit8); }
-bool DalvikAssembler::decodeDF(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "xor-int/lit8", DalvikOpcodes::XorIntLit8); }
-bool DalvikAssembler::decodeE0(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "shl-int/lit8", DalvikOpcodes::ShlIntLit8); }
-bool DalvikAssembler::decodeE1(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "shr-int/lit8", DalvikOpcodes::ShrIntLit8); }
-bool DalvikAssembler::decodeE2(BufferView& view, Instruction* instruction) { return decodeOp3_imm8(view, instruction, "ushr-int/lit8", DalvikOpcodes::UshrIntLit8); }
-
-bool DalvikAssembler::decodeE3(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeE4(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeE5(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeE6(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeE7(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeE8(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeE9(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeEA(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeEB(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeEC(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeED(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeEE(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeEF(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF0(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF1(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF2(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF3(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF4(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF5(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF6(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF7(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF8(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeF9(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeFA(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeFB(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeFC(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeFD(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeFE(BufferView& view, Instruction* instruction)
-{
-    return false;
-}
-
-bool DalvikAssembler::decodeFF(BufferView& view, Instruction* instruction)
-{
-    return false;
+    auto* descriptor = dexCopyDescriptorFromMethodId(l->dexFile(), methodid);
+    std::string m = Demangler::getReturn(descriptor) + " " + Demangler::getFullName(classdescriptor) + "." + name + Demangler::getSignature(descriptor);
+    std::free(descriptor);
+    return m;
 }
