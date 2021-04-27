@@ -2785,112 +2785,112 @@ static bool swapEverythingButHeaderAndMap(CheckState* state,
  * pass is only called after all items are byte-swapped and
  * intra-verified (checked for internal consistency).
  */
-static bool crossVerifyEverything(CheckState* state, DexMapList* pMap)
-{
-    const DexMapItem* item = pMap->list;
-    dex_u4 count = pMap->size;
-    bool okay = true;
-
-    while (okay && count--) {
-        dex_u4 sectionOffset = item->offset;
-        dex_u4 sectionCount = item->size;
-
-        switch (item->type) {
-            case kDexTypeHeaderItem:
-            case kDexTypeMapList:
-            case kDexTypeTypeList:
-            case kDexTypeCodeItem:
-            case kDexTypeStringDataItem:
-            case kDexTypeDebugInfoItem:
-            case kDexTypeAnnotationItem:
-            case kDexTypeEncodedArrayItem: {
-                // There is no need for cross-item verification for these.
-                break;
-            }
-            case kDexTypeStringIdItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyStringIdItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeTypeIdItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyTypeIdItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeProtoIdItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyProtoIdItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeFieldIdItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyFieldIdItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeMethodIdItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyMethodIdItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeClassDefItem: {
-                // Allocate (on the stack) the "observed class_def" bits.
-                size_t arraySize = calcDefinedClassBitsSize(state);
-                dex_u4 definedClassBits[arraySize];
-                memset(definedClassBits, 0, arraySize * sizeof(dex_u4));
-                state->pDefinedClassBits = definedClassBits;
-
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyClassDefItem, sizeof(dex_u4), NULL);
-
-                state->pDefinedClassBits = NULL;
-                break;
-            }
-            case kDexTypeCallSiteIdItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyCallSiteId, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeMethodHandleItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyMethodHandleItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeAnnotationSetRefList: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyAnnotationSetRefList, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeAnnotationSetItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyAnnotationSetItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            case kDexTypeClassDataItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyClassDataItem, sizeof(dex_u1), NULL);
-                break;
-            }
-            case kDexTypeAnnotationsDirectoryItem: {
-                okay = iterateSection(state, sectionOffset, sectionCount,
-                        crossVerifyAnnotationsDirectoryItem, sizeof(dex_u4), NULL);
-                break;
-            }
-            default: {
-                ALOGE("Unknown map item type %04x", item->type);
-                return false;
-            }
-        }
-
-        if (!okay) {
-            ALOGE("Cross-item verify of section type %04x failed",
-                    item->type);
-        }
-
-        item++;
-    }
-
-    return okay;
-}
+//static bool crossVerifyEverything(CheckState* state, DexMapList* pMap)
+//{
+//    const DexMapItem* item = pMap->list;
+//    dex_u4 count = pMap->size;
+//    bool okay = true;
+//
+//    while (okay && count--) {
+//        dex_u4 sectionOffset = item->offset;
+//        dex_u4 sectionCount = item->size;
+//
+//        switch (item->type) {
+//            case kDexTypeHeaderItem:
+//            case kDexTypeMapList:
+//            case kDexTypeTypeList:
+//            case kDexTypeCodeItem:
+//            case kDexTypeStringDataItem:
+//            case kDexTypeDebugInfoItem:
+//            case kDexTypeAnnotationItem:
+//            case kDexTypeEncodedArrayItem: {
+//                // There is no need for cross-item verification for these.
+//                break;
+//            }
+//            case kDexTypeStringIdItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyStringIdItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeTypeIdItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyTypeIdItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeProtoIdItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyProtoIdItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeFieldIdItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyFieldIdItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeMethodIdItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyMethodIdItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeClassDefItem: {
+//                // Allocate (on the stack) the "observed class_def" bits.
+//                size_t arraySize = calcDefinedClassBitsSize(state);
+//                dex_u4 definedClassBits[arraySize];
+//                memset(definedClassBits, 0, arraySize * sizeof(dex_u4));
+//                state->pDefinedClassBits = definedClassBits;
+//
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyClassDefItem, sizeof(dex_u4), NULL);
+//
+//                state->pDefinedClassBits = NULL;
+//                break;
+//            }
+//            case kDexTypeCallSiteIdItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyCallSiteId, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeMethodHandleItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyMethodHandleItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeAnnotationSetRefList: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyAnnotationSetRefList, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeAnnotationSetItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyAnnotationSetItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            case kDexTypeClassDataItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyClassDataItem, sizeof(dex_u1), NULL);
+//                break;
+//            }
+//            case kDexTypeAnnotationsDirectoryItem: {
+//                okay = iterateSection(state, sectionOffset, sectionCount,
+//                        crossVerifyAnnotationsDirectoryItem, sizeof(dex_u4), NULL);
+//                break;
+//            }
+//            default: {
+//                ALOGE("Unknown map item type %04x", item->type);
+//                return false;
+//            }
+//        }
+//
+//        if (!okay) {
+//            ALOGE("Cross-item verify of section type %04x failed",
+//                    item->type);
+//        }
+//
+//        item++;
+//    }
+//
+//    return okay;
+//}
 
 /* (documented in header file) */
 bool dexHasValidMagic(const DexHeader* pHeader)
@@ -2928,116 +2928,116 @@ bool dexHasValidMagic(const DexHeader* pHeader)
  *
  * Returns 0 on success, nonzero on failure.
  */
-int dexSwapAndVerify(dex_u1* addr, size_t len)
-{
-    DexHeader* pHeader;
-    CheckState state;
-    bool okay = true;
-
-    memset(&state, 0, sizeof(state));
-    ALOGV("+++ swapping and verifying");
-
-    /*
-     * Note: The caller must have verified that "len" is at least as
-     * large as a dex file header.
-     */
-    pHeader = (DexHeader*) addr;
-
-    if (!dexHasValidMagic(pHeader)) {
-        okay = false;
-    }
-
-    if (okay) {
-        dex_u4 expectedLen = SWAP4(pHeader->fileSize);
-        if (len != expectedLen) {
-            ALOGE("ERROR: Bad length: expected %u, got %zu", expectedLen, len);
-            okay = false;
-        }
-    }
-
-    if (okay) {
-        /*
-         * Compute the adler32 checksum and compare it to what's stored in
-         * the file.  This isn't free, but chances are good that we just
-         * unpacked this from a jar file and have all of the pages sitting
-         * in memory, so it's pretty quick.
-         *
-         * This might be a big-endian system, so we need to do this before
-         * we byte-swap the header.
-         */
-        const int nonSum = sizeof(pHeader->magic) + sizeof(pHeader->checksum);
-        dex_u4 storedFileSize = SWAP4(pHeader->fileSize);
-        dex_u4 expectedChecksum = SWAP4(pHeader->checksum);
-        dex_u4 adler = RD_Adler32(((const dex_u1*) pHeader) + nonSum, storedFileSize - nonSum);
-
-        if (adler != expectedChecksum) {
-            ALOGE("ERROR: bad checksum (%08lx, expected %08x)",
-                adler, expectedChecksum);
-            okay = false;
-        }
-    }
-
-    if (okay) {
-        state.fileStart = addr;
-        state.fileEnd = addr + len;
-        state.fileLen = len;
-        state.pDexFile = NULL;
-        state.pDataMap = NULL;
-        state.pDefinedClassBits = NULL;
-        state.previousItem = NULL;
-
-        /*
-         * Swap the header and check the contents.
-         */
-        okay = swapDexHeader(&state, pHeader);
-    }
-
-    if (okay) {
-        state.pHeader = pHeader;
-
-        if (pHeader->headerSize < sizeof(DexHeader)) {
-            ALOGE("ERROR: Small header size %d, struct %d",
-                    pHeader->headerSize, (int) sizeof(DexHeader));
-            okay = false;
-        } else if (pHeader->headerSize > sizeof(DexHeader)) {
-            ALOGW("WARNING: Large header size %d, struct %d",
-                    pHeader->headerSize, (int) sizeof(DexHeader));
-            // keep going?
-        }
-    }
-
-    if (okay) {
-        /*
-         * Look for the map. Swap it and then use it to find and swap
-         * everything else.
-         */
-        if (pHeader->mapOff != 0) {
-            DexFile dexFile;
-            DexMapList* pDexMap = (DexMapList*) (addr + pHeader->mapOff);
-
-            okay = okay && swapMap(&state, pDexMap);
-            okay = okay && swapEverythingButHeaderAndMap(&state, pDexMap);
-
-            dexFileSetupBasicPointers(&dexFile, addr);
-            state.pDexFile = &dexFile;
-
-            okay = okay && crossVerifyEverything(&state, pDexMap);
-        } else {
-            ALOGE("ERROR: No map found; impossible to byte-swap and verify");
-            okay = false;
-        }
-    }
-
-    if (!okay) {
-        ALOGE("ERROR: Byte swap + verify failed");
-    }
-
-    if (state.pDataMap != NULL) {
-        dexDataMapFree(state.pDataMap);
-    }
-
-    return !okay;       // 0 == success
-}
+//int dexSwapAndVerify(dex_u1* addr, size_t len)
+//{
+//    DexHeader* pHeader;
+//    CheckState state;
+//    bool okay = true;
+//
+//    memset(&state, 0, sizeof(state));
+//    ALOGV("+++ swapping and verifying");
+//
+//    /*
+//     * Note: The caller must have verified that "len" is at least as
+//     * large as a dex file header.
+//     */
+//    pHeader = (DexHeader*) addr;
+//
+//    if (!dexHasValidMagic(pHeader)) {
+//        okay = false;
+//    }
+//
+//    if (okay) {
+//        dex_u4 expectedLen = SWAP4(pHeader->fileSize);
+//        if (len != expectedLen) {
+//            ALOGE("ERROR: Bad length: expected %u, got %zu", expectedLen, len);
+//            okay = false;
+//        }
+//    }
+//
+//    if (okay) {
+//        /*
+//         * Compute the adler32 checksum and compare it to what's stored in
+//         * the file.  This isn't free, but chances are good that we just
+//         * unpacked this from a jar file and have all of the pages sitting
+//         * in memory, so it's pretty quick.
+//         *
+//         * This might be a big-endian system, so we need to do this before
+//         * we byte-swap the header.
+//         */
+//        const int nonSum = sizeof(pHeader->magic) + sizeof(pHeader->checksum);
+//        dex_u4 storedFileSize = SWAP4(pHeader->fileSize);
+//        dex_u4 expectedChecksum = SWAP4(pHeader->checksum);
+//        dex_u4 adler = RD_Adler32(((const dex_u1*) pHeader) + nonSum, storedFileSize - nonSum);
+//
+//        if (adler != expectedChecksum) {
+//            ALOGE("ERROR: bad checksum (%08lx, expected %08x)",
+//                adler, expectedChecksum);
+//            okay = false;
+//        }
+//    }
+//
+//    if (okay) {
+//        state.fileStart = addr;
+//        state.fileEnd = addr + len;
+//        state.fileLen = len;
+//        state.pDexFile = NULL;
+//        state.pDataMap = NULL;
+//        state.pDefinedClassBits = NULL;
+//        state.previousItem = NULL;
+//
+//        /*
+//         * Swap the header and check the contents.
+//         */
+//        okay = swapDexHeader(&state, pHeader);
+//    }
+//
+//    if (okay) {
+//        state.pHeader = pHeader;
+//
+//        if (pHeader->headerSize < sizeof(DexHeader)) {
+//            ALOGE("ERROR: Small header size %d, struct %d",
+//                    pHeader->headerSize, (int) sizeof(DexHeader));
+//            okay = false;
+//        } else if (pHeader->headerSize > sizeof(DexHeader)) {
+//            ALOGW("WARNING: Large header size %d, struct %d",
+//                    pHeader->headerSize, (int) sizeof(DexHeader));
+//            // keep going?
+//        }
+//    }
+//
+//    if (okay) {
+//        /*
+//         * Look for the map. Swap it and then use it to find and swap
+//         * everything else.
+//         */
+//        if (pHeader->mapOff != 0) {
+//            DexFile dexFile;
+//            DexMapList* pDexMap = (DexMapList*) (addr + pHeader->mapOff);
+//
+//            okay = okay && swapMap(&state, pDexMap);
+//            okay = okay && swapEverythingButHeaderAndMap(&state, pDexMap);
+//
+//            dexFileSetupBasicPointers(&dexFile, addr);
+//            state.pDexFile = &dexFile;
+//
+//            okay = okay && crossVerifyEverything(&state, pDexMap);
+//        } else {
+//            ALOGE("ERROR: No map found; impossible to byte-swap and verify");
+//            okay = false;
+//        }
+//    }
+//
+//    if (!okay) {
+//        ALOGE("ERROR: Byte swap + verify failed");
+//    }
+//
+//    if (state.pDataMap != NULL) {
+//        dexDataMapFree(state.pDataMap);
+//    }
+//
+//    return !okay;       // 0 == success
+//}
 
 /*
  * Detect the file type of the given memory buffer via magic number.
@@ -3047,20 +3047,20 @@ int dexSwapAndVerify(dex_u1* addr, size_t len)
  *
  * Returns 0 on success, nonzero on failure.
  */
-int dexSwapAndVerifyIfNecessary(dex_u1* addr, size_t len)
-{
-    if (memcmp(addr, DEX_OPT_MAGIC, 4) == 0) {
-        // It is an optimized dex file.
-        return 0;
-    }
-
-    if (memcmp(addr, DEX_MAGIC, 4) == 0) {
-        // It is an unoptimized dex file.
-        return dexSwapAndVerify(addr, len);
-    }
-
-    ALOGE("ERROR: Bad magic number (0x%02x %02x %02x %02x)",
-             addr[0], addr[1], addr[2], addr[3]);
-
-    return 1;
-}
+// int dexSwapAndVerifyIfNecessary(dex_u1* addr, size_t len)
+// {
+//     if (memcmp(addr, DEX_OPT_MAGIC, 4) == 0) {
+//         // It is an optimized dex file.
+//         return 0;
+//     }
+//
+//     if (memcmp(addr, DEX_MAGIC, 4) == 0) {
+//         // It is an unoptimized dex file.
+//         return dexSwapAndVerify(addr, len);
+//     }
+//
+//     ALOGE("ERROR: Bad magic number (0x%02x %02x %02x %02x)",
+//              addr[0], addr[1], addr[2], addr[3]);
+//
+//     return 1;
+// }

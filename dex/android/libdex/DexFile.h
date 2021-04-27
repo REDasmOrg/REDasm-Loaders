@@ -646,7 +646,7 @@ enum {
  *
  * Return 0 on success.
  */
-int dexSwapAndVerify(dex_u1* addr, int len);
+//int dexSwapAndVerify(dex_u1* addr, int len);
 
 /*
  * Detect the file type of the given memory buffer via magic number.
@@ -656,7 +656,7 @@ int dexSwapAndVerify(dex_u1* addr, int len);
  *
  * Return 0 on success.
  */
-int dexSwapAndVerifyIfNecessary(dex_u1* addr, size_t len);
+//int dexSwapAndVerifyIfNecessary(dex_u1* addr, size_t len);
 
 /*
  * Check to see if the file magic and format version in the given
