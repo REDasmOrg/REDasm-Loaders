@@ -1873,308 +1873,308 @@ static void* swapTriesAndCatches(const CheckState* state, DexCode* code) {
 }
 
 /* Perform byte-swapping and intra-item verification on code_item. */
-static void* swapCodeItem(const CheckState* state, void* ptr) {
-    DexCode* item = (DexCode*) ptr;
-    dex_u2* insns;
-    dex_u4 count;
-
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_FIELD2(item->registersSize);
-    SWAP_FIELD2(item->insSize);
-    SWAP_FIELD2(item->outsSize);
-    SWAP_FIELD2(item->triesSize);
-    SWAP_OFFSET4(item->debugInfoOff);
-    SWAP_FIELD4(item->insnsSize);
-
-    if (item->insSize > item->registersSize) {
-        ALOGE("insSize (%u) > registersSize (%u)", item->insSize,
-                item->registersSize);
-        return NULL;
-    }
-
-    if ((item->outsSize > 5) && (item->outsSize > item->registersSize)) {
-        /*
-         * It's okay for outsSize to be up to five, even if registersSize
-         * is smaller, since the short forms of method invocation allow
-         * repetition of a register multiple times within a single parameter
-         * list. Longer parameter lists, though, need to be represented
-         * in-order in the register file.
-         */
-        ALOGE("outsSize (%u) > registersSize (%u)", item->outsSize,
-                item->registersSize);
-        return NULL;
-    }
-
-    count = item->insnsSize;
-    insns = item->insns;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(dex_u2);
-    CHECK_LIST_SIZE(insns, count, sizeOfItem);
-
-    while (count--) {
-        *insns = SWAP2(*insns);
-        insns++;
-    }
-
-    if (item->triesSize == 0) {
-        ptr = insns;
-    } else {
-        if ((((uintptr_t) insns) & 3) != 0) {
-            // Four-byte alignment for the tries. Verify the spacer is a 0.
-            if (*insns != 0) {
-                ALOGE("Non-zero padding: %#x", (dex_u4) *insns);
-                return NULL;
-            }
-        }
-
-        ptr = swapTriesAndCatches(state, item);
-    }
-
-    return ptr;
-}
+//static void* swapCodeItem(const CheckState* state, void* ptr) {
+//    DexCode* item = (DexCode*) ptr;
+//    dex_u2* insns;
+//    dex_u4 count;
+//
+//    CHECK_PTR_RANGE(item, item + 1);
+//    SWAP_FIELD2(item->registersSize);
+//    SWAP_FIELD2(item->insSize);
+//    SWAP_FIELD2(item->outsSize);
+//    SWAP_FIELD2(item->triesSize);
+//    SWAP_OFFSET4(item->debugInfoOff);
+//    SWAP_FIELD4(item->insnsSize);
+//
+//    if (item->insSize > item->registersSize) {
+//        ALOGE("insSize (%u) > registersSize (%u)", item->insSize,
+//                item->registersSize);
+//        return NULL;
+//    }
+//
+//    if ((item->outsSize > 5) && (item->outsSize > item->registersSize)) {
+//        /*
+//         * It's okay for outsSize to be up to five, even if registersSize
+//         * is smaller, since the short forms of method invocation allow
+//         * repetition of a register multiple times within a single parameter
+//         * list. Longer parameter lists, though, need to be represented
+//         * in-order in the register file.
+//         */
+//        ALOGE("outsSize (%u) > registersSize (%u)", item->outsSize,
+//                item->registersSize);
+//        return NULL;
+//    }
+//
+//    count = item->insnsSize;
+//    insns = item->insns;
+//
+//    const dex_u4 sizeOfItem = (dex_u4) sizeof(dex_u2);
+//    CHECK_LIST_SIZE(insns, count, sizeOfItem);
+//
+//    while (count--) {
+//        *insns = SWAP2(*insns);
+//        insns++;
+//    }
+//
+//    if (item->triesSize == 0) {
+//        ptr = insns;
+//    } else {
+//        if ((((uintptr_t) insns) & 3) != 0) {
+//            // Four-byte alignment for the tries. Verify the spacer is a 0.
+//            if (*insns != 0) {
+//                ALOGE("Non-zero padding: %#x", (dex_u4) *insns);
+//                return NULL;
+//            }
+//        }
+//
+//        ptr = swapTriesAndCatches(state, item);
+//    }
+//
+//    return ptr;
+//}
 
 /* Perform intra-item verification on string_data_item. */
-static void* intraVerifyStringDataItem(const CheckState* state, void* ptr) {
-    const dex_u1* fileEnd = state->fileEnd;
-    const dex_u1* data = (const dex_u1*) ptr;
-    bool okay = true;
-    dex_u4 utf16Size = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-    dex_u4 i;
-
-    if (!okay) {
-        ALOGE("Bogus utf16_size");
-        return NULL;
-    }
-
-    for (i = 0; i < utf16Size; i++) {
-        if (data >= fileEnd) {
-            ALOGE("String data would go beyond end-of-file");
-            return NULL;
-        }
-
-        dex_u1 byte1 = *(data++);
-
-        // Switch on the high four bits.
-        switch (byte1 >> 4) {
-            case 0x00: {
-                // Special case of bit pattern 0xxx.
-                if (byte1 == 0) {
-                    ALOGE("String shorter than indicated utf16_size %#x",
-                            utf16Size);
-                    return NULL;
-                }
-                break;
-            }
-            case 0x01:
-            case 0x02:
-            case 0x03:
-            case 0x04:
-            case 0x05:
-            case 0x06:
-            case 0x07: {
-                // Bit pattern 0xxx. No need for any extra bytes or checks.
-                break;
-            }
-            case 0x08:
-            case 0x09:
-            case 0x0a:
-            case 0x0b:
-            case 0x0f: {
-                /*
-                 * Bit pattern 10xx or 1111, which are illegal start bytes.
-                 * Note: 1111 is valid for normal UTF-8, but not the
-                 * modified UTF-8 used here.
-                 */
-                ALOGE("Illegal start byte %#x", byte1);
-                return NULL;
-            }
-            case 0x0e: {
-                // Bit pattern 1110, so there are two additional bytes.
-                dex_u1 byte2 = *(data++);
-                if ((byte2 & 0xc0) != 0x80) {
-                    ALOGE("Illegal continuation byte %#x", byte2);
-                    return NULL;
-                }
-                dex_u1 byte3 = *(data++);
-                if ((byte3 & 0xc0) != 0x80) {
-                    ALOGE("Illegal continuation byte %#x", byte3);
-                    return NULL;
-                }
-                dex_u2 value = ((byte1 & 0x0f) << 12) | ((byte2 & 0x3f) << 6)
-                    | (byte3 & 0x3f);
-                if (value < 0x800) {
-                    ALOGE("Illegal representation for value %x", value);
-                    return NULL;
-                }
-                break;
-            }
-            case 0x0c:
-            case 0x0d: {
-                // Bit pattern 110x, so there is one additional byte.
-                dex_u1 byte2 = *(data++);
-                if ((byte2 & 0xc0) != 0x80) {
-                    ALOGE("Illegal continuation byte %#x", byte2);
-                    return NULL;
-                }
-                dex_u2 value = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f);
-                if ((value != 0) && (value < 0x80)) {
-                    ALOGE("Illegal representation for value %x", value);
-                    return NULL;
-                }
-                break;
-            }
-        }
-    }
-
-    if (*(data++) != '\0') {
-        ALOGE("String longer than indicated utf16_size %#x", utf16Size);
-        return NULL;
-    }
-
-    return (void*) data;
-}
+// static void* intraVerifyStringDataItem(const CheckState* state, void* ptr) {
+//     const dex_u1* fileEnd = state->fileEnd;
+//     const dex_u1* data = (const dex_u1*) ptr;
+//     bool okay = true;
+//     dex_u4 utf16Size = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//     dex_u4 i;
+//
+//     if (!okay) {
+//         ALOGE("Bogus utf16_size");
+//         return NULL;
+//     }
+//
+//     for (i = 0; i < utf16Size; i++) {
+//         if (data >= fileEnd) {
+//             ALOGE("String data would go beyond end-of-file");
+//             return NULL;
+//         }
+//
+//         dex_u1 byte1 = *(data++);
+//
+//         // Switch on the high four bits.
+//         switch (byte1 >> 4) {
+//             case 0x00: {
+//                 // Special case of bit pattern 0xxx.
+//                 if (byte1 == 0) {
+//                     ALOGE("String shorter than indicated utf16_size %#x",
+//                             utf16Size);
+//                     return NULL;
+//                 }
+//                 break;
+//             }
+//             case 0x01:
+//             case 0x02:
+//             case 0x03:
+//             case 0x04:
+//             case 0x05:
+//             case 0x06:
+//             case 0x07: {
+//                 // Bit pattern 0xxx. No need for any extra bytes or checks.
+//                 break;
+//             }
+//             case 0x08:
+//             case 0x09:
+//             case 0x0a:
+//             case 0x0b:
+//             case 0x0f: {
+//                 /*
+//                  * Bit pattern 10xx or 1111, which are illegal start bytes.
+//                  * Note: 1111 is valid for normal UTF-8, but not the
+//                  * modified UTF-8 used here.
+//                  */
+//                 ALOGE("Illegal start byte %#x", byte1);
+//                 return NULL;
+//             }
+//             case 0x0e: {
+//                 // Bit pattern 1110, so there are two additional bytes.
+//                 dex_u1 byte2 = *(data++);
+//                 if ((byte2 & 0xc0) != 0x80) {
+//                     ALOGE("Illegal continuation byte %#x", byte2);
+//                     return NULL;
+//                 }
+//                 dex_u1 byte3 = *(data++);
+//                 if ((byte3 & 0xc0) != 0x80) {
+//                     ALOGE("Illegal continuation byte %#x", byte3);
+//                     return NULL;
+//                 }
+//                 dex_u2 value = ((byte1 & 0x0f) << 12) | ((byte2 & 0x3f) << 6)
+//                     | (byte3 & 0x3f);
+//                 if (value < 0x800) {
+//                     ALOGE("Illegal representation for value %x", value);
+//                     return NULL;
+//                 }
+//                 break;
+//             }
+//             case 0x0c:
+//             case 0x0d: {
+//                 // Bit pattern 110x, so there is one additional byte.
+//                 dex_u1 byte2 = *(data++);
+//                 if ((byte2 & 0xc0) != 0x80) {
+//                     ALOGE("Illegal continuation byte %#x", byte2);
+//                     return NULL;
+//                 }
+//                 dex_u2 value = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f);
+//                 if ((value != 0) && (value < 0x80)) {
+//                     ALOGE("Illegal representation for value %x", value);
+//                     return NULL;
+//                 }
+//                 break;
+//             }
+//         }
+//     }
+//
+//     if (*(data++) != '\0') {
+//         ALOGE("String longer than indicated utf16_size %#x", utf16Size);
+//         return NULL;
+//     }
+//
+//     return (void*) data;
+// }
 
 /* Perform intra-item verification on debug_info_item. */
-static void* intraVerifyDebugInfoItem(const CheckState* state, void* ptr) {
-    const dex_u1* fileEnd = state->fileEnd;
-    const dex_u1* data = (const dex_u1*) ptr;
-    bool okay = true;
-    dex_u4 i;
-
-    readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-
-    if (!okay) {
-        ALOGE("Bogus line_start");
-        return NULL;
-    }
-
-    dex_u4 parametersSize =
-        readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-
-    if (!okay) {
-        ALOGE("Bogus parameters_size");
-        return NULL;
-    }
-
-    if (parametersSize > 65536) {
-        ALOGE("Invalid parameters_size: %#x", parametersSize);
-        return NULL;
-    }
-
-    for (i = 0; i < parametersSize; i++) {
-        dex_u4 parameterName =
-            readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-
-        if (!okay) {
-            ALOGE("Bogus parameter_name");
-            return NULL;
-        }
-
-        if (parameterName != 0) {
-            parameterName--;
-            CHECK_INDEX(parameterName, state->pHeader->stringIdsSize);
-        }
-    }
-
-    bool done = false;
-    while (!done) {
-        dex_u1 opcode = *(data++);
-
-        switch (opcode) {
-            case DBG_END_SEQUENCE: {
-                done = true;
-                break;
-            }
-            case DBG_ADVANCE_PC: {
-                readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                break;
-            }
-            case DBG_ADVANCE_LINE: {
-                readAndVerifySignedLeb128(&data, fileEnd, &okay);
-                break;
-            }
-            case DBG_START_LOCAL: {
-                dex_u4 idx;
-                dex_u4 regNum = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (regNum >= 65536) {
-                    okay = false;
-                    break;
-                }
-                idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (idx != 0) {
-                    idx--;
-                    CHECK_INDEX(idx, state->pHeader->stringIdsSize);
-                }
-                idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (idx != 0) {
-                    idx--;
-                    CHECK_INDEX(idx, state->pHeader->stringIdsSize);
-                }
-                break;
-            }
-            case DBG_END_LOCAL:
-            case DBG_RESTART_LOCAL: {
-                dex_u4 regNum = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (regNum >= 65536) {
-                    okay = false;
-                    break;
-                }
-                break;
-            }
-            case DBG_START_LOCAL_EXTENDED: {
-                dex_u4 idx;
-                dex_u4 regNum = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (regNum >= 65536) {
-                    okay = false;
-                    break;
-                }
-                idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (idx != 0) {
-                    idx--;
-                    CHECK_INDEX(idx, state->pHeader->stringIdsSize);
-                }
-                idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (idx != 0) {
-                    idx--;
-                    CHECK_INDEX(idx, state->pHeader->stringIdsSize);
-                }
-                idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (idx != 0) {
-                    idx--;
-                    CHECK_INDEX(idx, state->pHeader->stringIdsSize);
-                }
-                break;
-            }
-            case DBG_SET_FILE: {
-                dex_u4 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
-                if (!okay) break;
-                if (idx != 0) {
-                    idx--;
-                    CHECK_INDEX(idx, state->pHeader->stringIdsSize);
-                }
-                break;
-            }
-            default: {
-                // No arguments to parse for anything else.
-            }
-        }
-
-        if (!okay) {
-            ALOGE("Bogus syntax for opcode %02x", opcode);
-            return NULL;
-        }
-    }
-
-    return (void*) data;
-}
+// static void* intraVerifyDebugInfoItem(const CheckState* state, void* ptr) {
+//     const dex_u1* fileEnd = state->fileEnd;
+//     const dex_u1* data = (const dex_u1*) ptr;
+//     bool okay = true;
+//     dex_u4 i;
+//
+//     readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//
+//     if (!okay) {
+//         ALOGE("Bogus line_start");
+//         return NULL;
+//     }
+//
+//     dex_u4 parametersSize =
+//         readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//
+//     if (!okay) {
+//         ALOGE("Bogus parameters_size");
+//         return NULL;
+//     }
+//
+//     if (parametersSize > 65536) {
+//         ALOGE("Invalid parameters_size: %#x", parametersSize);
+//         return NULL;
+//     }
+//
+//     for (i = 0; i < parametersSize; i++) {
+//         dex_u4 parameterName =
+//             readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//
+//         if (!okay) {
+//             ALOGE("Bogus parameter_name");
+//             return NULL;
+//         }
+//
+//         if (parameterName != 0) {
+//             parameterName--;
+//             CHECK_INDEX(parameterName, state->pHeader->stringIdsSize);
+//         }
+//     }
+//
+//     bool done = false;
+//     while (!done) {
+//         dex_u1 opcode = *(data++);
+//
+//         switch (opcode) {
+//             case DBG_END_SEQUENCE: {
+//                 done = true;
+//                 break;
+//             }
+//             case DBG_ADVANCE_PC: {
+//                 readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 break;
+//             }
+//             case DBG_ADVANCE_LINE: {
+//                 readAndVerifySignedLeb128(&data, fileEnd, &okay);
+//                 break;
+//             }
+//             case DBG_START_LOCAL: {
+//                 dex_u4 idx;
+//                 dex_u4 regNum = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (regNum >= 65536) {
+//                     okay = false;
+//                     break;
+//                 }
+//                 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (idx != 0) {
+//                     idx--;
+//                     CHECK_INDEX(idx, state->pHeader->stringIdsSize);
+//                 }
+//                 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (idx != 0) {
+//                     idx--;
+//                     CHECK_INDEX(idx, state->pHeader->stringIdsSize);
+//                 }
+//                 break;
+//             }
+//             case DBG_END_LOCAL:
+//             case DBG_RESTART_LOCAL: {
+//                 dex_u4 regNum = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (regNum >= 65536) {
+//                     okay = false;
+//                     break;
+//                 }
+//                 break;
+//             }
+//             case DBG_START_LOCAL_EXTENDED: {
+//                 dex_u4 idx;
+//                 dex_u4 regNum = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (regNum >= 65536) {
+//                     okay = false;
+//                     break;
+//                 }
+//                 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (idx != 0) {
+//                     idx--;
+//                     CHECK_INDEX(idx, state->pHeader->stringIdsSize);
+//                 }
+//                 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (idx != 0) {
+//                     idx--;
+//                     CHECK_INDEX(idx, state->pHeader->stringIdsSize);
+//                 }
+//                 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (idx != 0) {
+//                     idx--;
+//                     CHECK_INDEX(idx, state->pHeader->stringIdsSize);
+//                 }
+//                 break;
+//             }
+//             case DBG_SET_FILE: {
+//                 dex_u4 idx = readAndVerifyUnsignedLeb128(&data, fileEnd, &okay);
+//                 if (!okay) break;
+//                 if (idx != 0) {
+//                     idx--;
+//                     CHECK_INDEX(idx, state->pHeader->stringIdsSize);
+//                 }
+//                 break;
+//             }
+//             default: {
+//                 // No arguments to parse for anything else.
+//             }
+//         }
+//
+//         if (!okay) {
+//             ALOGE("Bogus syntax for opcode %02x", opcode);
+//             return NULL;
+//         }
+//     }
+//
+//     return (void*) data;
+// }
 
 /* defined below */
 static const dex_u1* verifyEncodedValue(const CheckState* state, const dex_u1* data,
@@ -2599,186 +2599,186 @@ static bool iterateDataSection(CheckState* state, dex_u4 offset, dex_u4 count,
  * asked to verify itself, it can't assume that the items it refers to
  * have been byte-swapped and verified.
  */
-static bool swapEverythingButHeaderAndMap(CheckState* state,
-        DexMapList* pMap) {
-    const DexMapItem* item = pMap->list;
-    dex_u4 lastOffset = 0;
-    dex_u4 count = pMap->size;
-    bool okay = true;
-
-    while (okay && count--) {
-        dex_u4 sectionOffset = item->offset;
-        dex_u4 sectionCount = item->size;
-        dex_u2 type = item->type;
-
-        if (lastOffset < sectionOffset) {
-            CHECK_OFFSET_RANGE(lastOffset, sectionOffset);
-            const dex_u1* ptr = (const dex_u1*) filePointer(state, lastOffset);
-            while (lastOffset < sectionOffset) {
-                if (*ptr != '\0') {
-                    ALOGE("Non-zero padding 0x%02x before section start @ %x",
-                            *ptr, lastOffset);
-                    okay = false;
-                    break;
-                }
-                ptr++;
-                lastOffset++;
-            }
-        } else if (lastOffset > sectionOffset) {
-            ALOGE("Section overlap or out-of-order map: %x, %x",
-                    lastOffset, sectionOffset);
-            okay = false;
-        }
-
-        if (!okay) {
-            break;
-        }
-
-        switch (type) {
-            case kDexTypeHeaderItem: {
-                /*
-                 * The header got swapped very early on, but do some
-                 * additional sanity checking here.
-                 */
-                okay = checkHeaderSection(state, sectionOffset, sectionCount,
-                        &lastOffset);
-                break;
-            }
-            case kDexTypeStringIdItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, state->pHeader->stringIdsOff,
-                        state->pHeader->stringIdsSize, swapStringIdItem,
-                        sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeTypeIdItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, state->pHeader->typeIdsOff,
-                        state->pHeader->typeIdsSize, swapTypeIdItem,
-                        sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeProtoIdItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, state->pHeader->protoIdsOff,
-                        state->pHeader->protoIdsSize, swapProtoIdItem,
-                        sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeFieldIdItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, state->pHeader->fieldIdsOff,
-                        state->pHeader->fieldIdsSize, swapFieldIdItem,
-                        sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeMethodIdItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, state->pHeader->methodIdsOff,
-                        state->pHeader->methodIdsSize, swapMethodIdItem,
-                        sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeClassDefItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, state->pHeader->classDefsOff,
-                        state->pHeader->classDefsSize, swapClassDefItem,
-                        sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeCallSiteIdItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, sectionOffset, sectionCount,
-                        swapCallSiteId, sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeMethodHandleItem: {
-                okay = checkBoundsAndIterateSection(state, sectionOffset,
-                        sectionCount, sectionOffset, sectionCount,
-                        swapMethodHandleItem, sizeof(dex_u4), &lastOffset);
-                break;
-            }
-            case kDexTypeMapList: {
-                /*
-                 * The map section was swapped early on, but do some
-                 * additional sanity checking here.
-                 */
-                okay = checkMapSection(state, sectionOffset, sectionCount,
-                        &lastOffset);
-                break;
-            }
-            case kDexTypeTypeList: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        swapTypeList, sizeof(dex_u4), &lastOffset, type);
-                break;
-            }
-            case kDexTypeAnnotationSetRefList: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        swapAnnotationSetRefList, sizeof(dex_u4), &lastOffset,
-                        type);
-                break;
-            }
-            case kDexTypeAnnotationSetItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        swapAnnotationSetItem, sizeof(dex_u4), &lastOffset, type);
-                break;
-            }
-            case kDexTypeClassDataItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        intraVerifyClassDataItem, sizeof(dex_u1), &lastOffset,
-                        type);
-                break;
-            }
-            case kDexTypeCodeItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        swapCodeItem, sizeof(dex_u4), &lastOffset, type);
-                break;
-            }
-            case kDexTypeStringDataItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        intraVerifyStringDataItem, sizeof(dex_u1), &lastOffset,
-                        type);
-                break;
-            }
-            case kDexTypeDebugInfoItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        intraVerifyDebugInfoItem, sizeof(dex_u1), &lastOffset,
-                        type);
-                break;
-            }
-            case kDexTypeAnnotationItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        intraVerifyAnnotationItem, sizeof(dex_u1), &lastOffset,
-                        type);
-                break;
-            }
-            case kDexTypeEncodedArrayItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        intraVerifyEncodedArrayItem, sizeof(dex_u1), &lastOffset,
-                        type);
-                break;
-            }
-            case kDexTypeAnnotationsDirectoryItem: {
-                okay = iterateDataSection(state, sectionOffset, sectionCount,
-                        swapAnnotationsDirectoryItem, sizeof(dex_u4), &lastOffset,
-                        type);
-                break;
-            }
-            default: {
-                ALOGE("Unknown map item type %04x", type);
-                return false;
-            }
-        }
-
-        if (!okay) {
-            ALOGE("Swap of section type %04x failed", type);
-        }
-
-        item++;
-    }
-
-    return okay;
-}
+// static bool swapEverythingButHeaderAndMap(CheckState* state,
+//         DexMapList* pMap) {
+//     const DexMapItem* item = pMap->list;
+//     dex_u4 lastOffset = 0;
+//     dex_u4 count = pMap->size;
+//     bool okay = true;
+//
+//     while (okay && count--) {
+//         dex_u4 sectionOffset = item->offset;
+//         dex_u4 sectionCount = item->size;
+//         dex_u2 type = item->type;
+//
+//         if (lastOffset < sectionOffset) {
+//             CHECK_OFFSET_RANGE(lastOffset, sectionOffset);
+//             const dex_u1* ptr = (const dex_u1*) filePointer(state, lastOffset);
+//             while (lastOffset < sectionOffset) {
+//                 if (*ptr != '\0') {
+//                     ALOGE("Non-zero padding 0x%02x before section start @ %x",
+//                             *ptr, lastOffset);
+//                     okay = false;
+//                     break;
+//                 }
+//                 ptr++;
+//                 lastOffset++;
+//             }
+//         } else if (lastOffset > sectionOffset) {
+//             ALOGE("Section overlap or out-of-order map: %x, %x",
+//                     lastOffset, sectionOffset);
+//             okay = false;
+//         }
+//
+//         if (!okay) {
+//             break;
+//         }
+//
+//         switch (type) {
+//             case kDexTypeHeaderItem: {
+//                 /*
+//                  * The header got swapped very early on, but do some
+//                  * additional sanity checking here.
+//                  */
+//                 okay = checkHeaderSection(state, sectionOffset, sectionCount,
+//                         &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeStringIdItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, state->pHeader->stringIdsOff,
+//                         state->pHeader->stringIdsSize, swapStringIdItem,
+//                         sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeTypeIdItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, state->pHeader->typeIdsOff,
+//                         state->pHeader->typeIdsSize, swapTypeIdItem,
+//                         sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeProtoIdItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, state->pHeader->protoIdsOff,
+//                         state->pHeader->protoIdsSize, swapProtoIdItem,
+//                         sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeFieldIdItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, state->pHeader->fieldIdsOff,
+//                         state->pHeader->fieldIdsSize, swapFieldIdItem,
+//                         sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeMethodIdItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, state->pHeader->methodIdsOff,
+//                         state->pHeader->methodIdsSize, swapMethodIdItem,
+//                         sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeClassDefItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, state->pHeader->classDefsOff,
+//                         state->pHeader->classDefsSize, swapClassDefItem,
+//                         sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeCallSiteIdItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, sectionOffset, sectionCount,
+//                         swapCallSiteId, sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeMethodHandleItem: {
+//                 okay = checkBoundsAndIterateSection(state, sectionOffset,
+//                         sectionCount, sectionOffset, sectionCount,
+//                         swapMethodHandleItem, sizeof(dex_u4), &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeMapList: {
+//                 /*
+//                  * The map section was swapped early on, but do some
+//                  * additional sanity checking here.
+//                  */
+//                 okay = checkMapSection(state, sectionOffset, sectionCount,
+//                         &lastOffset);
+//                 break;
+//             }
+//             case kDexTypeTypeList: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         swapTypeList, sizeof(dex_u4), &lastOffset, type);
+//                 break;
+//             }
+//             case kDexTypeAnnotationSetRefList: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         swapAnnotationSetRefList, sizeof(dex_u4), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             case kDexTypeAnnotationSetItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         swapAnnotationSetItem, sizeof(dex_u4), &lastOffset, type);
+//                 break;
+//             }
+//             case kDexTypeClassDataItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         intraVerifyClassDataItem, sizeof(dex_u1), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             case kDexTypeCodeItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         swapCodeItem, sizeof(dex_u4), &lastOffset, type);
+//                 break;
+//             }
+//             case kDexTypeStringDataItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         intraVerifyStringDataItem, sizeof(dex_u1), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             case kDexTypeDebugInfoItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         intraVerifyDebugInfoItem, sizeof(dex_u1), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             case kDexTypeAnnotationItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         intraVerifyAnnotationItem, sizeof(dex_u1), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             case kDexTypeEncodedArrayItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         intraVerifyEncodedArrayItem, sizeof(dex_u1), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             case kDexTypeAnnotationsDirectoryItem: {
+//                 okay = iterateDataSection(state, sectionOffset, sectionCount,
+//                         swapAnnotationsDirectoryItem, sizeof(dex_u4), &lastOffset,
+//                         type);
+//                 break;
+//             }
+//             default: {
+//                 ALOGE("Unknown map item type %04x", type);
+//                 return false;
+//             }
+//         }
+//
+//         if (!okay) {
+//             ALOGE("Swap of section type %04x failed", type);
+//         }
+//
+//         item++;
+//     }
+//
+//     return okay;
+// }
 
 /*
  * Perform cross-item verification on everything that needs it. This
