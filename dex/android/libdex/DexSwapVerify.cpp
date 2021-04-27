@@ -651,97 +651,97 @@ static bool shortyDescMatch(char shorty, const char* descriptor, bool
 }
 
 /* Perform cross-item verification of proto_id_item. */
-static void* crossVerifyProtoIdItem(const CheckState* state, void* ptr) {
-    const DexProtoId* item = (const DexProtoId*) ptr;
-    const char* shorty =
-        dexStringById(state->pDexFile, item->shortyIdx);
-
-    if (!dexDataMapVerify0Ok(state->pDataMap,
-                    item->parametersOff, kDexTypeTypeList)) {
-        return NULL;
-    }
-
-    if (!shortyDescMatch(*shorty,
-                    dexStringByTypeIdx(state->pDexFile, item->returnTypeIdx),
-                    true)) {
-        return NULL;
-    }
-
-    dex_u4 protoIdx = item - state->pDexFile->pProtoIds;
-    DexProto proto = { state->pDexFile, protoIdx };
-    DexParameterIterator iterator;
-
-    dexParameterIteratorInit(&iterator, &proto);
-    shorty++; // Skip the return type.
-
-    for (;;) {
-        const char *desc = dexParameterIteratorNextDescriptor(&iterator);
-
-        if (desc == NULL) {
-            break;
-        }
-
-        if (*shorty == '\0') {
-            ALOGE("Shorty is too short");
-            return NULL;
-        }
-
-        if (!shortyDescMatch(*shorty, desc, false)) {
-            return NULL;
-        }
-
-        shorty++;
-    }
-
-    if (*shorty != '\0') {
-        ALOGE("Shorty is too long");
-        return NULL;
-    }
-
-    const DexProtoId* item0 = (const DexProtoId*) state->previousItem;
-    if (item0 != NULL) {
-        // Check ordering. This relies on type_ids being in order.
-        if (item0->returnTypeIdx > item->returnTypeIdx) {
-            ALOGE("Out-of-order proto_id return types");
-            return NULL;
-        } else if (item0->returnTypeIdx == item->returnTypeIdx) {
-            bool badOrder = false;
-            DexProto proto0 = { state->pDexFile, protoIdx - 1 };
-            DexParameterIterator iterator0;
-
-            dexParameterIteratorInit(&iterator, &proto);
-            dexParameterIteratorInit(&iterator0, &proto0);
-
-            for (;;) {
-                dex_u4 idx0 = dexParameterIteratorNextIndex(&iterator0);
-                dex_u4 idx1 = dexParameterIteratorNextIndex(&iterator);
-
-                if (idx1 == kDexNoIndex) {
-                    badOrder = true;
-                    break;
-                }
-
-                if (idx0 == kDexNoIndex) {
-                    break;
-                }
-
-                if (idx0 < idx1) {
-                    break;
-                } else if (idx0 > idx1) {
-                    badOrder = true;
-                    break;
-                }
-            }
-
-            if (badOrder) {
-                ALOGE("Out-of-order proto_id arguments");
-                return NULL;
-            }
-        }
-    }
-
-    return (void*) (item + 1);
-}
+// static void* crossVerifyProtoIdItem(const CheckState* state, void* ptr) {
+//     const DexProtoId* item = (const DexProtoId*) ptr;
+//     const char* shorty =
+//         dexStringById(state->pDexFile, item->shortyIdx);
+//
+//     if (!dexDataMapVerify0Ok(state->pDataMap,
+//                     item->parametersOff, kDexTypeTypeList)) {
+//         return NULL;
+//     }
+//
+//     if (!shortyDescMatch(*shorty,
+//                     dexStringByTypeIdx(state->pDexFile, item->returnTypeIdx),
+//                     true)) {
+//         return NULL;
+//     }
+//
+//     dex_u4 protoIdx = item - state->pDexFile->pProtoIds;
+//     DexProto proto = { state->pDexFile, protoIdx };
+//     DexParameterIterator iterator;
+//
+//     dexParameterIteratorInit(&iterator, &proto);
+//     shorty++; // Skip the return type.
+//
+//     for (;;) {
+//         const char *desc = dexParameterIteratorNextDescriptor(&iterator);
+//
+//         if (desc == NULL) {
+//             break;
+//         }
+//
+//         if (*shorty == '\0') {
+//             ALOGE("Shorty is too short");
+//             return NULL;
+//         }
+//
+//         if (!shortyDescMatch(*shorty, desc, false)) {
+//             return NULL;
+//         }
+//
+//         shorty++;
+//     }
+//
+//     if (*shorty != '\0') {
+//         ALOGE("Shorty is too long");
+//         return NULL;
+//     }
+//
+//     const DexProtoId* item0 = (const DexProtoId*) state->previousItem;
+//     if (item0 != NULL) {
+//         // Check ordering. This relies on type_ids being in order.
+//         if (item0->returnTypeIdx > item->returnTypeIdx) {
+//             ALOGE("Out-of-order proto_id return types");
+//             return NULL;
+//         } else if (item0->returnTypeIdx == item->returnTypeIdx) {
+//             bool badOrder = false;
+//             DexProto proto0 = { state->pDexFile, protoIdx - 1 };
+//             DexParameterIterator iterator0;
+//
+//             dexParameterIteratorInit(&iterator, &proto);
+//             dexParameterIteratorInit(&iterator0, &proto0);
+//
+//             for (;;) {
+//                 dex_u4 idx0 = dexParameterIteratorNextIndex(&iterator0);
+//                 dex_u4 idx1 = dexParameterIteratorNextIndex(&iterator);
+//
+//                 if (idx1 == kDexNoIndex) {
+//                     badOrder = true;
+//                     break;
+//                 }
+//
+//                 if (idx0 == kDexNoIndex) {
+//                     break;
+//                 }
+//
+//                 if (idx0 < idx1) {
+//                     break;
+//                 } else if (idx0 > idx1) {
+//                     badOrder = true;
+//                     break;
+//                 }
+//             }
+//
+//             if (badOrder) {
+//                 ALOGE("Out-of-order proto_id arguments");
+//                 return NULL;
+//             }
+//         }
+//     }
+//
+//     return (void*) (item + 1);
+// }
 
 /* Perform byte-swapping and intra-item verification on field_id_item. */
 static void* swapFieldIdItem(const CheckState* state, void* ptr) {
@@ -954,96 +954,96 @@ static bool verifyAnnotationsDirectoryIsForDef(const CheckState* state,
 }
 
 /* Perform cross-item verification of class_def_item. */
-static void* crossVerifyClassDefItem(const CheckState* state, void* ptr) {
-    const DexClassDef* item = (const DexClassDef*) ptr;
-    dex_u4 classIdx = item->classIdx;
-    const char* descriptor = dexStringByTypeIdx(state->pDexFile, classIdx);
-
-    if (!dexIsClassDescriptor(descriptor)) {
-        ALOGE("Invalid class: '%s'", descriptor);
-        return NULL;
-    }
-
-    if (setDefinedClassBit(state, classIdx)) {
-        ALOGE("Duplicate class definition: '%s'", descriptor);
-        return NULL;
-    }
-
-    bool okay =
-        dexDataMapVerify0Ok(state->pDataMap,
-                item->interfacesOff, kDexTypeTypeList)
-        && dexDataMapVerify0Ok(state->pDataMap,
-                item->annotationsOff, kDexTypeAnnotationsDirectoryItem)
-        && dexDataMapVerify0Ok(state->pDataMap,
-                item->classDataOff, kDexTypeClassDataItem)
-        && dexDataMapVerify0Ok(state->pDataMap,
-                item->staticValuesOff, kDexTypeEncodedArrayItem);
-
-    if (!okay) {
-        return NULL;
-    }
-
-    if (item->superclassIdx != kDexNoIndex) {
-        descriptor = dexStringByTypeIdx(state->pDexFile, item->superclassIdx);
-        if (!dexIsClassDescriptor(descriptor)) {
-            ALOGE("Invalid superclass: '%s'", descriptor);
-            return NULL;
-        }
-    }
-
-    const DexTypeList* interfaces =
-        dexGetInterfacesList(state->pDexFile, item);
-    if (interfaces != NULL) {
-        dex_u4 size = interfaces->size;
-        dex_u4 i;
-
-        /*
-         * Ensure that all interfaces refer to classes (not arrays or
-         * primitives).
-         */
-        for (i = 0; i < size; i++) {
-            descriptor = dexStringByTypeIdx(state->pDexFile,
-                    dexTypeListGetIdx(interfaces, i));
-            if (!dexIsClassDescriptor(descriptor)) {
-                ALOGE("Invalid interface: '%s'", descriptor);
-                return NULL;
-            }
-        }
-
-        /*
-         * Ensure that there are no duplicates. This is an O(N^2) test,
-         * but in practice the number of interfaces implemented by any
-         * given class is low. I will buy a milkshake for the
-         * first person to show me a realistic case for which this test
-         * would be unacceptably slow.
-         */
-        for (i = 1; i < size; i++) {
-            dex_u4 idx1 = dexTypeListGetIdx(interfaces, i);
-            dex_u4 j;
-            for (j = 0; j < i; j++) {
-                dex_u4 idx2 = dexTypeListGetIdx(interfaces, j);
-                if (idx1 == idx2) {
-                    ALOGE("Duplicate interface: '%s'",
-                            dexStringByTypeIdx(state->pDexFile, idx1));
-                    return NULL;
-                }
-            }
-        }
-    }
-
-    if (!verifyClassDataIsForDef(state, item->classDataOff, item->classIdx)) {
-        ALOGE("Invalid class_data_item");
-        return NULL;
-    }
-
-    if (!verifyAnnotationsDirectoryIsForDef(state, item->annotationsOff,
-                    item->classIdx)) {
-        ALOGE("Invalid annotations_directory_item");
-        return NULL;
-    }
-
-    return (void*) (item + 1);
-}
+// static void* crossVerifyClassDefItem(const CheckState* state, void* ptr) {
+//     const DexClassDef* item = (const DexClassDef*) ptr;
+//     dex_u4 classIdx = item->classIdx;
+//     const char* descriptor = dexStringByTypeIdx(state->pDexFile, classIdx);
+//
+//     if (!dexIsClassDescriptor(descriptor)) {
+//         ALOGE("Invalid class: '%s'", descriptor);
+//         return NULL;
+//     }
+//
+//     if (setDefinedClassBit(state, classIdx)) {
+//         ALOGE("Duplicate class definition: '%s'", descriptor);
+//         return NULL;
+//     }
+//
+//     bool okay =
+//         dexDataMapVerify0Ok(state->pDataMap,
+//                 item->interfacesOff, kDexTypeTypeList)
+//         && dexDataMapVerify0Ok(state->pDataMap,
+//                 item->annotationsOff, kDexTypeAnnotationsDirectoryItem)
+//         && dexDataMapVerify0Ok(state->pDataMap,
+//                 item->classDataOff, kDexTypeClassDataItem)
+//         && dexDataMapVerify0Ok(state->pDataMap,
+//                 item->staticValuesOff, kDexTypeEncodedArrayItem);
+//
+//     if (!okay) {
+//         return NULL;
+//     }
+//
+//     if (item->superclassIdx != kDexNoIndex) {
+//         descriptor = dexStringByTypeIdx(state->pDexFile, item->superclassIdx);
+//         if (!dexIsClassDescriptor(descriptor)) {
+//             ALOGE("Invalid superclass: '%s'", descriptor);
+//             return NULL;
+//         }
+//     }
+//
+//     const DexTypeList* interfaces =
+//         dexGetInterfacesList(state->pDexFile, item);
+//     if (interfaces != NULL) {
+//         dex_u4 size = interfaces->size;
+//         dex_u4 i;
+//
+//         /*
+//          * Ensure that all interfaces refer to classes (not arrays or
+//          * primitives).
+//          */
+//         for (i = 0; i < size; i++) {
+//             descriptor = dexStringByTypeIdx(state->pDexFile,
+//                     dexTypeListGetIdx(interfaces, i));
+//             if (!dexIsClassDescriptor(descriptor)) {
+//                 ALOGE("Invalid interface: '%s'", descriptor);
+//                 return NULL;
+//             }
+//         }
+//
+//         /*
+//          * Ensure that there are no duplicates. This is an O(N^2) test,
+//          * but in practice the number of interfaces implemented by any
+//          * given class is low. I will buy a milkshake for the
+//          * first person to show me a realistic case for which this test
+//          * would be unacceptably slow.
+//          */
+//         for (i = 1; i < size; i++) {
+//             dex_u4 idx1 = dexTypeListGetIdx(interfaces, i);
+//             dex_u4 j;
+//             for (j = 0; j < i; j++) {
+//                 dex_u4 idx2 = dexTypeListGetIdx(interfaces, j);
+//                 if (idx1 == idx2) {
+//                     ALOGE("Duplicate interface: '%s'",
+//                             dexStringByTypeIdx(state->pDexFile, idx1));
+//                     return NULL;
+//                 }
+//             }
+//         }
+//     }
+//
+//     if (!verifyClassDataIsForDef(state, item->classDataOff, item->classIdx)) {
+//         ALOGE("Invalid class_data_item");
+//         return NULL;
+//     }
+//
+//     if (!verifyAnnotationsDirectoryIsForDef(state, item->annotationsOff,
+//                     item->classIdx)) {
+//         ALOGE("Invalid annotations_directory_item");
+//         return NULL;
+//     }
+//
+//     return (void*) (item + 1);
+// }
 
 /* Perform cross-item verification of call_site_id. */
 // static void* crossVerifyCallSiteId(const CheckState* state, void* ptr) {
@@ -1223,86 +1223,86 @@ static void* crossVerifyClassDefItem(const CheckState* state, void* ptr) {
 //     return addr;
 // }
 
-static void* swapCallSiteId(const CheckState* state, void* ptr) {
-    DexCallSiteId* item = (DexCallSiteId*) ptr;
+// static void* swapCallSiteId(const CheckState* state, void* ptr) {
+//     DexCallSiteId* item = (DexCallSiteId*) ptr;
+//
+//     CHECK_PTR_RANGE(item, item + 1);
+//     SWAP_OFFSET4(item->callSiteOff);
+//
+//     return (item + 1);
+// }
 
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_OFFSET4(item->callSiteOff);
-
-    return (item + 1);
-}
-
-static void* swapMethodHandleItem(const CheckState* state, void* ptr) {
-    DexMethodHandleItem* item = (DexMethodHandleItem*) ptr;
-
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_FIELD2(item->methodHandleType);
-    SWAP_FIELD2(item->fieldOrMethodIdx);
-
-    return (item + 1);
-}
+// static void* swapMethodHandleItem(const CheckState* state, void* ptr) {
+//     DexMethodHandleItem* item = (DexMethodHandleItem*) ptr;
+//
+//     CHECK_PTR_RANGE(item, item + 1);
+//     SWAP_FIELD2(item->methodHandleType);
+//     SWAP_FIELD2(item->fieldOrMethodIdx);
+//
+//     return (item + 1);
+// }
 
 
 /* Helper for crossVerifyAnnotationsDirectoryItem(), which checks the
  * field elements. */
-static const dex_u1* crossVerifyFieldAnnotations(const CheckState* state, dex_u4 count,
-        const dex_u1* addr, dex_u4 definingClass) {
-    const DexFieldAnnotationsItem* item = (DexFieldAnnotationsItem*) addr;
-
-    while (count--) {
-        if (!verifyFieldDefiner(state, definingClass, item->fieldIdx)) {
-            return NULL;
-        }
-        if (!dexDataMapVerify(state->pDataMap, item->annotationsOff,
-                        kDexTypeAnnotationSetItem)) {
-            return NULL;
-        }
-        item++;
-    }
-
-    return (const dex_u1*) item;
-}
+// static const dex_u1* crossVerifyFieldAnnotations(const CheckState* state, dex_u4 count,
+//         const dex_u1* addr, dex_u4 definingClass) {
+//     const DexFieldAnnotationsItem* item = (DexFieldAnnotationsItem*) addr;
+//
+//     while (count--) {
+//         if (!verifyFieldDefiner(state, definingClass, item->fieldIdx)) {
+//             return NULL;
+//         }
+//         if (!dexDataMapVerify(state->pDataMap, item->annotationsOff,
+//                         kDexTypeAnnotationSetItem)) {
+//             return NULL;
+//         }
+//         item++;
+//     }
+//
+//     return (const dex_u1*) item;
+// }
 
 /* Helper for crossVerifyAnnotationsDirectoryItem(), which checks the
  * method elements. */
-static const dex_u1* crossVerifyMethodAnnotations(const CheckState* state,
-        dex_u4 count, const dex_u1* addr, dex_u4 definingClass) {
-    const DexMethodAnnotationsItem* item = (DexMethodAnnotationsItem*) addr;
-
-    while (count--) {
-        if (!verifyMethodDefiner(state, definingClass, item->methodIdx)) {
-            return NULL;
-        }
-        if (!dexDataMapVerify(state->pDataMap, item->annotationsOff,
-                        kDexTypeAnnotationSetItem)) {
-            return NULL;
-        }
-        item++;
-    }
-
-    return (const dex_u1*) item;
-}
+// static const dex_u1* crossVerifyMethodAnnotations(const CheckState* state,
+//         dex_u4 count, const dex_u1* addr, dex_u4 definingClass) {
+//     const DexMethodAnnotationsItem* item = (DexMethodAnnotationsItem*) addr;
+//
+//     while (count--) {
+//         if (!verifyMethodDefiner(state, definingClass, item->methodIdx)) {
+//             return NULL;
+//         }
+//         if (!dexDataMapVerify(state->pDataMap, item->annotationsOff,
+//                         kDexTypeAnnotationSetItem)) {
+//             return NULL;
+//         }
+//         item++;
+//     }
+//
+//     return (const dex_u1*) item;
+// }
 
 /* Helper for crossVerifyAnnotationsDirectoryItem(), which checks the
  * parameter elements. */
-static const dex_u1* crossVerifyParameterAnnotations(const CheckState* state,
-        dex_u4 count, const dex_u1* addr, dex_u4 definingClass) {
-    const DexParameterAnnotationsItem* item =
-        (DexParameterAnnotationsItem*) addr;
-
-    while (count--) {
-        if (!verifyMethodDefiner(state, definingClass, item->methodIdx)) {
-            return NULL;
-        }
-        if (!dexDataMapVerify(state->pDataMap, item->annotationsOff,
-                        kDexTypeAnnotationSetRefList)) {
-            return NULL;
-        }
-        item++;
-    }
-
-    return (const dex_u1*) item;
-}
+// static const dex_u1* crossVerifyParameterAnnotations(const CheckState* state,
+//         dex_u4 count, const dex_u1* addr, dex_u4 definingClass) {
+//     const DexParameterAnnotationsItem* item =
+//         (DexParameterAnnotationsItem*) addr;
+//
+//     while (count--) {
+//         if (!verifyMethodDefiner(state, definingClass, item->methodIdx)) {
+//             return NULL;
+//         }
+//         if (!dexDataMapVerify(state->pDataMap, item->annotationsOff,
+//                         kDexTypeAnnotationSetRefList)) {
+//             return NULL;
+//         }
+//         item++;
+//     }
+//
+//     return (const dex_u1*) item;
+// }
 
 /* Helper for crossVerifyClassDefItem() and
  * crossVerifyAnnotationsDirectoryItem(), which finds the type_idx of
@@ -1337,44 +1337,44 @@ static dex_u4 findFirstAnnotationsDirectoryDefiner(const CheckState* state,
 }
 
 /* Perform cross-item verification of annotations_directory_item. */
-static void* crossVerifyAnnotationsDirectoryItem(const CheckState* state,
-        void* ptr) {
-    const DexAnnotationsDirectoryItem* item = (const DexAnnotationsDirectoryItem*) ptr;
-    dex_u4 definingClass = findFirstAnnotationsDirectoryDefiner(state, item);
-
-    if (!dexDataMapVerify0Ok(state->pDataMap,
-                    item->classAnnotationsOff, kDexTypeAnnotationSetItem)) {
-        return NULL;
-    }
-
-    const dex_u1* addr = (const dex_u1*) (item + 1);
-
-    if (item->fieldsSize != 0) {
-        addr = crossVerifyFieldAnnotations(state, item->fieldsSize, addr,
-                definingClass);
-        if (addr == NULL) {
-            return NULL;
-        }
-    }
-
-    if (item->methodsSize != 0) {
-        addr = crossVerifyMethodAnnotations(state, item->methodsSize, addr,
-                definingClass);
-        if (addr == NULL) {
-            return NULL;
-        }
-    }
-
-    if (item->parametersSize != 0) {
-        addr = crossVerifyParameterAnnotations(state, item->parametersSize,
-                addr, definingClass);
-        if (addr == NULL) {
-            return NULL;
-        }
-    }
-
-    return (void*) addr;
-}
+// static void* crossVerifyAnnotationsDirectoryItem(const CheckState* state,
+//         void* ptr) {
+//     const DexAnnotationsDirectoryItem* item = (const DexAnnotationsDirectoryItem*) ptr;
+//     dex_u4 definingClass = findFirstAnnotationsDirectoryDefiner(state, item);
+//
+//     if (!dexDataMapVerify0Ok(state->pDataMap,
+//                     item->classAnnotationsOff, kDexTypeAnnotationSetItem)) {
+//         return NULL;
+//     }
+//
+//     const dex_u1* addr = (const dex_u1*) (item + 1);
+//
+//     if (item->fieldsSize != 0) {
+//         addr = crossVerifyFieldAnnotations(state, item->fieldsSize, addr,
+//                 definingClass);
+//         if (addr == NULL) {
+//             return NULL;
+//         }
+//     }
+//
+//     if (item->methodsSize != 0) {
+//         addr = crossVerifyMethodAnnotations(state, item->methodsSize, addr,
+//                 definingClass);
+//         if (addr == NULL) {
+//             return NULL;
+//         }
+//     }
+//
+//     if (item->parametersSize != 0) {
+//         addr = crossVerifyParameterAnnotations(state, item->parametersSize,
+//                 addr, definingClass);
+//         if (addr == NULL) {
+//             return NULL;
+//         }
+//     }
+//
+//     return (void*) addr;
+// }
 
 /* Perform byte-swapping and intra-item verification on type_list. */
 // static void* swapTypeList(const CheckState* state, void* ptr)
@@ -1619,25 +1619,25 @@ static bool verifyClassDataItem0(const CheckState* state,
 }
 
 /* Perform intra-item verification on class_data_item. */
-static void* intraVerifyClassDataItem(const CheckState* state, void* ptr) {
-    const dex_u1* data = (const dex_u1*) ptr;
-    DexClassData* classData = dexReadAndVerifyClassData(&data, state->fileEnd);
-
-    if (classData == NULL) {
-        ALOGE("Unable to parse class_data_item");
-        return NULL;
-    }
-
-    bool okay = verifyClassDataItem0(state, classData);
-
-    free(classData);
-
-    if (!okay) {
-        return NULL;
-    }
-
-    return (void*) data;
-}
+// static void* intraVerifyClassDataItem(const CheckState* state, void* ptr) {
+//     const dex_u1* data = (const dex_u1*) ptr;
+//     DexClassData* classData = dexReadAndVerifyClassData(&data, state->fileEnd);
+//
+//     if (classData == NULL) {
+//         ALOGE("Unable to parse class_data_item");
+//         return NULL;
+//     }
+//
+//     bool okay = verifyClassDataItem0(state, classData);
+//
+//     free(classData);
+//
+//     if (!okay) {
+//         return NULL;
+//     }
+//
+//     return (void*) data;
+// }
 
 /* Helper for crossVerifyClassDefItem() and
  * crossVerifyClassDataItem(), which finds the type_idx of the definer
@@ -1672,128 +1672,128 @@ static dex_u4 findFirstClassDataDefiner(const CheckState* state,
 }
 
 /* Perform cross-item verification of class_data_item. */
-static void* crossVerifyClassDataItem(const CheckState* state, void* ptr) {
-    const dex_u1* data = (const dex_u1*) ptr;
-    DexClassData* classData = dexReadAndVerifyClassData(&data, state->fileEnd);
-    dex_u4 definingClass = findFirstClassDataDefiner(state, classData);
-    bool okay = true;
-    dex_u4 i;
-
-    for (i = classData->header.staticFieldsSize; okay && (i > 0); /*i*/) {
-        i--;
-        const DexField* field = &classData->staticFields[i];
-        okay = verifyFieldDefiner(state, definingClass, field->fieldIdx);
-    }
-
-    for (i = classData->header.instanceFieldsSize; okay && (i > 0); /*i*/) {
-        i--;
-        const DexField* field = &classData->instanceFields[i];
-        okay = verifyFieldDefiner(state, definingClass, field->fieldIdx);
-    }
-
-    for (i = classData->header.directMethodsSize; okay && (i > 0); /*i*/) {
-        i--;
-        const DexMethod* meth = &classData->directMethods[i];
-        okay = dexDataMapVerify0Ok(state->pDataMap, meth->codeOff,
-                kDexTypeCodeItem)
-            && verifyMethodDefiner(state, definingClass, meth->methodIdx);
-    }
-
-    for (i = classData->header.virtualMethodsSize; okay && (i > 0); /*i*/) {
-        i--;
-        const DexMethod* meth = &classData->virtualMethods[i];
-        okay = dexDataMapVerify0Ok(state->pDataMap, meth->codeOff,
-                kDexTypeCodeItem)
-            && verifyMethodDefiner(state, definingClass, meth->methodIdx);
-    }
-
-    free(classData);
-
-    if (!okay) {
-        return NULL;
-    }
-
-    return (void*) data;
-}
+// static void* crossVerifyClassDataItem(const CheckState* state, void* ptr) {
+//     const dex_u1* data = (const dex_u1*) ptr;
+//     DexClassData* classData = dexReadAndVerifyClassData(&data, state->fileEnd);
+//     dex_u4 definingClass = findFirstClassDataDefiner(state, classData);
+//     bool okay = true;
+//     dex_u4 i;
+//
+//     for (i = classData->header.staticFieldsSize; okay && (i > 0); /*i*/) {
+//         i--;
+//         const DexField* field = &classData->staticFields[i];
+//         okay = verifyFieldDefiner(state, definingClass, field->fieldIdx);
+//     }
+//
+//     for (i = classData->header.instanceFieldsSize; okay && (i > 0); /*i*/) {
+//         i--;
+//         const DexField* field = &classData->instanceFields[i];
+//         okay = verifyFieldDefiner(state, definingClass, field->fieldIdx);
+//     }
+//
+//     for (i = classData->header.directMethodsSize; okay && (i > 0); /*i*/) {
+//         i--;
+//         const DexMethod* meth = &classData->directMethods[i];
+//         okay = dexDataMapVerify0Ok(state->pDataMap, meth->codeOff,
+//                 kDexTypeCodeItem)
+//             && verifyMethodDefiner(state, definingClass, meth->methodIdx);
+//     }
+//
+//     for (i = classData->header.virtualMethodsSize; okay && (i > 0); /*i*/) {
+//         i--;
+//         const DexMethod* meth = &classData->virtualMethods[i];
+//         okay = dexDataMapVerify0Ok(state->pDataMap, meth->codeOff,
+//                 kDexTypeCodeItem)
+//             && verifyMethodDefiner(state, definingClass, meth->methodIdx);
+//     }
+//
+//     free(classData);
+//
+//     if (!okay) {
+//         return NULL;
+//     }
+//
+//     return (void*) data;
+// }
 
 /* Helper for swapCodeItem(), which fills an array with all the valid
  * handlerOff values for catch handlers and also verifies the handler
  * contents. */
-static dex_u4 setHandlerOffsAndVerify(const CheckState* state,
-        DexCode* code, dex_u4 firstOffset, dex_u4 handlersSize, dex_u4* handlerOffs) {
-    const dex_u1* fileEnd = state->fileEnd;
-    const dex_u1* handlersBase = dexGetCatchHandlerData(code);
-    dex_u4 offset = firstOffset;
-    bool okay = true;
-    dex_u4 i;
-
-    for (i = 0; i < handlersSize; i++) {
-        const dex_u1* ptr = handlersBase + offset;
-        int size = readAndVerifySignedLeb128(&ptr, fileEnd, &okay);
-        bool catchAll;
-
-        if (!okay) {
-            ALOGE("Bogus size");
-            return 0;
-        }
-
-        if ((size < -65536) || (size > 65536)) {
-            ALOGE("Invalid size: %d", size);
-            return 0;
-        }
-
-        if (size <= 0) {
-            catchAll = true;
-            size = -size;
-        } else {
-            catchAll = false;
-        }
-
-        handlerOffs[i] = offset;
-
-        while (size-- > 0) {
-            dex_u4 typeIdx =
-                readAndVerifyUnsignedLeb128(&ptr, fileEnd, &okay);
-
-            if (!okay) {
-                ALOGE("Bogus type_idx");
-                return 0;
-            }
-
-            CHECK_INDEX(typeIdx, state->pHeader->typeIdsSize);
-
-            dex_u4 addr = readAndVerifyUnsignedLeb128(&ptr, fileEnd, &okay);
-
-            if (!okay) {
-                ALOGE("Bogus addr");
-                return 0;
-            }
-
-            if (addr >= code->insnsSize) {
-                ALOGE("Invalid addr: %#x", addr);
-                return 0;
-            }
-        }
-
-        if (catchAll) {
-            dex_u4 addr = readAndVerifyUnsignedLeb128(&ptr, fileEnd, &okay);
-
-            if (!okay) {
-                ALOGE("Bogus catch_all_addr");
-                return 0;
-            }
-
-            if (addr >= code->insnsSize) {
-                ALOGE("Invalid catch_all_addr: %#x", addr);
-                return 0;
-            }
-        }
-
-        offset = ptr - handlersBase;
-    }
-
-    return offset;
-}
+// static dex_u4 setHandlerOffsAndVerify(const CheckState* state,
+//         DexCode* code, dex_u4 firstOffset, dex_u4 handlersSize, dex_u4* handlerOffs) {
+//     const dex_u1* fileEnd = state->fileEnd;
+//     const dex_u1* handlersBase = dexGetCatchHandlerData(code);
+//     dex_u4 offset = firstOffset;
+//     bool okay = true;
+//     dex_u4 i;
+//
+//     for (i = 0; i < handlersSize; i++) {
+//         const dex_u1* ptr = handlersBase + offset;
+//         int size = readAndVerifySignedLeb128(&ptr, fileEnd, &okay);
+//         bool catchAll;
+//
+//         if (!okay) {
+//             ALOGE("Bogus size");
+//             return 0;
+//         }
+//
+//         if ((size < -65536) || (size > 65536)) {
+//             ALOGE("Invalid size: %d", size);
+//             return 0;
+//         }
+//
+//         if (size <= 0) {
+//             catchAll = true;
+//             size = -size;
+//         } else {
+//             catchAll = false;
+//         }
+//
+//         handlerOffs[i] = offset;
+//
+//         while (size-- > 0) {
+//             dex_u4 typeIdx =
+//                 readAndVerifyUnsignedLeb128(&ptr, fileEnd, &okay);
+//
+//             if (!okay) {
+//                 ALOGE("Bogus type_idx");
+//                 return 0;
+//             }
+//
+//             CHECK_INDEX(typeIdx, state->pHeader->typeIdsSize);
+//
+//             dex_u4 addr = readAndVerifyUnsignedLeb128(&ptr, fileEnd, &okay);
+//
+//             if (!okay) {
+//                 ALOGE("Bogus addr");
+//                 return 0;
+//             }
+//
+//             if (addr >= code->insnsSize) {
+//                 ALOGE("Invalid addr: %#x", addr);
+//                 return 0;
+//             }
+//         }
+//
+//         if (catchAll) {
+//             dex_u4 addr = readAndVerifyUnsignedLeb128(&ptr, fileEnd, &okay);
+//
+//             if (!okay) {
+//                 ALOGE("Bogus catch_all_addr");
+//                 return 0;
+//             }
+//
+//             if (addr >= code->insnsSize) {
+//                 ALOGE("Invalid catch_all_addr: %#x", addr);
+//                 return 0;
+//             }
+//         }
+//
+//         offset = ptr - handlersBase;
+//     }
+//
+//     return offset;
+// }
 
 /* Helper for swapCodeItem(), which does all the try-catch related
  * swapping and verification. */
@@ -2473,122 +2473,122 @@ typedef void* ItemVisitorFunction(const CheckState* state, void* ptr);
  * data map (done if mapType is passed as non-negative). The section
  * must consist of concatenated items of the same type.
  */
-static bool iterateSectionWithOptionalUpdate(CheckState* state,
-        dex_u4 offset, dex_u4 count, ItemVisitorFunction* func, dex_u4 alignment,
-        dex_u4* nextOffset, int mapType) {
-    dex_u4 alignmentMask = alignment - 1;
-    dex_u4 i;
-
-    state->previousItem = NULL;
-
-    for (i = 0; i < count; i++) {
-        dex_u4 newOffset = (offset + alignmentMask) & ~alignmentMask;
-        dex_u1* ptr = (dex_u1*) filePointer(state, newOffset);
-
-        if (offset < newOffset) {
-            ptr = (dex_u1*) filePointer(state, offset);
-            if (offset < newOffset) {
-                CHECK_OFFSET_RANGE(offset, newOffset);
-                while (offset < newOffset) {
-                    if (*ptr != '\0') {
-                        ALOGE("Non-zero padding 0x%02x @ %x", *ptr, offset);
-                        return false;
-                    }
-                    ptr++;
-                    offset++;
-                }
-            }
-        }
-
-        dex_u1* newPtr = (dex_u1*) func(state, ptr);
-        newOffset = fileOffset(state, newPtr);
-
-        if (newPtr == NULL) {
-            ALOGE("Trouble with item %d @ offset %#x", i, offset);
-            return false;
-        }
-
-        if (newOffset > state->fileLen) {
-            ALOGE("Item %d @ offset %#x ends out of bounds", i, offset);
-            return false;
-        }
-
-        if (mapType >= 0) {
-            dexDataMapAdd(state->pDataMap, offset, mapType);
-        }
-
-        state->previousItem = ptr;
-        offset = newOffset;
-    }
-
-    if (nextOffset != NULL) {
-        *nextOffset = offset;
-    }
-
-    return true;
-}
+// static bool iterateSectionWithOptionalUpdate(CheckState* state,
+//         dex_u4 offset, dex_u4 count, ItemVisitorFunction* func, dex_u4 alignment,
+//         dex_u4* nextOffset, int mapType) {
+//     dex_u4 alignmentMask = alignment - 1;
+//     dex_u4 i;
+//
+//     state->previousItem = NULL;
+//
+//     for (i = 0; i < count; i++) {
+//         dex_u4 newOffset = (offset + alignmentMask) & ~alignmentMask;
+//         dex_u1* ptr = (dex_u1*) filePointer(state, newOffset);
+//
+//         if (offset < newOffset) {
+//             ptr = (dex_u1*) filePointer(state, offset);
+//             if (offset < newOffset) {
+//                 CHECK_OFFSET_RANGE(offset, newOffset);
+//                 while (offset < newOffset) {
+//                     if (*ptr != '\0') {
+//                         ALOGE("Non-zero padding 0x%02x @ %x", *ptr, offset);
+//                         return false;
+//                     }
+//                     ptr++;
+//                     offset++;
+//                 }
+//             }
+//         }
+//
+//         dex_u1* newPtr = (dex_u1*) func(state, ptr);
+//         newOffset = fileOffset(state, newPtr);
+//
+//         if (newPtr == NULL) {
+//             ALOGE("Trouble with item %d @ offset %#x", i, offset);
+//             return false;
+//         }
+//
+//         if (newOffset > state->fileLen) {
+//             ALOGE("Item %d @ offset %#x ends out of bounds", i, offset);
+//             return false;
+//         }
+//
+//         if (mapType >= 0) {
+//             dexDataMapAdd(state->pDataMap, offset, mapType);
+//         }
+//
+//         state->previousItem = ptr;
+//         offset = newOffset;
+//     }
+//
+//     if (nextOffset != NULL) {
+//         *nextOffset = offset;
+//     }
+//
+//     return true;
+// }
 
 /*
  * Iterate over all the items in a section. The section must consist of
  * concatenated items of the same type. This variant will not update the data
  * map.
  */
-static bool iterateSection(CheckState* state, dex_u4 offset, dex_u4 count,
-        ItemVisitorFunction* func, dex_u4 alignment, dex_u4* nextOffset) {
-    return iterateSectionWithOptionalUpdate(state, offset, count, func,
-            alignment, nextOffset, -1);
-}
+// static bool iterateSection(CheckState* state, dex_u4 offset, dex_u4 count,
+//         ItemVisitorFunction* func, dex_u4 alignment, dex_u4* nextOffset) {
+//     return iterateSectionWithOptionalUpdate(state, offset, count, func,
+//             alignment, nextOffset, -1);
+// }
 
 /*
  * Like iterateSection(), but also check that the offset and count match
  * a given pair of expected values.
  */
-static bool checkBoundsAndIterateSection(CheckState* state,
-        dex_u4 offset, dex_u4 count, dex_u4 expectedOffset, dex_u4 expectedCount,
-        ItemVisitorFunction* func, dex_u4 alignment, dex_u4* nextOffset) {
-    if (offset != expectedOffset) {
-        ALOGE("Bogus offset for section: got %#x; expected %#x",
-                offset, expectedOffset);
-        return false;
-    }
-
-    if (count != expectedCount) {
-        ALOGE("Bogus size for section: got %#x; expected %#x",
-                count, expectedCount);
-        return false;
-    }
-
-    return iterateSection(state, offset, count, func, alignment, nextOffset);
-}
+// static bool checkBoundsAndIterateSection(CheckState* state,
+//         dex_u4 offset, dex_u4 count, dex_u4 expectedOffset, dex_u4 expectedCount,
+//         ItemVisitorFunction* func, dex_u4 alignment, dex_u4* nextOffset) {
+//     if (offset != expectedOffset) {
+//         ALOGE("Bogus offset for section: got %#x; expected %#x",
+//                 offset, expectedOffset);
+//         return false;
+//     }
+//
+//     if (count != expectedCount) {
+//         ALOGE("Bogus size for section: got %#x; expected %#x",
+//                 count, expectedCount);
+//         return false;
+//     }
+//
+//     return iterateSection(state, offset, count, func, alignment, nextOffset);
+// }
 
 /*
  * Like iterateSection(), but also update the data section map and
  * check that all the items fall within the data section.
  */
-static bool iterateDataSection(CheckState* state, dex_u4 offset, dex_u4 count,
-        ItemVisitorFunction* func, dex_u4 alignment, dex_u4* nextOffset, int mapType) {
-    dex_u4 dataStart = state->pHeader->dataOff;
-    dex_u4 dataEnd = dataStart + state->pHeader->dataSize;
-
-    assert(nextOffset != NULL);
-
-    if ((offset < dataStart) || (offset >= dataEnd)) {
-        ALOGE("Bogus offset for data subsection: %#x", offset);
-        return false;
-    }
-
-    if (!iterateSectionWithOptionalUpdate(state, offset, count, func,
-                    alignment, nextOffset, mapType)) {
-        return false;
-    }
-
-    if (*nextOffset > dataEnd) {
-        ALOGE("Out-of-bounds end of data subsection: %#x", *nextOffset);
-        return false;
-    }
-
-    return true;
-}
+// static bool iterateDataSection(CheckState* state, dex_u4 offset, dex_u4 count,
+//         ItemVisitorFunction* func, dex_u4 alignment, dex_u4* nextOffset, int mapType) {
+//     dex_u4 dataStart = state->pHeader->dataOff;
+//     dex_u4 dataEnd = dataStart + state->pHeader->dataSize;
+//
+//     assert(nextOffset != NULL);
+//
+//     if ((offset < dataStart) || (offset >= dataEnd)) {
+//         ALOGE("Bogus offset for data subsection: %#x", offset);
+//         return false;
+//     }
+//
+//     if (!iterateSectionWithOptionalUpdate(state, offset, count, func,
+//                     alignment, nextOffset, mapType)) {
+//         return false;
+//     }
+//
+//     if (*nextOffset > dataEnd) {
+//         ALOGE("Out-of-bounds end of data subsection: %#x", *nextOffset);
+//         return false;
+//     }
+//
+//     return true;
+// }
 
 /*
  * Byte-swap all items in the given map except the header and the map

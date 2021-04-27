@@ -33,41 +33,41 @@ struct DexDataMap {
 /*
  * Allocate and initialize a DexDataMap. Returns NULL on failure.
  */
-DexDataMap* dexDataMapAlloc(dex_u4 maxCount);
+//DexDataMap* dexDataMapAlloc(dex_u4 maxCount);
 
 /*
  * Free a DexDataMap.
  */
-void dexDataMapFree(DexDataMap* map);
+//void dexDataMapFree(DexDataMap* map);
 
 /*
  * Add a new element to the map. The offset must be greater than the
  * all previously added offsets.
  */
-void dexDataMapAdd(DexDataMap* map, dex_u4 offset, dex_u2 type);
+//void dexDataMapAdd(DexDataMap* map, dex_u4 offset, dex_u2 type);
 
 /*
  * Get the type associated with the given offset. This returns -1 if
  * there is no entry for the given offset.
  */
-int dexDataMapGet(DexDataMap* map, dex_u4 offset);
+//int dexDataMapGet(DexDataMap* map, dex_u4 offset);
 
 /*
  * Verify that there is an entry in the map, mapping the given offset to
  * the given type. This will return true if such an entry exists and
  * return false as well as log an error if not.
  */
-bool dexDataMapVerify(DexDataMap* map, dex_u4 offset, dex_u2 type);
+//bool dexDataMapVerify(DexDataMap* map, dex_u4 offset, dex_u2 type);
 
 /*
  * Like dexDataMapVerify(), but also accept a 0 offset as valid.
  */
-DEX_INLINE bool dexDataMapVerify0Ok(DexDataMap* map, dex_u4 offset, dex_u2 type) {
-    if (offset == 0) {
-        return true;
-    }
-
-    return dexDataMapVerify(map, offset, type);
-}
+//DEX_INLINE bool dexDataMapVerify0Ok(DexDataMap* map, dex_u4 offset, dex_u2 type) {
+//    if (offset == 0) {
+//        return true;
+//    }
+//
+//    return dexDataMapVerify(map, offset, type);
+//}
 
 #endif  // LIBDEX_DEXDATAMAP_H_

@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 /*
  * Reads a string index as encoded for the debug info format,
@@ -266,16 +267,14 @@ void dexDecodeDebugInfo(
             void* cnxt)
 {
     const dex_u1* stream = dexGetDebugInfoStream(pDexFile, pCode);
-    LocalInfo localInReg[pCode->registersSize];
-
-    memset(localInReg, 0, sizeof(LocalInfo) * pCode->registersSize);
+    std::vector<LocalInfo> localInReg(pCode->registersSize);
 
     if (stream != NULL) {
         dexDecodeDebugInfo0(pDexFile, pCode, classDescriptor, protoIdx, accessFlags,
-            posCb, localCb, cnxt, stream, localInReg);
+            posCb, localCb, cnxt, stream, localInReg.data());
     }
 
     for (int reg = 0; reg < pCode->registersSize; reg++) {
-        emitLocalCbIfLive(cnxt, reg, pCode->insnsSize, localInReg, localCb);
+        emitLocalCbIfLive(cnxt, reg, pCode->insnsSize, localInReg.data(), localCb);
     }
 }
