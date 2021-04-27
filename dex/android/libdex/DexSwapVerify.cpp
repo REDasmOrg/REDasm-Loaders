@@ -369,241 +369,241 @@ static bool isDataSectionType(int mapType) {
  * Swap the map_list and verify what we can about it. Also, if verification
  * passes, allocate the state's DexDataMap.
  */
-static bool swapMap(CheckState* state, DexMapList* pMap)
-{
-    DexMapItem* item = pMap->list;
-    dex_u4 count;
-    dex_u4 dataItemCount = 0; // Total count of items in the data section.
-    dex_u4 dataItemsLeft = state->pHeader->dataSize; // See use below.
-    dex_u4 usedBits = 0;      // Bit set: one bit per section
-    bool first = true;
-    dex_u4 lastOffset = 0;
-
-    SWAP_FIELD4(pMap->size);
-    count = pMap->size;
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexMapItem);
-    CHECK_LIST_SIZE(item, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_FIELD2(item->type);
-        SWAP_FIELD2(item->unused);
-        SWAP_FIELD4(item->size);
-        SWAP_OFFSET4(item->offset);
-
-        if (first) {
-            first = false;
-        } else if (lastOffset >= item->offset) {
-            ALOGE("Out-of-order map item: %#x then %#x",
-                    lastOffset, item->offset);
-            return false;
-        }
-
-        if (item->offset >= state->pHeader->fileSize) {
-            ALOGE("Map item after end of file: %x, size %#x",
-                    item->offset, state->pHeader->fileSize);
-            return false;
-        }
-
-        if (isDataSectionType(item->type)) {
-            dex_u4 icount = item->size;
-
-            /*
-             * This sanity check on the data section items ensures that
-             * there are no more items than the number of bytes in
-             * the data section.
-             */
-            if (icount > dataItemsLeft) {
-                ALOGE("Unrealistically many items in the data section: "
-                        "at least %d", dataItemCount + icount);
-                return false;
-            }
-
-            dataItemsLeft -= icount;
-            dataItemCount += icount;
-        }
-
-        dex_u4 bit = mapTypeToBitMask(item->type);
-
-        if (bit == 0) {
-            return false;
-        }
-
-        if ((usedBits & bit) != 0) {
-            ALOGE("Duplicate map section of type %#x", item->type);
-            return false;
-        }
-
-        if (item->type == kDexTypeCallSiteIdItem) {
-            state->pCallSiteIds = item;
-        } else if (item->type == kDexTypeMethodHandleItem) {
-            state->pMethodHandleItems = item;
-        }
-
-        usedBits |= bit;
-        lastOffset = item->offset;
-        item++;
-    }
-
-    if ((usedBits & mapTypeToBitMask(kDexTypeHeaderItem)) == 0) {
-        ALOGE("Map is missing header entry");
-        return false;
-    }
-
-    if ((usedBits & mapTypeToBitMask(kDexTypeMapList)) == 0) {
-        ALOGE("Map is missing map_list entry");
-        return false;
-    }
-
-    if (((usedBits & mapTypeToBitMask(kDexTypeStringIdItem)) == 0)
-            && ((state->pHeader->stringIdsOff != 0)
-                    || (state->pHeader->stringIdsSize != 0))) {
-        ALOGE("Map is missing string_ids entry");
-        return false;
-    }
-
-    if (((usedBits & mapTypeToBitMask(kDexTypeTypeIdItem)) == 0)
-            && ((state->pHeader->typeIdsOff != 0)
-                    || (state->pHeader->typeIdsSize != 0))) {
-        ALOGE("Map is missing type_ids entry");
-        return false;
-    }
-
-    if (((usedBits & mapTypeToBitMask(kDexTypeProtoIdItem)) == 0)
-            && ((state->pHeader->protoIdsOff != 0)
-                    || (state->pHeader->protoIdsSize != 0))) {
-        ALOGE("Map is missing proto_ids entry");
-        return false;
-    }
-
-    if (((usedBits & mapTypeToBitMask(kDexTypeFieldIdItem)) == 0)
-            && ((state->pHeader->fieldIdsOff != 0)
-                    || (state->pHeader->fieldIdsSize != 0))) {
-        ALOGE("Map is missing field_ids entry");
-        return false;
-    }
-
-    if (((usedBits & mapTypeToBitMask(kDexTypeMethodIdItem)) == 0)
-            && ((state->pHeader->methodIdsOff != 0)
-                    || (state->pHeader->methodIdsSize != 0))) {
-        ALOGE("Map is missing method_ids entry");
-        return false;
-    }
-
-    if (((usedBits & mapTypeToBitMask(kDexTypeClassDefItem)) == 0)
-            && ((state->pHeader->classDefsOff != 0)
-                    || (state->pHeader->classDefsSize != 0))) {
-        ALOGE("Map is missing class_defs entry");
-        return false;
-    }
-
-    state->pDataMap = dexDataMapAlloc(dataItemCount);
-    if (state->pDataMap == NULL) {
-        ALOGE("Unable to allocate data map (size %#x)", dataItemCount);
-        return false;
-    }
-
-    return true;
-}
+// static bool swapMap(CheckState* state, DexMapList* pMap)
+// {
+//     DexMapItem* item = pMap->list;
+//     dex_u4 count;
+//     dex_u4 dataItemCount = 0; // Total count of items in the data section.
+//     dex_u4 dataItemsLeft = state->pHeader->dataSize; // See use below.
+//     dex_u4 usedBits = 0;      // Bit set: one bit per section
+//     bool first = true;
+//     dex_u4 lastOffset = 0;
+//
+//     SWAP_FIELD4(pMap->size);
+//     count = pMap->size;
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexMapItem);
+//     CHECK_LIST_SIZE(item, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_FIELD2(item->type);
+//         SWAP_FIELD2(item->unused);
+//         SWAP_FIELD4(item->size);
+//         SWAP_OFFSET4(item->offset);
+//
+//         if (first) {
+//             first = false;
+//         } else if (lastOffset >= item->offset) {
+//             ALOGE("Out-of-order map item: %#x then %#x",
+//                     lastOffset, item->offset);
+//             return false;
+//         }
+//
+//         if (item->offset >= state->pHeader->fileSize) {
+//             ALOGE("Map item after end of file: %x, size %#x",
+//                     item->offset, state->pHeader->fileSize);
+//             return false;
+//         }
+//
+//         if (isDataSectionType(item->type)) {
+//             dex_u4 icount = item->size;
+//
+//             /*
+//              * This sanity check on the data section items ensures that
+//              * there are no more items than the number of bytes in
+//              * the data section.
+//              */
+//             if (icount > dataItemsLeft) {
+//                 ALOGE("Unrealistically many items in the data section: "
+//                         "at least %d", dataItemCount + icount);
+//                 return false;
+//             }
+//
+//             dataItemsLeft -= icount;
+//             dataItemCount += icount;
+//         }
+//
+//         dex_u4 bit = mapTypeToBitMask(item->type);
+//
+//         if (bit == 0) {
+//             return false;
+//         }
+//
+//         if ((usedBits & bit) != 0) {
+//             ALOGE("Duplicate map section of type %#x", item->type);
+//             return false;
+//         }
+//
+//         if (item->type == kDexTypeCallSiteIdItem) {
+//             state->pCallSiteIds = item;
+//         } else if (item->type == kDexTypeMethodHandleItem) {
+//             state->pMethodHandleItems = item;
+//         }
+//
+//         usedBits |= bit;
+//         lastOffset = item->offset;
+//         item++;
+//     }
+//
+//     if ((usedBits & mapTypeToBitMask(kDexTypeHeaderItem)) == 0) {
+//         ALOGE("Map is missing header entry");
+//         return false;
+//     }
+//
+//     if ((usedBits & mapTypeToBitMask(kDexTypeMapList)) == 0) {
+//         ALOGE("Map is missing map_list entry");
+//         return false;
+//     }
+//
+//     if (((usedBits & mapTypeToBitMask(kDexTypeStringIdItem)) == 0)
+//             && ((state->pHeader->stringIdsOff != 0)
+//                     || (state->pHeader->stringIdsSize != 0))) {
+//         ALOGE("Map is missing string_ids entry");
+//         return false;
+//     }
+//
+//     if (((usedBits & mapTypeToBitMask(kDexTypeTypeIdItem)) == 0)
+//             && ((state->pHeader->typeIdsOff != 0)
+//                     || (state->pHeader->typeIdsSize != 0))) {
+//         ALOGE("Map is missing type_ids entry");
+//         return false;
+//     }
+//
+//     if (((usedBits & mapTypeToBitMask(kDexTypeProtoIdItem)) == 0)
+//             && ((state->pHeader->protoIdsOff != 0)
+//                     || (state->pHeader->protoIdsSize != 0))) {
+//         ALOGE("Map is missing proto_ids entry");
+//         return false;
+//     }
+//
+//     if (((usedBits & mapTypeToBitMask(kDexTypeFieldIdItem)) == 0)
+//             && ((state->pHeader->fieldIdsOff != 0)
+//                     || (state->pHeader->fieldIdsSize != 0))) {
+//         ALOGE("Map is missing field_ids entry");
+//         return false;
+//     }
+//
+//     if (((usedBits & mapTypeToBitMask(kDexTypeMethodIdItem)) == 0)
+//             && ((state->pHeader->methodIdsOff != 0)
+//                     || (state->pHeader->methodIdsSize != 0))) {
+//         ALOGE("Map is missing method_ids entry");
+//         return false;
+//     }
+//
+//     if (((usedBits & mapTypeToBitMask(kDexTypeClassDefItem)) == 0)
+//             && ((state->pHeader->classDefsOff != 0)
+//                     || (state->pHeader->classDefsSize != 0))) {
+//         ALOGE("Map is missing class_defs entry");
+//         return false;
+//     }
+//
+//     state->pDataMap = dexDataMapAlloc(dataItemCount);
+//     if (state->pDataMap == NULL) {
+//         ALOGE("Unable to allocate data map (size %#x)", dataItemCount);
+//         return false;
+//     }
+//
+//     return true;
+// }
 
 /* Check the map section for sanity. */
-static bool checkMapSection(const CheckState* state, dex_u4 sectionOffset,
-        dex_u4 sectionCount, dex_u4* endOffset) {
-    if (sectionCount != 1) {
-        ALOGE("Multiple map list items");
-        return false;
-    }
-
-    if (sectionOffset != state->pHeader->mapOff) {
-        ALOGE("Map not at header-defined offset: %#x, expected %#x",
-                sectionOffset, state->pHeader->mapOff);
-        return false;
-    }
-
-    const DexMapList* pMap = (const DexMapList*) filePointer(state, sectionOffset);
-
-    *endOffset =
-        sectionOffset + sizeof(dex_u4) + (pMap->size * sizeof(DexMapItem));
-    return true;
-}
+// static bool checkMapSection(const CheckState* state, dex_u4 sectionOffset,
+//         dex_u4 sectionCount, dex_u4* endOffset) {
+//     if (sectionCount != 1) {
+//         ALOGE("Multiple map list items");
+//         return false;
+//     }
+//
+//     if (sectionOffset != state->pHeader->mapOff) {
+//         ALOGE("Map not at header-defined offset: %#x, expected %#x",
+//                 sectionOffset, state->pHeader->mapOff);
+//         return false;
+//     }
+//
+//     const DexMapList* pMap = (const DexMapList*) filePointer(state, sectionOffset);
+//
+//     *endOffset =
+//         sectionOffset + sizeof(dex_u4) + (pMap->size * sizeof(DexMapItem));
+//     return true;
+// }
 
 /* Perform byte-swapping and intra-item verification on string_id_item. */
-static void* swapStringIdItem(const CheckState* state, void* ptr) {
-    DexStringId* item = (DexStringId*) ptr;
-
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_OFFSET4(item->stringDataOff);
-
-    return item + 1;
-}
+// static void* swapStringIdItem(const CheckState* state, void* ptr) {
+//     DexStringId* item = (DexStringId*) ptr;
+//
+//     CHECK_PTR_RANGE(item, item + 1);
+//     SWAP_OFFSET4(item->stringDataOff);
+//
+//     return item + 1;
+// }
 
 /* Perform cross-item verification of string_id_item. */
-static void* crossVerifyStringIdItem(const CheckState* state, void* ptr) {
-    const DexStringId* item = (const DexStringId*) ptr;
-
-    if (!dexDataMapVerify(state->pDataMap,
-                    item->stringDataOff, kDexTypeStringDataItem)) {
-        return NULL;
-    }
-
-    const DexStringId* item0 = (const DexStringId*) state->previousItem;
-    if (item0 != NULL) {
-        // Check ordering.
-        const char* s0 = dexGetStringData(state->pDexFile, item0);
-        const char* s1 = dexGetStringData(state->pDexFile, item);
-        if (dexUtf8Cmp(s0, s1) >= 0) {
-            ALOGE("Out-of-order string_ids: '%s' then '%s'", s0, s1);
-            return NULL;
-        }
-    }
-
-    return (void*) (item + 1);
-}
+// static void* crossVerifyStringIdItem(const CheckState* state, void* ptr) {
+//     const DexStringId* item = (const DexStringId*) ptr;
+//
+//     if (!dexDataMapVerify(state->pDataMap,
+//                     item->stringDataOff, kDexTypeStringDataItem)) {
+//         return NULL;
+//     }
+//
+//     const DexStringId* item0 = (const DexStringId*) state->previousItem;
+//     if (item0 != NULL) {
+//         // Check ordering.
+//         const char* s0 = dexGetStringData(state->pDexFile, item0);
+//         const char* s1 = dexGetStringData(state->pDexFile, item);
+//         if (dexUtf8Cmp(s0, s1) >= 0) {
+//             ALOGE("Out-of-order string_ids: '%s' then '%s'", s0, s1);
+//             return NULL;
+//         }
+//     }
+//
+//     return (void*) (item + 1);
+// }
 
 /* Perform byte-swapping and intra-item verification on type_id_item. */
-static void* swapTypeIdItem(const CheckState* state, void* ptr) {
-    DexTypeId* item = (DexTypeId*) ptr;
-
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_INDEX4(item->descriptorIdx, state->pHeader->stringIdsSize);
-
-    return item + 1;
-}
+// static void* swapTypeIdItem(const CheckState* state, void* ptr) {
+//     DexTypeId* item = (DexTypeId*) ptr;
+//
+//     CHECK_PTR_RANGE(item, item + 1);
+//     SWAP_INDEX4(item->descriptorIdx, state->pHeader->stringIdsSize);
+//
+//     return item + 1;
+// }
 
 /* Perform cross-item verification of type_id_item. */
-static void* crossVerifyTypeIdItem(const CheckState* state, void* ptr) {
-    const DexTypeId* item = (const DexTypeId*) ptr;
-    const char* descriptor =
-        dexStringById(state->pDexFile, item->descriptorIdx);
-
-    if (!dexIsValidTypeDescriptor(descriptor)) {
-        ALOGE("Invalid type descriptor: '%s'", descriptor);
-        return NULL;
-    }
-
-    const DexTypeId* item0 = (const DexTypeId*) state->previousItem;
-    if (item0 != NULL) {
-        // Check ordering. This relies on string_ids being in order.
-        if (item0->descriptorIdx >= item->descriptorIdx) {
-            ALOGE("Out-of-order type_ids: %#x then %#x",
-                    item0->descriptorIdx, item->descriptorIdx);
-            return NULL;
-        }
-    }
-
-    return (void*) (item + 1);
-}
+// static void* crossVerifyTypeIdItem(const CheckState* state, void* ptr) {
+//     const DexTypeId* item = (const DexTypeId*) ptr;
+//     const char* descriptor =
+//         dexStringById(state->pDexFile, item->descriptorIdx);
+//
+//     if (!dexIsValidTypeDescriptor(descriptor)) {
+//         ALOGE("Invalid type descriptor: '%s'", descriptor);
+//         return NULL;
+//     }
+//
+//     const DexTypeId* item0 = (const DexTypeId*) state->previousItem;
+//     if (item0 != NULL) {
+//         // Check ordering. This relies on string_ids being in order.
+//         if (item0->descriptorIdx >= item->descriptorIdx) {
+//             ALOGE("Out-of-order type_ids: %#x then %#x",
+//                     item0->descriptorIdx, item->descriptorIdx);
+//             return NULL;
+//         }
+//     }
+//
+//     return (void*) (item + 1);
+// }
 
 /* Perform byte-swapping and intra-item verification on proto_id_item. */
-static void* swapProtoIdItem(const CheckState* state, void* ptr) {
-    DexProtoId* item = (DexProtoId*) ptr;
-
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_INDEX4(item->shortyIdx, state->pHeader->stringIdsSize);
-    SWAP_INDEX4(item->returnTypeIdx, state->pHeader->typeIdsSize);
-    SWAP_OFFSET4(item->parametersOff);
-
-    return item + 1;
-}
+// static void* swapProtoIdItem(const CheckState* state, void* ptr) {
+//     DexProtoId* item = (DexProtoId*) ptr;
+//
+//     CHECK_PTR_RANGE(item, item + 1);
+//     SWAP_INDEX4(item->shortyIdx, state->pHeader->stringIdsSize);
+//     SWAP_INDEX4(item->returnTypeIdx, state->pHeader->typeIdsSize);
+//     SWAP_OFFSET4(item->parametersOff);
+//
+//     return item + 1;
+// }
 
 /* Helper for crossVerifyProtoIdItem(), which checks a shorty character
  * to see if it is compatible with a type descriptor. Returns true if
@@ -1046,182 +1046,182 @@ static void* crossVerifyClassDefItem(const CheckState* state, void* ptr) {
 }
 
 /* Perform cross-item verification of call_site_id. */
-static void* crossVerifyCallSiteId(const CheckState* state, void* ptr) {
-    const DexCallSiteId* item = (const DexCallSiteId*) ptr;
-    if (state->pCallSiteIds == nullptr) {
-        ALOGE("Verifying call site but expecting none");
-        return NULL;
-    }
-    if (item->callSiteOff < state->pHeader->dataOff ||
-        item->callSiteOff >= state->pHeader->dataOff + state->pHeader->dataSize) {
-        ALOGE("Bad call site offset: %u", item->callSiteOff);
-        return NULL;
-    }
-    return (void*) (item + 1);
-}
+// static void* crossVerifyCallSiteId(const CheckState* state, void* ptr) {
+//     const DexCallSiteId* item = (const DexCallSiteId*) ptr;
+//     if (state->pCallSiteIds == nullptr) {
+//         ALOGE("Verifying call site but expecting none");
+//         return NULL;
+//     }
+//     if (item->callSiteOff < state->pHeader->dataOff ||
+//         item->callSiteOff >= state->pHeader->dataOff + state->pHeader->dataSize) {
+//         ALOGE("Bad call site offset: %u", item->callSiteOff);
+//         return NULL;
+//     }
+//     return (void*) (item + 1);
+// }
 
 /* Perform cross-item verification of method_handle_item. */
-static void* crossVerifyMethodHandleItem(const CheckState* state, void* ptr) {
-    const DexMethodHandleItem* item = (const DexMethodHandleItem*) ptr;
-    if (state->pMethodHandleItems == nullptr) {
-        ALOGE("Verifying method handle but expecting none");
-        return NULL;
-    }
-    if (item->methodHandleType > (dex_u2) MethodHandleType::INVOKE_INTERFACE) {
-        ALOGE("Unknown method handle type: %u", item->methodHandleType);
-        return NULL;
-    }
-    switch ((MethodHandleType) item->methodHandleType) {
-        case MethodHandleType::STATIC_PUT:
-        case MethodHandleType::STATIC_GET:
-        case MethodHandleType::INSTANCE_PUT:
-        case MethodHandleType::INSTANCE_GET:
-            if (item->fieldOrMethodIdx >= state->pHeader->fieldIdsSize) {
-                ALOGE("Method handle has invalid field id: %u\n", item->fieldOrMethodIdx);
-                return NULL;
-            }
-            break;
-        case MethodHandleType::INVOKE_STATIC:
-        case MethodHandleType::INVOKE_INSTANCE:
-        case MethodHandleType::INVOKE_CONSTRUCTOR:
-        case MethodHandleType::INVOKE_DIRECT:
-        case MethodHandleType::INVOKE_INTERFACE:
-            if (item->fieldOrMethodIdx >= state->pHeader->methodIdsSize) {
-                ALOGE("Method handle has invalid method id: %u\n", item->fieldOrMethodIdx);
-                return NULL;
-            }
-            break;
-    }
-    return (void*) (item + 1);
-}
+// static void* crossVerifyMethodHandleItem(const CheckState* state, void* ptr) {
+//     const DexMethodHandleItem* item = (const DexMethodHandleItem*) ptr;
+//     if (state->pMethodHandleItems == nullptr) {
+//         ALOGE("Verifying method handle but expecting none");
+//         return NULL;
+//     }
+//     if (item->methodHandleType > (dex_u2) MethodHandleType::INVOKE_INTERFACE) {
+//         ALOGE("Unknown method handle type: %u", item->methodHandleType);
+//         return NULL;
+//     }
+//     switch ((MethodHandleType) item->methodHandleType) {
+//         case MethodHandleType::STATIC_PUT:
+//         case MethodHandleType::STATIC_GET:
+//         case MethodHandleType::INSTANCE_PUT:
+//         case MethodHandleType::INSTANCE_GET:
+//             if (item->fieldOrMethodIdx >= state->pHeader->fieldIdsSize) {
+//                 ALOGE("Method handle has invalid field id: %u\n", item->fieldOrMethodIdx);
+//                 return NULL;
+//             }
+//             break;
+//         case MethodHandleType::INVOKE_STATIC:
+//         case MethodHandleType::INVOKE_INSTANCE:
+//         case MethodHandleType::INVOKE_CONSTRUCTOR:
+//         case MethodHandleType::INVOKE_DIRECT:
+//         case MethodHandleType::INVOKE_INTERFACE:
+//             if (item->fieldOrMethodIdx >= state->pHeader->methodIdsSize) {
+//                 ALOGE("Method handle has invalid method id: %u\n", item->fieldOrMethodIdx);
+//                 return NULL;
+//             }
+//             break;
+//     }
+//     return (void*) (item + 1);
+// }
 
 /* Helper for swapAnnotationsDirectoryItem(), which performs
  * byte-swapping and intra-item verification on an
  * annotation_directory_item's field elements. */
-static dex_u1* swapFieldAnnotations(const CheckState* state, dex_u4 count, dex_u1* addr) {
-    DexFieldAnnotationsItem* item = (DexFieldAnnotationsItem*) addr;
-    bool first = true;
-    dex_u4 lastIdx = 0;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexFieldAnnotationsItem);
-    CHECK_LIST_SIZE(item, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_INDEX4(item->fieldIdx, state->pHeader->fieldIdsSize);
-        SWAP_OFFSET4(item->annotationsOff);
-
-        if (first) {
-            first = false;
-        } else if (lastIdx >= item->fieldIdx) {
-            ALOGE("Out-of-order field_idx: %#x then %#x", lastIdx,
-                 item->fieldIdx);
-            return NULL;
-        }
-
-        lastIdx = item->fieldIdx;
-        item++;
-    }
-
-    return (dex_u1*) item;
-}
+// static dex_u1* swapFieldAnnotations(const CheckState* state, dex_u4 count, dex_u1* addr) {
+//     DexFieldAnnotationsItem* item = (DexFieldAnnotationsItem*) addr;
+//     bool first = true;
+//     dex_u4 lastIdx = 0;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexFieldAnnotationsItem);
+//     CHECK_LIST_SIZE(item, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_INDEX4(item->fieldIdx, state->pHeader->fieldIdsSize);
+//         SWAP_OFFSET4(item->annotationsOff);
+//
+//         if (first) {
+//             first = false;
+//         } else if (lastIdx >= item->fieldIdx) {
+//             ALOGE("Out-of-order field_idx: %#x then %#x", lastIdx,
+//                  item->fieldIdx);
+//             return NULL;
+//         }
+//
+//         lastIdx = item->fieldIdx;
+//         item++;
+//     }
+//
+//     return (dex_u1*) item;
+// }
 
 /* Helper for swapAnnotationsDirectoryItem(), which performs
  * byte-swapping and intra-item verification on an
  * annotation_directory_item's method elements. */
-static dex_u1* swapMethodAnnotations(const CheckState* state, dex_u4 count, dex_u1* addr) {
-    DexMethodAnnotationsItem* item = (DexMethodAnnotationsItem*) addr;
-    bool first = true;
-    dex_u4 lastIdx = 0;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexMethodAnnotationsItem);
-    CHECK_LIST_SIZE(item, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_INDEX4(item->methodIdx, state->pHeader->methodIdsSize);
-        SWAP_OFFSET4(item->annotationsOff);
-
-        if (first) {
-            first = false;
-        } else if (lastIdx >= item->methodIdx) {
-            ALOGE("Out-of-order method_idx: %#x then %#x", lastIdx,
-                 item->methodIdx);
-            return NULL;
-        }
-
-        lastIdx = item->methodIdx;
-        item++;
-    }
-
-    return (dex_u1*) item;
-}
+// static dex_u1* swapMethodAnnotations(const CheckState* state, dex_u4 count, dex_u1* addr) {
+//     DexMethodAnnotationsItem* item = (DexMethodAnnotationsItem*) addr;
+//     bool first = true;
+//     dex_u4 lastIdx = 0;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexMethodAnnotationsItem);
+//     CHECK_LIST_SIZE(item, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_INDEX4(item->methodIdx, state->pHeader->methodIdsSize);
+//         SWAP_OFFSET4(item->annotationsOff);
+//
+//         if (first) {
+//             first = false;
+//         } else if (lastIdx >= item->methodIdx) {
+//             ALOGE("Out-of-order method_idx: %#x then %#x", lastIdx,
+//                  item->methodIdx);
+//             return NULL;
+//         }
+//
+//         lastIdx = item->methodIdx;
+//         item++;
+//     }
+//
+//     return (dex_u1*) item;
+// }
 
 /* Helper for swapAnnotationsDirectoryItem(), which performs
  * byte-swapping and intra-item verification on an
  * annotation_directory_item's parameter elements. */
-static dex_u1* swapParameterAnnotations(const CheckState* state, dex_u4 count,
-        dex_u1* addr) {
-    DexParameterAnnotationsItem* item = (DexParameterAnnotationsItem*) addr;
-    bool first = true;
-    dex_u4 lastIdx = 0;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexParameterAnnotationsItem);
-    CHECK_LIST_SIZE(item, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_INDEX4(item->methodIdx, state->pHeader->methodIdsSize);
-        SWAP_OFFSET4(item->annotationsOff);
-
-        if (first) {
-            first = false;
-        } else if (lastIdx >= item->methodIdx) {
-            ALOGE("Out-of-order method_idx: %#x then %#x", lastIdx,
-                 item->methodIdx);
-            return NULL;
-        }
-
-        lastIdx = item->methodIdx;
-        item++;
-    }
-
-    return (dex_u1*) item;
-}
+// static dex_u1* swapParameterAnnotations(const CheckState* state, dex_u4 count,
+//         dex_u1* addr) {
+//     DexParameterAnnotationsItem* item = (DexParameterAnnotationsItem*) addr;
+//     bool first = true;
+//     dex_u4 lastIdx = 0;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexParameterAnnotationsItem);
+//     CHECK_LIST_SIZE(item, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_INDEX4(item->methodIdx, state->pHeader->methodIdsSize);
+//         SWAP_OFFSET4(item->annotationsOff);
+//
+//         if (first) {
+//             first = false;
+//         } else if (lastIdx >= item->methodIdx) {
+//             ALOGE("Out-of-order method_idx: %#x then %#x", lastIdx,
+//                  item->methodIdx);
+//             return NULL;
+//         }
+//
+//         lastIdx = item->methodIdx;
+//         item++;
+//     }
+//
+//     return (dex_u1*) item;
+// }
 
 /* Perform byte-swapping and intra-item verification on
  * annotations_directory_item. */
-static void* swapAnnotationsDirectoryItem(const CheckState* state, void* ptr) {
-    DexAnnotationsDirectoryItem* item = (DexAnnotationsDirectoryItem*) ptr;
-
-    CHECK_PTR_RANGE(item, item + 1);
-    SWAP_OFFSET4(item->classAnnotationsOff);
-    SWAP_FIELD4(item->fieldsSize);
-    SWAP_FIELD4(item->methodsSize);
-    SWAP_FIELD4(item->parametersSize);
-
-    dex_u1* addr = (dex_u1*) (item + 1);
-
-    if (item->fieldsSize != 0) {
-        addr = swapFieldAnnotations(state, item->fieldsSize, addr);
-        if (addr == NULL) {
-            return NULL;
-        }
-    }
-
-    if (item->methodsSize != 0) {
-        addr = swapMethodAnnotations(state, item->methodsSize, addr);
-        if (addr == NULL) {
-            return NULL;
-        }
-    }
-
-    if (item->parametersSize != 0) {
-        addr = swapParameterAnnotations(state, item->parametersSize, addr);
-        if (addr == NULL) {
-            return NULL;
-        }
-    }
-
-    return addr;
-}
+// static void* swapAnnotationsDirectoryItem(const CheckState* state, void* ptr) {
+//     DexAnnotationsDirectoryItem* item = (DexAnnotationsDirectoryItem*) ptr;
+//
+//     CHECK_PTR_RANGE(item, item + 1);
+//     SWAP_OFFSET4(item->classAnnotationsOff);
+//     SWAP_FIELD4(item->fieldsSize);
+//     SWAP_FIELD4(item->methodsSize);
+//     SWAP_FIELD4(item->parametersSize);
+//
+//     dex_u1* addr = (dex_u1*) (item + 1);
+//
+//     if (item->fieldsSize != 0) {
+//         addr = swapFieldAnnotations(state, item->fieldsSize, addr);
+//         if (addr == NULL) {
+//             return NULL;
+//         }
+//     }
+//
+//     if (item->methodsSize != 0) {
+//         addr = swapMethodAnnotations(state, item->methodsSize, addr);
+//         if (addr == NULL) {
+//             return NULL;
+//         }
+//     }
+//
+//     if (item->parametersSize != 0) {
+//         addr = swapParameterAnnotations(state, item->parametersSize, addr);
+//         if (addr == NULL) {
+//             return NULL;
+//         }
+//     }
+//
+//     return addr;
+// }
 
 static void* swapCallSiteId(const CheckState* state, void* ptr) {
     DexCallSiteId* item = (DexCallSiteId*) ptr;
@@ -1377,130 +1377,130 @@ static void* crossVerifyAnnotationsDirectoryItem(const CheckState* state,
 }
 
 /* Perform byte-swapping and intra-item verification on type_list. */
-static void* swapTypeList(const CheckState* state, void* ptr)
-{
-    DexTypeList* pTypeList = (DexTypeList*) ptr;
-    DexTypeItem* pType;
-    dex_u4 count;
-
-    CHECK_PTR_RANGE(pTypeList, pTypeList + 1);
-    SWAP_FIELD4(pTypeList->size);
-    count = pTypeList->size;
-    pType = pTypeList->list;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexTypeItem);
-    CHECK_LIST_SIZE(pType, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_INDEX2(pType->typeIdx, state->pHeader->typeIdsSize);
-        pType++;
-    }
-
-    return pType;
-}
+// static void* swapTypeList(const CheckState* state, void* ptr)
+// {
+//     DexTypeList* pTypeList = (DexTypeList*) ptr;
+//     DexTypeItem* pType;
+//     dex_u4 count;
+//
+//     CHECK_PTR_RANGE(pTypeList, pTypeList + 1);
+//     SWAP_FIELD4(pTypeList->size);
+//     count = pTypeList->size;
+//     pType = pTypeList->list;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexTypeItem);
+//     CHECK_LIST_SIZE(pType, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_INDEX2(pType->typeIdx, state->pHeader->typeIdsSize);
+//         pType++;
+//     }
+//
+//     return pType;
+// }
 
 /* Perform byte-swapping and intra-item verification on
  * annotation_set_ref_list. */
-static void* swapAnnotationSetRefList(const CheckState* state, void* ptr) {
-    DexAnnotationSetRefList* list = (DexAnnotationSetRefList*) ptr;
-    DexAnnotationSetRefItem* item;
-    dex_u4 count;
-
-    CHECK_PTR_RANGE(list, list + 1);
-    SWAP_FIELD4(list->size);
-    count = list->size;
-    item = list->list;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexAnnotationSetRefItem);
-    CHECK_LIST_SIZE(item, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_OFFSET4(item->annotationsOff);
-        item++;
-    }
-
-    return item;
-}
+// static void* swapAnnotationSetRefList(const CheckState* state, void* ptr) {
+//     DexAnnotationSetRefList* list = (DexAnnotationSetRefList*) ptr;
+//     DexAnnotationSetRefItem* item;
+//     dex_u4 count;
+//
+//     CHECK_PTR_RANGE(list, list + 1);
+//     SWAP_FIELD4(list->size);
+//     count = list->size;
+//     item = list->list;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexAnnotationSetRefItem);
+//     CHECK_LIST_SIZE(item, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_OFFSET4(item->annotationsOff);
+//         item++;
+//     }
+//
+//     return item;
+// }
 
 /* Perform cross-item verification of annotation_set_ref_list. */
-static void* crossVerifyAnnotationSetRefList(const CheckState* state,
-        void* ptr) {
-    const DexAnnotationSetRefList* list = (const DexAnnotationSetRefList*) ptr;
-    const DexAnnotationSetRefItem* item = list->list;
-    int count = list->size;
-
-    while (count--) {
-        if (!dexDataMapVerify0Ok(state->pDataMap,
-                        item->annotationsOff, kDexTypeAnnotationSetItem)) {
-            return NULL;
-        }
-        item++;
-    }
-
-    return (void*) item;
-}
+// static void* crossVerifyAnnotationSetRefList(const CheckState* state,
+//         void* ptr) {
+//     const DexAnnotationSetRefList* list = (const DexAnnotationSetRefList*) ptr;
+//     const DexAnnotationSetRefItem* item = list->list;
+//     int count = list->size;
+//
+//     while (count--) {
+//         if (!dexDataMapVerify0Ok(state->pDataMap,
+//                         item->annotationsOff, kDexTypeAnnotationSetItem)) {
+//             return NULL;
+//         }
+//         item++;
+//     }
+//
+//     return (void*) item;
+// }
 
 /* Perform byte-swapping and intra-item verification on
  * annotation_set_item. */
-static void* swapAnnotationSetItem(const CheckState* state, void* ptr) {
-    DexAnnotationSetItem* set = (DexAnnotationSetItem*) ptr;
-    dex_u4* item;
-    dex_u4 count;
-
-    CHECK_PTR_RANGE(set, set + 1);
-    SWAP_FIELD4(set->size);
-    count = set->size;
-    item = set->entries;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(dex_u4);
-    CHECK_LIST_SIZE(item, count, sizeOfItem);
-
-    while (count--) {
-        SWAP_OFFSET4(*item);
-        item++;
-    }
-
-    return item;
-}
+// static void* swapAnnotationSetItem(const CheckState* state, void* ptr) {
+//     DexAnnotationSetItem* set = (DexAnnotationSetItem*) ptr;
+//     dex_u4* item;
+//     dex_u4 count;
+//
+//     CHECK_PTR_RANGE(set, set + 1);
+//     SWAP_FIELD4(set->size);
+//     count = set->size;
+//     item = set->entries;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(dex_u4);
+//     CHECK_LIST_SIZE(item, count, sizeOfItem);
+//
+//     while (count--) {
+//         SWAP_OFFSET4(*item);
+//         item++;
+//     }
+//
+//     return item;
+// }
 
 /* Helper for crossVerifyAnnotationSetItem(), which extracts the type_idx
  * out of an annotation_item. */
-static dex_u4 annotationItemTypeIdx(const DexAnnotationItem* item) {
-    const dex_u1* data = item->annotation;
-    return readUnsignedLeb128(&data);
-}
+// static dex_u4 annotationItemTypeIdx(const DexAnnotationItem* item) {
+//     const dex_u1* data = item->annotation;
+//     return readUnsignedLeb128(&data);
+// }
 
 /* Perform cross-item verification of annotation_set_item. */
-static void* crossVerifyAnnotationSetItem(const CheckState* state, void* ptr) {
-    const DexAnnotationSetItem* set = (const DexAnnotationSetItem*) ptr;
-    int count = set->size;
-    dex_u4 lastIdx = 0;
-    bool first = true;
-    int i;
-
-    for (i = 0; i < count; i++) {
-        if (!dexDataMapVerify0Ok(state->pDataMap,
-                        dexGetAnnotationOff(set, i), kDexTypeAnnotationItem)) {
-            return NULL;
-        }
-
-        const DexAnnotationItem* annotation =
-            dexGetAnnotationItem(state->pDexFile, set, i);
-        dex_u4 idx = annotationItemTypeIdx(annotation);
-
-        if (first) {
-            first = false;
-        } else if (lastIdx >= idx) {
-            ALOGE("Out-of-order entry types: %#x then %#x",
-                    lastIdx, idx);
-            return NULL;
-        }
-
-        lastIdx = idx;
-    }
-
-    return (void*) (set->entries + count);
-}
+// static void* crossVerifyAnnotationSetItem(const CheckState* state, void* ptr) {
+//     const DexAnnotationSetItem* set = (const DexAnnotationSetItem*) ptr;
+//     int count = set->size;
+//     dex_u4 lastIdx = 0;
+//     bool first = true;
+//     int i;
+//
+//     for (i = 0; i < count; i++) {
+//         if (!dexDataMapVerify0Ok(state->pDataMap,
+//                         dexGetAnnotationOff(set, i), kDexTypeAnnotationItem)) {
+//             return NULL;
+//         }
+//
+//         const DexAnnotationItem* annotation =
+//             dexGetAnnotationItem(state->pDexFile, set, i);
+//         dex_u4 idx = annotationItemTypeIdx(annotation);
+//
+//         if (first) {
+//             first = false;
+//         } else if (lastIdx >= idx) {
+//             ALOGE("Out-of-order entry types: %#x then %#x",
+//                     lastIdx, idx);
+//             return NULL;
+//         }
+//
+//         lastIdx = idx;
+//     }
+//
+//     return (void*) (set->entries + count);
+// }
 
 /* Helper for verifyClassDataItem(), which checks a list of fields. */
 static bool verifyFields(const CheckState* state, dex_u4 size,
@@ -1797,80 +1797,80 @@ static dex_u4 setHandlerOffsAndVerify(const CheckState* state,
 
 /* Helper for swapCodeItem(), which does all the try-catch related
  * swapping and verification. */
-static void* swapTriesAndCatches(const CheckState* state, DexCode* code) {
-    const dex_u1* encodedHandlers = dexGetCatchHandlerData(code);
-    const dex_u1* encodedPtr = encodedHandlers;
-    bool okay = true;
-    dex_u4 handlersSize =
-        readAndVerifyUnsignedLeb128(&encodedPtr, state->fileEnd, &okay);
-
-    if (!okay) {
-        ALOGE("Bogus handlers_size");
-        return NULL;
-    }
-
-    if ((handlersSize == 0) || (handlersSize >= 65536)) {
-        ALOGE("Invalid handlers_size: %d", handlersSize);
-        return NULL;
-    }
-
-    dex_u4 handlerOffs[handlersSize]; // list of valid handlerOff values
-    dex_u4 endOffset = setHandlerOffsAndVerify(state, code,
-            encodedPtr - encodedHandlers,
-            handlersSize, handlerOffs);
-
-    if (endOffset == 0) {
-        return NULL;
-    }
-
-    DexTry* tries = (DexTry*) dexGetTries(code);
-    dex_u4 count = code->triesSize;
-    dex_u4 lastEnd = 0;
-
-    const dex_u4 sizeOfItem = (dex_u4) sizeof(DexTry);
-    CHECK_LIST_SIZE(tries, count, sizeOfItem);
-
-    while (count--) {
-        dex_u4 i;
-
-        SWAP_FIELD4(tries->startAddr);
-        SWAP_FIELD2(tries->insnCount);
-        SWAP_FIELD2(tries->handlerOff);
-
-        if (tries->startAddr < lastEnd) {
-            ALOGE("Out-of-order try");
-            return NULL;
-        }
-
-        if (tries->startAddr >= code->insnsSize) {
-            ALOGE("Invalid start_addr: %#x", tries->startAddr);
-            return NULL;
-        }
-
-        for (i = 0; i < handlersSize; i++) {
-            if (tries->handlerOff == handlerOffs[i]) {
-                break;
-            }
-        }
-
-        if (i == handlersSize) {
-            ALOGE("Bogus handler offset: %#x", tries->handlerOff);
-            return NULL;
-        }
-
-        lastEnd = tries->startAddr + tries->insnCount;
-
-        if (lastEnd > code->insnsSize) {
-            ALOGE("Invalid insn_count: %#x (end addr %#x)",
-                    tries->insnCount, lastEnd);
-            return NULL;
-        }
-
-        tries++;
-    }
-
-    return (dex_u1*) encodedHandlers + endOffset;
-}
+// static void* swapTriesAndCatches(const CheckState* state, DexCode* code) {
+//     const dex_u1* encodedHandlers = dexGetCatchHandlerData(code);
+//     const dex_u1* encodedPtr = encodedHandlers;
+//     bool okay = true;
+//     dex_u4 handlersSize =
+//         readAndVerifyUnsignedLeb128(&encodedPtr, state->fileEnd, &okay);
+//
+//     if (!okay) {
+//         ALOGE("Bogus handlers_size");
+//         return NULL;
+//     }
+//
+//     if ((handlersSize == 0) || (handlersSize >= 65536)) {
+//         ALOGE("Invalid handlers_size: %d", handlersSize);
+//         return NULL;
+//     }
+//
+//     dex_u4 handlerOffs[handlersSize]; // list of valid handlerOff values
+//     dex_u4 endOffset = setHandlerOffsAndVerify(state, code,
+//             encodedPtr - encodedHandlers,
+//             handlersSize, handlerOffs);
+//
+//     if (endOffset == 0) {
+//         return NULL;
+//     }
+//
+//     DexTry* tries = (DexTry*) dexGetTries(code);
+//     dex_u4 count = code->triesSize;
+//     dex_u4 lastEnd = 0;
+//
+//     const dex_u4 sizeOfItem = (dex_u4) sizeof(DexTry);
+//     CHECK_LIST_SIZE(tries, count, sizeOfItem);
+//
+//     while (count--) {
+//         dex_u4 i;
+//
+//         SWAP_FIELD4(tries->startAddr);
+//         SWAP_FIELD2(tries->insnCount);
+//         SWAP_FIELD2(tries->handlerOff);
+//
+//         if (tries->startAddr < lastEnd) {
+//             ALOGE("Out-of-order try");
+//             return NULL;
+//         }
+//
+//         if (tries->startAddr >= code->insnsSize) {
+//             ALOGE("Invalid start_addr: %#x", tries->startAddr);
+//             return NULL;
+//         }
+//
+//         for (i = 0; i < handlersSize; i++) {
+//             if (tries->handlerOff == handlerOffs[i]) {
+//                 break;
+//             }
+//         }
+//
+//         if (i == handlersSize) {
+//             ALOGE("Bogus handler offset: %#x", tries->handlerOff);
+//             return NULL;
+//         }
+//
+//         lastEnd = tries->startAddr + tries->insnCount;
+//
+//         if (lastEnd > code->insnsSize) {
+//             ALOGE("Invalid insn_count: %#x (end addr %#x)",
+//                     tries->insnCount, lastEnd);
+//             return NULL;
+//         }
+//
+//         tries++;
+//     }
+//
+//     return (dex_u1*) encodedHandlers + endOffset;
+// }
 
 /* Perform byte-swapping and intra-item verification on code_item. */
 //static void* swapCodeItem(const CheckState* state, void* ptr) {
