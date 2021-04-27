@@ -90,7 +90,7 @@ A million repetitions of "a"
                needed for Win32, but chokes Linux - MPJ */
 #define X_LITTLE_ENDIAN /* This should be #define'd if true.*/
 #else
-# include <unistd.h>
+//# include <unistd.h>
 # include <stdlib.h>
 //# include <endian.h>
 //# if __BYTE_ORDER == __LITTLE_ENDIAN

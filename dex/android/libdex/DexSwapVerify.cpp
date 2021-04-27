@@ -25,8 +25,7 @@
 #include "DexUtf.h"
 #include "Leb128.h"
 
-#include <zlib.h>
-
+#include <rdapi/rdapi.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -2966,13 +2965,10 @@ int dexSwapAndVerify(dex_u1* addr, size_t len)
          * This might be a big-endian system, so we need to do this before
          * we byte-swap the header.
          */
-        uLong adler = adler32(0L, Z_NULL, 0);
         const int nonSum = sizeof(pHeader->magic) + sizeof(pHeader->checksum);
         dex_u4 storedFileSize = SWAP4(pHeader->fileSize);
         dex_u4 expectedChecksum = SWAP4(pHeader->checksum);
-
-        adler = adler32(adler, ((const dex_u1*) pHeader) + nonSum,
-                    storedFileSize - nonSum);
+        dex_u4 adler = RD_Adler32(((const dex_u1*) pHeader) + nonSum, storedFileSize - nonSum);
 
         if (adler != expectedChecksum) {
             ALOGE("ERROR: bad checksum (%08lx, expected %08x)",

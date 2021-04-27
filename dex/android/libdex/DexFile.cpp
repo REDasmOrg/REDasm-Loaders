@@ -25,8 +25,7 @@
 #include "Leb128.h"
 #include "sha1.h"
 //#include "ZipArchive.h"
-
-#include <zlib.h>
+#include <rdapi/rdapi.h>
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -478,11 +477,8 @@ const DexClassDef* dexFindClass(const DexFile* pDexFile,
 dex_u4 dexComputeChecksum(const DexHeader* pHeader)
 {
     const dex_u1* start = (const dex_u1*) pHeader;
-
-    uLong adler = adler32(0L, Z_NULL, 0);
     const int nonSum = sizeof(pHeader->magic) + sizeof(pHeader->checksum);
-
-    return (dex_u4) adler32(adler, start + nonSum, pHeader->fileSize - nonSum);
+    return (dex_u4)RD_Adler32(start + nonSum, pHeader->fileSize - nonSum);
 }
 
 /*

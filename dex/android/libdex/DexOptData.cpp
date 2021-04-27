@@ -19,8 +19,7 @@
  * to optimized .dex files.
  */
 
-#include <zlib.h>
-
+#include <rdapi/rdapi.h>
 #include "DexOptData.h"
 
 /*
@@ -37,12 +36,8 @@ static bool isValidPointer(const void* ptr, const void* start, const void* end)
 dex_u4 dexComputeOptChecksum(const DexOptHeader* pOptHeader)
 {
     const dex_u1* start = (const dex_u1*) pOptHeader + pOptHeader->depsOffset;
-    const dex_u1* end = (const dex_u1*) pOptHeader +
-        pOptHeader->optOffset + pOptHeader->optLength;
-
-    uLong adler = adler32(0L, Z_NULL, 0);
-
-    return (dex_u4) adler32(adler, start, end - start);
+    const dex_u1* end = (const dex_u1*) pOptHeader + pOptHeader->optOffset + pOptHeader->optLength;
+    return (dex_u4) RD_Adler32(start, end - start);
 }
 
 /* (documented in header file) */

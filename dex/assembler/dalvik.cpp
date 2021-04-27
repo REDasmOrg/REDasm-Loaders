@@ -20,6 +20,12 @@ void DalvikAssembler::emulate(RDContext* ctx, RDEmulateResult* result)
     size_t size = dexGetWidthFromInstruction(pcode) * sizeof(dex_u2);
     RDEmulateResult_SetSize(result, size);
 
+    if(address == 0x000723F6)
+    {
+        auto v = dexGetFormatFromOpcode(di.opcode);
+        v = { };
+    }
+
     switch(di.opcode)
     {
         case OP_FILL_ARRAY_DATA: {
