@@ -1,6 +1,7 @@
 #include "dex.h"
 #include <libdex/DexProto.h>
 #include "../demangler.h"
+#include <algorithm>
 #include <cctype>
 #include <memory>
 #include <list>
