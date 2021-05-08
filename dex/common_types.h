@@ -16,7 +16,7 @@
 struct DalvikPackedSwitchPayload {
     u16 ident, size;
     s32 first_key;
-    u32 targets[1];
+    s32 targets[1];
 };
 
 struct DalvikSparseSwitchPayload {

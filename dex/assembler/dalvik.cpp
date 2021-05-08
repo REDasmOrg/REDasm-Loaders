@@ -45,6 +45,8 @@ void DalvikAssembler::emulate(RDContext* ctx, RDEmulateResult* result)
             rd_address sparsedata = address + (di.vB * sizeof(dex_u2));
             auto* psparsedata = reinterpret_cast<DalvikSparseSwitchPayload*>(RD_FilePointer(ctx, sparsedata));
 
+            rd_log("Sparse switch @ " + rd_tohex(address));
+
             if(psparsedata && (psparsedata->ident == DALVIK_SPARSESWITCH_IDENT)) {
 
             }
@@ -57,10 +59,18 @@ void DalvikAssembler::emulate(RDContext* ctx, RDEmulateResult* result)
 
             if(ppackeddata && (ppackeddata->ident == DALVIK_PACKEDSWITCH_IDENT)) {
                 RDEmulateResult_AddTypeName(result, packeddata, DALVIK_PACKEDSWITCH_PATH);
-                //RDEmulateResult_AddBranchTable(result, RD_AddressOf(ctx, &ppackeddata->targets).address, ppackeddata->size);
-                RDEmulateResult_AddBranchTable(result, packeddata + sizeof(u64),  ppackeddata->size);
+
+                rd_ptr<RDType> t(RDType_CreateArray(ppackeddata->size, RDType_CreateInt(sizeof(u32), true)));
+                RDType_SetName(t.get(), "targets");
+                RDEmulateResult_AddType(result, packeddata + (sizeof(u32) * 2), t.get());
+
+                s32* targets = &ppackeddata->targets[0];
+
+                for(size_t i = 0; i < ppackeddata->size; i++, targets++)
+                    RDEmulateResult_AddBranchTrue(result, address + (targets[i] * sizeof(u16)));
             }
 
+            RDEmulateResult_AddBranchFalse(result, address + size);
             break;
         }
 
@@ -247,12 +257,6 @@ void DalvikAssembler::renderInstruction(RDContext* ctx, const RDRendererParams* 
 
 void DalvikAssembler::renderFunction(RDContext* ctx, const RDRendererParams* rp)
 {
-    if(rp->address == 0x000725A8)
-    {
-        int zzz = 0;
-        zzz++;
-    }
-
     auto it = m_functioncache.find(rp->address);
     std::string fn;
 
