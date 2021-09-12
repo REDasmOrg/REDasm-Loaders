@@ -81,8 +81,8 @@ const char* ElfLoaderT<bits>::assembler() const
             return "arm64le";
 
         case EM_ARM:
-            if(this->endianness() == Endianness_Big) return "armbe";
-            else return "armle";
+            if(this->endianness() == Endianness_Big) return "arm32be";
+            else return "arm32le";
 
         case EM_MIPS:
             if(ELF_LDR_VAL(this->m_ehdr->e_flags) & EF_MIPS_ABI_EABI64) {

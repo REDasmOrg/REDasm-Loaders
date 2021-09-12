@@ -31,7 +31,7 @@ const char* GbaLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* reques
     if(!GbaLoader::isUppercaseAscii(header->maker_code, GBA_MAKER_CODE_SIZE)) return nullptr;
     if(header->header_checksum != GbaLoader::calculateChecksum(request->buffer)) return nullptr;
 
-    return "armle";
+    return "arm32le";
 }
 
 bool GbaLoader::load(RDLoaderPlugin*, RDLoader* loader)

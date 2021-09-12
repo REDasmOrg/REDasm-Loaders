@@ -427,7 +427,7 @@ const char* PELoader::assembler(const ImageNtHeaders* ntheaders)
 
         case IMAGE_FILE_MACHINE_ARM:
             if(ntheaders->OptionalHeaderMagic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) return "arm64le";
-            return "armle";
+            return "arm32le";
 
         default: break;
     }
