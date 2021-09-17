@@ -92,14 +92,15 @@ void PEClassifier::classifyImport(const std::string& library)
 void PEClassifier::classifyDelphi(const ImageDosHeader* dosheader, const ImageNtHeaders* ntheaders, const PEResources &peresources)
 {
     PEResources::ResourceItem ri = peresources.find(PEResources::RCDATA);
-
-    if(!ri.second)
-        return;
+    if(!ri.second) return;
 
     ri = peresources.find("PACKAGEINFO", ri);
 
     if(!ri.second)
+    {
+        rdcontext_addproblem(m_context, "'PACKAGEINFO' resource not found");
         return;
+    }
 
     u64 datasize = 0;
     PackageInfoHeader* packageinfo = peresources.data<PackageInfoHeader>(ri, dosheader, ntheaders, &datasize);
