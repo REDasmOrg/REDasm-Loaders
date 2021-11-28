@@ -174,8 +174,17 @@ void ElfLoaderT<bits>::doLoad(RDContext* ctx)
     m_abi.reset(new ElfABIT<bits>(this));
     m_abi->parse();
 
-    if(RDDocument_AddressToSegment(doc, ELF_LDR_VAL(this->m_ehdr->e_entry), nullptr))
-        RDDocument_SetEntry(doc, ELF_LDR_VAL(this->m_ehdr->e_entry));
+    if(!RDDocument_AddressToSegment(doc, ELF_LDR_VAL(this->m_ehdr->e_entry), nullptr)) return;
+
+    auto e = ELF_LDR_VAL(this->m_ehdr->e_entry);
+
+    if(this->isARM() && (e & 1))
+    {
+        e &= ~1;
+        RDContext_SetAddressAssembler(ctx, e, this->endianness() == Endianness_Big ? "thumbbe" : "thumble");
+    }
+
+    RDDocument_SetEntry(doc, e);
 }
 
 template<size_t bits>
@@ -437,6 +446,13 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
             default: break;
         }
     }
+}
+
+template<size_t bits>
+bool ElfLoaderT<bits>::isARM() const
+{
+    auto m = ELF_LDR_VAL(this->m_ehdr->e_machine);
+    return (m == EM_AARCH64) || (m == EM_ARM);
 }
 
 template<size_t bits>

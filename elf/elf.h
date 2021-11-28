@@ -85,6 +85,7 @@ template<size_t bits> class ElfLoaderT: public ElfLoader
         void readSymbols(RDDocument* doc, const SHDR* shdr, UVAL offset, UVAL entrysize);
 
     private:
+        bool isARM() const;
         bool findSegments(const PHDR* phdr, std::vector<const SHDR*>& segments) const;
         const SHDR* findSegment(const PHDR* phdr) const;
 
