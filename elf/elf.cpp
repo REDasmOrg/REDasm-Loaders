@@ -176,15 +176,9 @@ void ElfLoaderT<bits>::doLoad(RDContext* ctx)
 
     if(!RDDocument_AddressToSegment(doc, ELF_LDR_VAL(this->m_ehdr->e_entry), nullptr)) return;
 
-    auto e = ELF_LDR_VAL(this->m_ehdr->e_entry);
-
-    if(this->isARM() && (e & 1))
-    {
-        e &= ~1;
-        RDContext_SetAddressAssembler(ctx, e, this->endianness() == Endianness_Big ? "thumbbe" : "thumble");
-    }
-
-    RDDocument_SetEntry(doc, e);
+    rd_address ep = ELF_LDR_VAL(this->m_ehdr->e_entry);
+    this->checkArchitecture(ep);
+    RDDocument_SetEntry(doc, ep);
 }
 
 template<size_t bits>
@@ -299,13 +293,19 @@ void ElfLoaderT<bits>::readDynamic(const ElfLoaderT::PHDR* phdr, RDDocument* doc
                 RDDocument_SetData(doc, value, bits / CHAR_BIT, "_GLOBAL_OFFSET_TABLE_");
                 break;
 
-            case DT_INIT:
-                RDDocument_SetFunction(doc, value, RD_MakeLabel(value, "sub_init"));
+            case DT_INIT: {
+                rd_address initaddress = static_cast<rd_address>(value);
+                this->checkArchitecture(initaddress);
+                RDDocument_SetFunction(doc, initaddress, RD_MakeLabel(initaddress, "sub_init"));
                 break;
+            }
 
-            case DT_FINI:
-                RDDocument_SetFunction(doc, value, RD_MakeLabel(value, "sub_fini"));
+            case DT_FINI: {
+                rd_address finiaddress = static_cast<rd_address>(value);
+                this->checkArchitecture(finiaddress);
+                RDDocument_SetFunction(doc, finiaddress, RD_MakeLabel(finiaddress, "sub_fini"));
                 break;
+            }
 
             default:
                 break;
@@ -341,8 +341,10 @@ void ElfLoaderT<bits>::checkMappedSegment(const SHDR* shdr, RDDocument* doc)
     }
 
     if(flags == SegmentFlags_None) return;
-    const char* name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
-    RDDocument_SetSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
+
+    std::string name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
+    if(name == ".text") flags |= SegmentFlags_Data; // Always add 'DATA' flag for '.text' segments
+    RDDocument_SetSegment(doc, name.c_str(), ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
 }
 
 template<size_t bits>
@@ -370,7 +372,10 @@ void ElfLoaderT<bits>::readArray(RDDocument* doc, UVAL address, UVAL size, SVAL 
         if(!loc.valid) continue;
 
         RDDocument_SetPointer(doc, loc.address, rd_makelabel(loc.address, "ptr_" + prefix));
-        RDDocument_SetFunction(doc, val, rd_makelabel(loc.address, "sub_" + prefix));
+
+        rd_address funcaddress = static_cast<rd_address>(val);
+        this->checkArchitecture(funcaddress);
+        RDDocument_SetFunction(doc, funcaddress, rd_makelabel(funcaddress, "sub_" + prefix));
     }
 }
 
@@ -420,21 +425,20 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
         const char* symname = ELF_STRING(shstr, ELF_LDR_VAL(sym->st_name));
         if(!symname) continue;
 
-        auto symvalue = ELF_LDR_VAL(sym->st_value);
+        rd_address symvalue = ELF_LDR_VAL(sym->st_value);
         auto symtype = ELF_ST_TYPE(ELF_LDR_VAL(sym->st_info));
         auto bind = ELF_ST_BIND(ELF_LDR_VAL(sym->st_info));
 
         switch(symtype)
         {
-            case STT_FUNC:
-            {
+            case STT_FUNC: {
+                this->checkArchitecture(symvalue);
                 if(bind == STB_GLOBAL) RDDocument_SetExportedFunction(doc, symvalue, symname);
                 else RDDocument_SetFunction(doc, symvalue, symname);
                 break;
             }
 
-            case STT_OBJECT:
-            {
+            case STT_OBJECT: {
                 auto sz = ELF_LDR_VAL(sym->st_size);
                 if(!sz) sz = bits / CHAR_BIT;
 
@@ -445,6 +449,16 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
 
             default: break;
         }
+    }
+}
+
+template<size_t bits>
+void ElfLoaderT<bits>::checkArchitecture(rd_address& address)
+{
+    if(this->isARM() && (address & 1))
+    {
+        address &= ~1ull;
+        RDContext_SetAddressAssembler(m_context, address, this->endianness() == Endianness_Big ? "thumbbe" : "thumble");
     }
 }
 
