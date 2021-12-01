@@ -342,9 +342,8 @@ void ElfLoaderT<bits>::checkMappedSegment(const SHDR* shdr, RDDocument* doc)
 
     if(flags == SegmentFlags_None) return;
 
-    std::string name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
-    if(name == ".text") flags |= SegmentFlags_Data; // Always add 'DATA' flag for '.text' segments
-    RDDocument_SetSegment(doc, name.c_str(), ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
+    auto name = ELF_STRING(&shstr, ELF_LDR_VAL(shdr->sh_name));
+    RDDocument_SetSegment(doc, name, ELF_LDR_VAL(shdr->sh_offset), ELF_LDR_VAL(shdr->sh_addr), ELF_LDR_VAL(shdr->sh_size), flags);
 }
 
 template<size_t bits>
