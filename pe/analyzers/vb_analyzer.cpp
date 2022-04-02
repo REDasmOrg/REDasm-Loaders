@@ -23,14 +23,11 @@ void VBAnalyzer::analyze()
     if(RDILExpression_Type(pushexpr) != RDIL_Push) return;
     if(RDILExpression_Type(callexpr) != RDIL_Call) return;
 
-    auto* argexpr = RDILExpression_Extract(pushexpr, "u:cnst");
-    if(!argexpr) return;
+    const RDILValue* values = nullptr;
+    if(size_t n = RDILExpression_ExtractNew(pushexpr, &values); n != 1) return;
 
-    RDILValue v;
-    if(!RDILExpression_GetValue(argexpr, &v)) return;
-
-    if(!RDDocument_AddressToSegment(doc, v.address, nullptr)) return;
-    if(!this->decompile(v.address)) return;
+    if(!RDDocument_AddressToSegment(doc, values[0].address, nullptr)) return;
+    if(!this->decompile(values[0].address)) return;
 }
 
 void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& name)
@@ -49,15 +46,13 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     if(RDILExpression_Type(copyexpr) != RDIL_Copy) return;
     if(!RDILExpression_Match(gotoexpr, "goto cnst")) return;
 
-    auto* eventexpr = RDILExpression_Extract(gotoexpr, "u:cnst");
-    if(!eventexpr) return;
+    const RDILValue* values = nullptr;
+    if(size_t n = RDILExpression_ExtractNew(gotoexpr, &values); n != 1) return;
 
-    RDILValue val;
-    if(!RDILExpression_GetValue(eventexpr, &val)) return;
-    if(!RDDocument_AddressToSegment(doc, val.address, nullptr)) return;
+    if(!RDDocument_AddressToSegment(doc, values[0].address, nullptr)) return;
 
-    rd_statusaddress("Decoding" + name, val.address);
-    RDDocument_CreateFunction(doc, val.address, name.c_str());
+    rd_statusaddress("Decoding" + name, values[0].address);
+    RDDocument_CreateFunction(doc, values[0].address, name.c_str());
 }
 
 void VBAnalyzer::decompileObject(const VBPublicObjectDescriptor &pubobjdescr)

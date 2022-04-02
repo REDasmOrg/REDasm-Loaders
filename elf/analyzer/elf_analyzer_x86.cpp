@@ -11,7 +11,14 @@ ElfAnalyzerX86::ElfAnalyzerX86(RDContext* ctx): ElfAnalyzer(ctx) { }
 void ElfAnalyzerX86::analyze()
 {
     ElfAnalyzer::analyze();
-    this->parsePlt();
+
+    this->walkPlt([this](rd_address address) {
+        switch(m_loader->machine()) {
+            case EM_386: this->checkPLT32(m_document, address); break;
+            case EM_X86_64: this->checkPLT64(m_document, address); break;
+            default: rd_log("Unhandled machine '" + rd_tohex(m_loader->machine()) + "'"); break;
+        }
+    });
 }
 
 void ElfAnalyzerX86::findMain(rd_address address)
@@ -21,33 +28,6 @@ void ElfAnalyzerX86::findMain(rd_address address)
         case EM_386: this->findMain32(address); break;
         case EM_X86_64: this->findMain64(address); break;
         default: rd_log("Unsupported machine: " + rd_tohex(m_loader->machine()) + ", cannot find main"); break;
-    }
-}
-
-void ElfAnalyzerX86::parsePlt()
-{
-    const u8* pltbase = m_loader->plt();
-    if(!pltbase) return;
-
-    const rd_address* addresses = nullptr;
-    size_t c = RDDocument_GetFunctions(m_document, &addresses);
-
-    for(size_t i = 0; i < c; i++)
-    {
-        if(!RDSegment_ContainsAddress(&m_segment, addresses[i]))
-        {
-            if(!RDDocument_AddressToSegment(m_document, addresses[i], &m_segment))
-                continue;
-        }
-
-        if(std::strcmp(".plt", m_segment.name)) continue;
-
-        switch(m_loader->machine())
-        {
-            case EM_386: this->checkPLT32(m_document, addresses[i]); break;
-            case EM_X86_64: this->checkPLT64(m_document, addresses[i]); break;
-            default: rd_log("Unhandled machine '" + rd_tohex(m_loader->machine()) + "'"); break;
-        }
     }
 }
 
@@ -64,11 +44,11 @@ void ElfAnalyzerX86::findMain32(rd_address address)
         const auto* e = RDILFunction_GetExpression(il.get(), i);
         if(!RDILExpression_Match(e, "push(cnst)")) continue;
 
-        const auto* ve = RDILExpression_Extract(e, "u:cnst");
+        const RDILValue* values = nullptr;
 
-        RDILValue v;
-        if(!RDILExpression_GetValue(ve, &v)) continue;
-        pushcexpr.push_back(v.address);
+        size_t n = RDILExpression_ExtractNew(e, &values);
+        if(!n || values[0].type != RDIL_Cnst) continue;
+        pushcexpr.push_back(values[0].address);
     }
 
     if(pushcexpr.size() != EP_NAMES.size())
@@ -97,13 +77,9 @@ void ElfAnalyzerX86::findMain64(rd_address address)
         const auto* e = RDILFunction_GetExpression(il.get(), i);
         if(!RDILExpression_Match(e, "reg = cnst")) continue;
 
-        const auto* regel = RDILExpression_Extract(e, "left:reg");
-        const auto* cnstel = RDILExpression_Extract(e, "right:cnst");
-
-        RDILValue regv, cnstv;
-        if(!RDILExpression_GetValue(regel, &regv)) continue;
-        if(!RDILExpression_GetValue(cnstel, &cnstv)) continue;
-        assignexpr[regv.reg] = cnstv.address;
+        const RDILValue* values = nullptr;
+        size_t n = RDILExpression_ExtractNew(e, &values);
+        if(n == 2) assignexpr[values[0].reg] = values[1].address;
     }
 
     if(assignexpr.size() != EP_NAMES.size())
@@ -121,14 +97,11 @@ void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)
     const auto* fil = RDILFunction_GetFirstExpression(il.get());
     if(!RDILExpression_Match(fil, "goto [reg + cnst]")) return;
 
-    const auto* regel = RDILExpression_Extract(fil, "u:mem/u:add/left:reg");
-    const auto* idxel = RDILExpression_Extract(fil, "u:mem/u:add/right:cnst");
+    const RDILValue* values = nullptr;
+    size_t n = RDILExpression_ExtractNew(fil, &values);
+    if(n != 2 || std::strcmp(values[0].reg, "ebx")) return;
 
-    RDILValue regval, idxval;
-    if(!RDILExpression_GetValue(regel, &regval) || std::strcmp(regval.reg, "ebx")) return;
-    if(!RDILExpression_GetValue(idxel, &idxval)) return;
-
-    auto name = m_loader->abi()->plt(idxval.u_value);
+    auto name = m_loader->abi()->plt(values[1].u_value);
     if(name) RDDocument_SetFunction(doc, funcaddress, RD_Thunk(name->c_str()));
 }
 

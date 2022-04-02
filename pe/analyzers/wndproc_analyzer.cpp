@@ -1,7 +1,6 @@
 #include "wndproc_analyzer.h"
 #include "../pe_utils.h"
 #include "../pe.h"
-#include <deque>
 
 #define IMPORT_NAME(library, name)    PEUtils::importName(library, name)
 #define IMPORT_THUNK(library, name)   RD_Thunk(IMPORT_NAME(library, name).c_str())
@@ -54,45 +53,36 @@ size_t WndProcAnalyzer::getAPIReferences(const std::string& library, const std::
 
 void WndProcAnalyzer::findWndProc(rd_address refaddress, size_t argidx)
 {
+    rd_ptr<RDILExpression> e(RDILExpression_Create(m_context, refaddress));
+    if(!e || RDILExpression_Type(e.get()) != RDIL_Call) return;
+
+    const RDNet* net = RDContext_GetNet(m_context);
+    std::vector<RDILValue> args;
+
+    const auto* node = RDNet_FindNode(net, refaddress);
+    if(!node) return;
+
     RDDocument* doc = RDContext_GetDocument(m_context);
-    auto loc = RDDocument_GetFunctionStart(doc, refaddress);
-    if(!loc.valid) return;
 
-    rd_ptr<RDILFunction> il(RDILFunction_Create(m_context, loc.address));
-    if(!il) return;
-
-    size_t c = RDILFunction_Size(il.get());
-    std::deque<const RDILExpression*> args;
-
-
-    for(size_t i = 0; i < c; i++)
+    for(node = RDNet_GetPrevNode(net, node); node; node = RDNet_GetPrevNode(net, node))
     {
-        const RDILExpression* e = RDILFunction_GetExpression(il.get(), i);
-        if(RDILExpression_Type(e) == RDIL_Push) args.push_front(RDILExpression_Extract(e, "u:*"));
+        e.reset(RDILExpression_Create(m_context, RDNetNode_GetAddress(node)));
+        if(!e) return;
+        if(RDILExpression_Type(e.get()) != RDIL_Push) continue;
 
-        if(RDILExpression_Type(e) == RDIL_Call)
-        {
-            rd_address address;
+        const RDILValue* values = nullptr;
+        if(size_t n = RDILExpression_ExtractNew(e.get(), &values); n >= 1) args.push_back(values[0]);
+        else return;
 
-            if(RDILFunction_GetAddress(il.get(), e, &address) && (address == refaddress) && (argidx < args.size()))
-            {
-                const RDILExpression* wndproc = args[argidx];
+        if(args.size() < argidx + 1) continue;
+        else if(args.size() > argidx + 1) break;
 
-                if(RDILExpression_Type(wndproc) == RDIL_Cnst)
-                {
-                    RDILValue v;
+        RDSegment segment;
+        const RDILValue& wndproc = args.back();
 
-                    if(RDILExpression_GetValue(wndproc, &v))
-                    {
-                        RDSegment segment;
+        if(RDDocument_AddressToSegment(doc, wndproc.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
+            RDDocument_CreateFunction(doc, wndproc.address, ("DlgProc_" + rd_tohexauto(m_context, wndproc.address)).c_str());
 
-                        if(RDDocument_AddressToSegment(doc, v.address, &segment) && HAS_FLAG(&segment, SegmentFlags_Code))
-                            RDDocument_CreateFunction(doc, v.address, (std::string("DlgProc_") + RD_ToHexAuto(m_context, v.address)).c_str());
-                    }
-                }
-            }
-
-            args.clear();
-        }
+        break;
     }
 }

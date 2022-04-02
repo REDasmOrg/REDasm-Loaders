@@ -1,6 +1,7 @@
 #include "elf.h"
 #include "elf_abi.h"
 #include "analyzer/elf_analyzer_x86.h"
+#include "analyzer/elf_analyzer_arm.h"
 #include <climits>
 #include <memory>
 
@@ -500,6 +501,21 @@ void rdplugin_init(RDContext*, RDPluginModule* pm)
     elf.load = &ElfLoader::load;
     RDLoader_Register(pm, &elf);
 
+    RD_PLUGIN_ENTRY(RDEntryAnalyzer, elfabi_arm32, "ARM ABI Analyzer");
+    elfabi_arm32.description = "Analyze ARM specific information";
+    elfabi_arm32.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
+    elfabi_arm32.order = 1000;
+
+    elfabi_arm32.isenabled = [](const RDContext* ctx) -> bool {
+        auto* elfloader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
+        return elfloader && (elfloader->machine() == EM_ARM || elfloader->machine() == EM_AARCH64);
+    };
+
+    elfabi_arm32.execute = [](RDContext* ctx) {
+        ElfAnalyzer_ARM a(ctx);
+        a.analyze();
+    };
+
     RD_PLUGIN_ENTRY(RDEntryAnalyzer, elfabi_x86, "x86 ABI Analyzer");
     elfabi_x86.description = "Analyze x86 specific information";
     elfabi_x86.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
@@ -507,9 +523,7 @@ void rdplugin_init(RDContext*, RDPluginModule* pm)
 
     elfabi_x86.isenabled = [](const RDContext* ctx) -> bool {
         auto* elfloader = reinterpret_cast<ElfLoader*>(RDContext_GetUserData(ctx, ELFLOADER_USERDATA));
-        if(!elfloader) return false;
-        if((elfloader->machine() == EM_386) || (elfloader->machine() == EM_X86_64)) return true;
-        return false;
+        return elfloader && (elfloader->machine() == EM_386 || elfloader->machine() == EM_X86_64);
     };
 
     elfabi_x86.execute = [](RDContext* ctx) {
@@ -517,6 +531,7 @@ void rdplugin_init(RDContext*, RDPluginModule* pm)
         a.analyze();
     };
 
+    RDAnalyzer_Register(pm, &elfabi_arm32);
     RDAnalyzer_Register(pm, &elfabi_x86);
 }
 
