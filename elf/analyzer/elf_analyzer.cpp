@@ -37,7 +37,6 @@ void ElfAnalyzer::walkPlt(PltCallback&& cb)
                 continue;
         }
 
-        if(std::strcmp(".plt", segment.name)) continue;
-        cb(addresses[i]);
+        if(RD_StrEquals(".plt", segment.name)) cb(addresses[i]);
     }
 }

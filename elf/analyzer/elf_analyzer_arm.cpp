@@ -5,8 +5,6 @@ ElfAnalyzer_ARM::ElfAnalyzer_ARM(RDContext* ctx): ElfAnalyzer(ctx) { }
 
 void ElfAnalyzer_ARM::analyze()
 {
-    ElfAnalyzer::analyze();
-
     this->walkPlt([this](rd_address address) {
         switch(m_loader->machine()) {
             case EM_ARM: this->checkPLT32(m_document, address); break;
@@ -14,6 +12,8 @@ void ElfAnalyzer_ARM::analyze()
             default: rd_log("Unhandled machine '" + rd_tohex(m_loader->machine()) + "'"); break;
         }
     });
+
+    ElfAnalyzer::analyze();
 }
 
 void ElfAnalyzer_ARM::findMain(rd_address address)
@@ -50,7 +50,7 @@ void ElfAnalyzer_ARM::checkPLT32(RDDocument* doc, rd_address funcaddress)
     if(flags & AddressFlags_Imported)
     {
         const char* lbl = RDDocument_GetLabel(doc, address);
-        if(lbl) RDDocument_UpdateLabel(doc, funcaddress, (lbl + std::string("@plt")).c_str());
+        if(lbl) RDDocument_UpdateLabel(doc, funcaddress, (std::string("plt_") + lbl).c_str());
     }
 }
 

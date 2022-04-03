@@ -102,7 +102,7 @@ void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)
     if(n != 2 || std::strcmp(values[0].reg, "ebx")) return;
 
     auto name = m_loader->abi()->plt(values[1].u_value);
-    if(name) RDDocument_SetFunction(doc, funcaddress, RD_Thunk(name->c_str()));
+    if(name) RDDocument_SetFunction(doc, funcaddress, (*name + "@plt").c_str());
 }
 
 void ElfAnalyzerX86::checkPLT64(RDDocument* doc, rd_address funcaddress)
