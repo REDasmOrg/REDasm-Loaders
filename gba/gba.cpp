@@ -22,7 +22,7 @@
 
 #define GBA_SEGMENT_AREA(name) GBA_##name##_START_ADDR, GBA_##name##_SIZE
 
-const char* GbaLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* request)
+const char* GbaLoader::test(const RDLoaderRequest* request)
 {
     auto* header = reinterpret_cast<GbaRomHeader*>(RDBuffer_Data(request->buffer));
     if(header->fixed_val != 0x96) return nullptr;
@@ -34,19 +34,18 @@ const char* GbaLoader::test(const RDLoaderPlugin*, const RDLoaderRequest* reques
     return "arm32le";
 }
 
-bool GbaLoader::load(RDLoaderPlugin*, RDLoader* loader)
+bool GbaLoader::load(RDContext* ctx)
 {
-    RDDocument* doc = RDLoader_GetDocument(loader);
-    RDBuffer* buffer = RDLoader_GetBuffer(loader);
+    RDDocument* doc = RDContext_GetDocument(ctx);
 
-    RDDocument_AddSegment(doc, "EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "IWRAM", 0, GBA_SEGMENT_AREA(IWRAM), SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "IOREG", 0, GBA_SEGMENT_AREA(IOREG), SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "PALETTE", 0, GBA_SEGMENT_AREA(PALETTE), SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "VRAM", 0, GBA_SEGMENT_AREA(VRAM), SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "OAM", 0, GBA_SEGMENT_AREA(OAM), SegmentFlags_Bss);
-    RDDocument_AddSegment(doc, "ROM", 0, GBA_ROM_START_ADDR, RDBuffer_Size(buffer), SegmentFlags_CodeData);
-    RDDocument_SetEntry(doc, GbaLoader::getEP(buffer));
+    RDDocument_SetSegment(doc, "EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "IWRAM", 0, GBA_SEGMENT_AREA(IWRAM), SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "IOREG", 0, GBA_SEGMENT_AREA(IOREG), SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "PALETTE", 0, GBA_SEGMENT_AREA(PALETTE), SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "VRAM", 0, GBA_SEGMENT_AREA(VRAM), SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "OAM", 0, GBA_SEGMENT_AREA(OAM), SegmentFlags_Bss);
+    RDDocument_SetSegment(doc, "ROM", 0, GBA_ROM_START_ADDR, RDContext_GetBufferSize(ctx), SegmentFlags_CodeData);
+    RDDocument_SetEntry(doc, GbaLoader::getEP(ctx));
     return true;
 }
 
@@ -66,9 +65,9 @@ bool GbaLoader::isUppercaseAscii(const char *s, size_t c)
     return true;
 }
 
-u32 GbaLoader::getEP(RDBuffer* buffer)
+u32 GbaLoader::getEP(RDContext* ctx)
 {
-    u32 b = (*reinterpret_cast<u32*>(RDBuffer_Data(buffer)) & 0x00FFFFFF) << 2;
+    u32 b = (*reinterpret_cast<u32*>(RDContext_GetBufferData(ctx)) & 0x00FFFFFF) << 2;
     return GBA_ROM_START_ADDR + (b + 8);
 }
 
@@ -83,10 +82,10 @@ u8 GbaLoader::calculateChecksum(RDBuffer* buffer)
     return checksum - 0x19;
 }
 
-void redasm_entry()
+void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
-    RD_PLUGIN_CREATE(RDLoaderPlugin, gba, "GameBoy Advance ROM");
+    RD_PLUGIN_ENTRY(RDEntryLoader, gba, "GameBoy Advance ROM");
     gba.test = &GbaLoader::test;
     gba.load = &GbaLoader::load;
-    RDLoader_Register(&gba);
+    RDLoader_Register(pm, &gba);
 }

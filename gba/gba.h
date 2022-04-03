@@ -32,11 +32,11 @@ struct GbaRomHeader // From: http://problemkaputt.de/gbatek.htm#gbacartridgehead
 class GbaLoader
 {
     public:
-        static const char* test(const RDLoaderPlugin*, const RDLoaderRequest* request);
-        static bool load(RDLoaderPlugin*, RDLoader* loader);
+        static const char* test(const RDLoaderRequest* request);
+        static bool load(RDContext* ctx);
 
     public:
         static bool isUppercaseAscii(const char* s, size_t c);
         static u8 calculateChecksum(RDBuffer* buffer);
-        static u32 getEP(RDBuffer* buffer);
+        static u32 getEP(RDContext* ctx);
 };
