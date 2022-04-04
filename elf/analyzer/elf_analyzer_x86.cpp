@@ -46,7 +46,7 @@ void ElfAnalyzerX86::findMain32(rd_address address)
 
         const RDILValue* values = nullptr;
 
-        size_t n = RDILExpression_ExtractNew(e, &values);
+        size_t n = RDILExpression_Extract(e, &values);
         if(!n || values[0].type != RDIL_Cnst) continue;
         pushcexpr.push_back(values[0].address);
     }
@@ -78,7 +78,7 @@ void ElfAnalyzerX86::findMain64(rd_address address)
         if(!RDILExpression_Match(e, "reg = cnst")) continue;
 
         const RDILValue* values = nullptr;
-        size_t n = RDILExpression_ExtractNew(e, &values);
+        size_t n = RDILExpression_Extract(e, &values);
         if(n == 2) assignexpr[values[0].reg] = values[1].address;
     }
 
@@ -98,7 +98,7 @@ void ElfAnalyzerX86::checkPLT32(RDDocument* doc, rd_address funcaddress)
     if(!RDILExpression_Match(fil, "goto [reg + cnst]")) return;
 
     const RDILValue* values = nullptr;
-    size_t n = RDILExpression_ExtractNew(fil, &values);
+    size_t n = RDILExpression_Extract(fil, &values);
     if(n != 2 || std::strcmp(values[0].reg, "ebx")) return;
 
     auto name = m_loader->abi()->plt(values[1].u_value);

@@ -24,7 +24,7 @@ void VBAnalyzer::analyze()
     if(RDILExpression_Type(callexpr) != RDIL_Call) return;
 
     const RDILValue* values = nullptr;
-    if(size_t n = RDILExpression_ExtractNew(pushexpr, &values); n != 1) return;
+    if(size_t n = RDILExpression_Extract(pushexpr, &values); n != 1) return;
 
     if(!RDDocument_AddressToSegment(doc, values[0].address, nullptr)) return;
     if(!this->decompile(values[0].address)) return;
@@ -47,7 +47,7 @@ void VBAnalyzer::disassembleTrampoline(rd_address eventva, const std::string& na
     if(!RDILExpression_Match(gotoexpr, "goto cnst")) return;
 
     const RDILValue* values = nullptr;
-    if(size_t n = RDILExpression_ExtractNew(gotoexpr, &values); n != 1) return;
+    if(size_t n = RDILExpression_Extract(gotoexpr, &values); n != 1) return;
 
     if(!RDDocument_AddressToSegment(doc, values[0].address, nullptr)) return;
 
