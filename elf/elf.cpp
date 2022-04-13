@@ -435,7 +435,7 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
                 this->checkArchitecture(symvalue);
                 if(bind == STB_GLOBAL) RDDocument_SetExportedFunction(doc, symvalue, symname);
                 else RDDocument_SetFunction(doc, symvalue, symname);
-                break;
+                continue;
             }
 
             case STT_OBJECT: {
@@ -444,10 +444,18 @@ void ElfLoaderT<bits>::readSymbols(RDDocument* doc, const ElfLoaderT::SHDR* shdr
 
                 if(bind == STB_GLOBAL) RDDocument_SetExported(doc, symvalue, sz, symname);
                 else RDDocument_SetData(doc, symvalue, sz, symname);
-                break;
+                continue;
             }
 
             default: break;
+        }
+
+        if(this->machine() == EM_ARM && symtype == STT_ARM_TFUNC)
+        {
+            symvalue &= ~1ull;
+            RDContext_SetAddressAssembler(m_context, symvalue, this->endianness() == Endianness_Big ? "thumbbe" : "thumble");
+            if(bind == STB_GLOBAL) RDDocument_SetExportedFunction(doc, symvalue, symname);
+            else RDDocument_SetFunction(doc, symvalue, symname);
         }
     }
 }
@@ -460,14 +468,12 @@ void ElfLoaderT<bits>::checkArchitecture(rd_address& address)
         address &= ~1ull;
         RDContext_SetAddressAssembler(m_context, address, this->endianness() == Endianness_Big ? "thumbbe" : "thumble");
     }
+    else
+        RDContext_SetAddressAssembler(m_context, address, this->assembler());
 }
 
 template<size_t bits>
-bool ElfLoaderT<bits>::isARM() const
-{
-    auto m = ELF_LDR_VAL(this->m_ehdr->e_machine);
-    return (m == EM_AARCH64) || (m == EM_ARM);
-}
+bool ElfLoaderT<bits>::isARM() const { return (this->machine() == EM_AARCH64) || (this->machine() == EM_ARM); }
 
 template<size_t bits>
 bool ElfLoaderT<bits>::findSegments(const ElfLoaderT<bits>::PHDR* phdr, std::vector<const SHDR*>& segments) const

@@ -382,6 +382,10 @@
 #define STT_FILE        4
 #define STT_COMMON      5
 #define STT_TLS         6
+#define STT_LOPROC	    13
+#define STT_HIPROC	    15
+
+#define STT_ARM_TFUNC   STT_LOPROC
 
 #define STV_DEFAULT     0
 #define STV_INTERNAL    1

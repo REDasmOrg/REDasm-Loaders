@@ -13,6 +13,7 @@
  * Symbol Table:
  *   - https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html#chapter6-79797
  *   - https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.symtab.html
+ *   - https://github.com/bminor/binutils-gdb/blob/master/binutils/readelf.c
  *
  * Segment Header:
  *   - https://docs.oracle.com/cd/E19683-01/816-1386/chapter6-94076/index.html
