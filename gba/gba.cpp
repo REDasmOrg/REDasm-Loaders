@@ -1,4 +1,5 @@
 #include "gba.h"
+#include "analyzers/crt0_analyzer.h"
 #include <cstring>
 #include <cctype>
 
@@ -36,6 +37,7 @@ const char* GbaLoader::test(const RDLoaderRequest* request)
 
 bool GbaLoader::load(RDContext* ctx)
 {
+    auto* header = reinterpret_cast<GbaRomHeader*>(RDContext_GetBufferData(ctx));
     RDDocument* doc = RDContext_GetDocument(ctx);
 
     RDDocument_SetSegment(doc, "EWRAM", 0, GBA_SEGMENT_AREA(EWRAM), SegmentFlags_Bss);
@@ -45,30 +47,50 @@ bool GbaLoader::load(RDContext* ctx)
     RDDocument_SetSegment(doc, "VRAM", 0, GBA_SEGMENT_AREA(VRAM), SegmentFlags_Bss);
     RDDocument_SetSegment(doc, "OAM", 0, GBA_SEGMENT_AREA(OAM), SegmentFlags_Bss);
     RDDocument_SetSegment(doc, "ROM", 0, GBA_ROM_START_ADDR, RDContext_GetBufferSize(ctx), SegmentFlags_CodeData);
-    RDDocument_SetEntry(doc, GbaLoader::getEP(ctx));
+    RDDocument_SetEntry(doc, GbaLoader::parseAddress(header->entry_point));
+
+    GbaLoader::createHeaderType(ctx);
+
+    std::string gametitle{header->game_title}, gamecode{header->game_code};
+    if(!gametitle.empty() && !gamecode.empty()) rd_log("Loaded: '" + gametitle + "', code '" + gamecode + "'");
     return true;
+}
+
+void GbaLoader::createHeaderType(RDContext* ctx)
+{
+    rd_ptr<RDType> gbaheader(RDType_CreateStructure("GBAHeader"));
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(4, false), "entry_point");
+    RDStructure_Append(gbaheader.get(), RDType_CreateArray(GBA_NINTENDO_LOGO_SIZE, RDType_CreateInt(1, false)), "nintendo_logo");
+    RDStructure_Append(gbaheader.get(), RDType_CreateAsciiString(GBA_GAME_TITLE_SIZE), "game_title");
+    RDStructure_Append(gbaheader.get(), RDType_CreateAsciiString(GBA_GAME_CODE_SIZE), "game_code");
+    RDStructure_Append(gbaheader.get(), RDType_CreateAsciiString(GBA_MAKER_CODE_SIZE), "maker_code");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(1, false), "fixed_val");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(1, false), "main_unit_code");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(1, false), "device_type");
+    RDStructure_Append(gbaheader.get(), RDType_CreateArray(7, RDType_CreateInt(1, false)), "reserved_area");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(1, false), "software_version");
+    RDStructure_Append(gbaheader.get(), RDType_CreateArray(2, RDType_CreateInt(1, false)), "reserved_area_2");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(4, false), "ram_entry_point");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(1, false), "boot_mode");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(1, false), "slave_id");
+    RDStructure_Append(gbaheader.get(), RDType_CreateArray(26, RDType_CreateInt(1, false)), "unused");
+    RDStructure_Append(gbaheader.get(), RDType_CreateInt(4, false), "joybus_entry_point");
+
+    //RDDocument* doc = RDContext_GetDocument(ctx);
+    //RDDocument_SetType(doc, GBA_ROM_START_ADDR, gbaheader.get());
 }
 
 bool GbaLoader::isUppercaseAscii(const char *s, size_t c)
 {
-    for(size_t i = 0; i < c; i++)
+    for(size_t i = 0; s[i] && i < c; i++)
     {
-        if(std::isupper(s[i]) || std::ispunct(s[i]) || std::isdigit(s[i]))
+        if(std::isupper(s[i]) || std::ispunct(s[i]) || std::isdigit(s[i]) || std::isspace(s[i]))
             continue;
-
-        if(!s[i] && i) // Reached '\0'
-            break;
 
         return false;
     }
 
     return true;
-}
-
-u32 GbaLoader::getEP(RDContext* ctx)
-{
-    u32 b = (*reinterpret_cast<u32*>(RDContext_GetBufferData(ctx)) & 0x00FFFFFF) << 2;
-    return GBA_ROM_START_ADDR + (b + 8);
 }
 
 u8 GbaLoader::calculateChecksum(RDBuffer* buffer)
@@ -82,10 +104,33 @@ u8 GbaLoader::calculateChecksum(RDBuffer* buffer)
     return checksum - 0x19;
 }
 
+u32 GbaLoader::parseAddress(u32 opcode)
+{
+    u32 b = (opcode & 0x00FFFFFF) << 2;
+    return GBA_ROM_START_ADDR + (b + 8);
+}
+
 void rdplugin_init(RDContext*, RDPluginModule* pm)
 {
     RD_PLUGIN_ENTRY(RDEntryLoader, gba, "GameBoy Advance ROM");
     gba.test = &GbaLoader::test;
     gba.load = &GbaLoader::load;
     RDLoader_Register(pm, &gba);
+
+    RD_PLUGIN_ENTRY(RDEntryAnalyzer, gba_crt0, "Analyze CRT0");
+    gba_crt0.description = "Analyze CRT0 Instructions";
+    gba_crt0.flags = AnalyzerFlags_Selected | AnalyzerFlags_RunOnce;
+    gba_crt0.order = 1000;
+
+    gba_crt0.isenabled = [](const RDContext* ctx) -> bool {
+        auto* loader = RDContext_GetLoader(ctx);
+        return loader && RD_StrEquals(RDLoader_GetId(loader), "gba");
+    };
+
+    gba_crt0.execute = [](RDContext* ctx) {
+        Crt0Analyzer crt0a(ctx);
+        crt0a.execute();
+    };
+
+    RDAnalyzer_Register(pm, &gba_crt0);
 }

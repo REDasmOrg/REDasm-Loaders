@@ -35,8 +35,10 @@ class GbaLoader
         static const char* test(const RDLoaderRequest* request);
         static bool load(RDContext* ctx);
 
-    public:
+    private:
+        static void createHeaderType(RDContext* ctx);
         static bool isUppercaseAscii(const char* s, size_t c);
         static u8 calculateChecksum(RDBuffer* buffer);
-        static u32 getEP(RDContext* ctx);
+        static u32 parseAddress(u32 opcode);
+
 };
