@@ -1,4 +1,5 @@
 #include "pe_imports.h"
+#include <algorithm>
 #include <filesystem>
 
 namespace fs = std::filesystem;
